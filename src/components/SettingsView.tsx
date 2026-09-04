@@ -1,0 +1,364 @@
+import React, { useRef, useState } from 'react';
+import {
+  Moon,
+  Sun,
+  Volume2,
+  VolumeX,
+  Vibrate,
+  Smartphone,
+  Download,
+  Upload,
+  RotateCcw,
+  CheckCircle,
+  HelpCircle,
+  Share,
+  Timer,
+  LogOut,
+} from 'lucide-react';
+import { UserSettings } from '../types';
+import { StorageService } from '../services/storage';
+
+interface SettingsViewProps {
+  settings: UserSettings;
+  onUpdateSettings: (newSettings: UserSettings) => void;
+  onResetData: () => void;
+  userEmail?: string;
+  onLogout?: () => void;
+}
+
+export const SettingsView: React.FC<SettingsViewProps> = ({
+  settings,
+  onUpdateSettings,
+  onResetData,
+  userEmail,
+  onLogout,
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+
+  const handleExport = () => {
+    const jsonStr = StorageService.exportData();
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ironlog_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        const ok = StorageService.importData(content);
+        if (ok) {
+          setImportStatus('הנתונים שוחזרו בהצלחה! מרענן...');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          setImportStatus('שגיאה בייבוא הקובץ. אנא ודא שזהו קובץ גיבוי תקין.');
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const restTimeOptions = [45, 60, 90, 120, 150, 180];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Header */}
+      <div>
+        <h2 style={{ fontSize: '1.3rem', fontWeight: 800 }}>הגדרות והתקנה</h2>
+        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+          התאמה אישית של האפליקציה, גיבוי נתונים ומדריך התקנה לאייפון
+        </p>
+      </div>
+
+      {/* Guide: How to install on iPhone */}
+      <div
+        className="ios-card"
+        style={{
+          background: 'linear-gradient(135deg, rgba(110, 124, 245, 0.15), var(--color-purple-bg))',
+          border: '1px solid rgba(110, 124, 245, 0.35)',
+          padding: '16px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <Smartphone size={20} color="var(--color-blue)" />
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800 }}>איך להתקין על האייפון שלך? 📱</h3>
+        </div>
+
+        <p style={{ fontSize: '0.82rem', color: 'var(--text-main)', lineHeight: 1.45, marginBottom: 12 }}>
+          האפליקציה פועלת כאפליקציית PWA עצמאית ללא צורך בחנות האפליקציות:
+        </p>
+
+        <ol style={{ fontSize: '0.8rem', color: 'var(--text-main)', paddingRight: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <li>
+            פתח את הקישור בדפדפן <strong>Safari</strong> באייפון שלך.
+          </li>
+          <li>
+            לחץ על כפתור השיתוף בתחתית המסך (<Share size={13} style={{ display: 'inline', verticalAlign: 'middle' }} /> ריבוע עם חץ כלפי מעלה).
+          </li>
+          <li>
+            גלול בתפריט ולחץ על <strong>"הוסף למסך הבית" (Add to Home Screen)</strong>.
+          </li>
+          <li>
+            זהו! האפליקציה תופיע במסך הבית עם אייקון אמיתי ותרוץ במסך מלא חלק.
+          </li>
+        </ol>
+      </div>
+
+      {/* App Preferences */}
+      <div className="ios-card" style={{ padding: '16px' }}>
+        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 14 }}>העדפות אימון</h3>
+
+        {/* Theme Toggle */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {settings.theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
+            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>ערכת נושא</span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 4, background: 'var(--bg-surface-2)', padding: 3, borderRadius: 'var(--radius-full)' }}>
+            <button
+              onClick={() => onUpdateSettings({ ...settings, theme: 'dark' })}
+              style={{
+                background: settings.theme === 'dark' ? 'var(--color-blue)' : 'transparent',
+                color: settings.theme === 'dark' ? '#fff' : 'var(--text-muted)',
+                border: 'none',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              כהה (חדר כושר)
+            </button>
+            <button
+              onClick={() => onUpdateSettings({ ...settings, theme: 'light' })}
+              style={{
+                background: settings.theme === 'light' ? 'var(--color-blue)' : 'transparent',
+                color: settings.theme === 'light' ? '#fff' : 'var(--text-muted)',
+                border: 'none',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              בהיר
+            </button>
+          </div>
+        </div>
+
+        {/* Default Rest Time */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>זמן מנוחה ברירת מחדל בין סטים</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-blue)' }}>
+              {settings.defaultRestSeconds} שניות
+            </span>
+          </div>
+
+          <div className="filter-chip-row">
+            {restTimeOptions.map((secs) => (
+              <button
+                key={secs}
+                className={`filter-chip ${settings.defaultRestSeconds === secs ? 'active' : ''}`}
+                onClick={() => onUpdateSettings({ ...settings, defaultRestSeconds: secs })}
+              >
+                {secs} שנ׳
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Auto Rest Timer on Set Completion Toggle */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Timer size={18} color="var(--color-blue)" />
+            <div>
+              <span style={{ fontSize: '0.9rem', fontWeight: 600, display: 'block' }}>
+                טיימר מנוחה אוטומטי בסיום סט
+              </span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                מקפיץ את הטיימר אוטומטית בכל סימון ✓
+              </span>
+            </div>
+          </div>
+
+          <button
+            className={`btn-secondary`}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              background: settings.autoRestTimerEnabled ? 'rgba(110, 124, 245, 0.15)' : 'var(--bg-surface-2)',
+              color: settings.autoRestTimerEnabled ? 'var(--color-blue)' : 'var(--text-muted)',
+              border: '1px solid var(--border-subtle)',
+              fontWeight: 700,
+            }}
+            onClick={() =>
+              onUpdateSettings({
+                ...settings,
+                autoRestTimerEnabled: !settings.autoRestTimerEnabled,
+              })
+            }
+          >
+            {settings.autoRestTimerEnabled ? 'פעיל ✓' : 'כבוי'}
+          </button>
+        </div>
+
+        {/* Sound Toggle */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {settings.soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>צפצוף טיימר מנוחה</span>
+          </div>
+
+          <button
+            className={`btn-secondary`}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              background: settings.soundEnabled ? 'var(--color-green-bg)' : 'var(--bg-surface-2)',
+              color: settings.soundEnabled ? 'var(--color-green)' : 'var(--text-muted)',
+              border: '1px solid var(--border-subtle)',
+            }}
+            onClick={() => onUpdateSettings({ ...settings, soundEnabled: !settings.soundEnabled })}
+          >
+            {settings.soundEnabled ? 'פעיל ✓' : 'כבוי'}
+          </button>
+        </div>
+
+        {/* Desktop iPhone Frame Toggle */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Smartphone size={18} />
+            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>מסגרת אייפון במחשב</span>
+          </div>
+
+          <button
+            className={`btn-secondary`}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              background: settings.showIphoneFrameOnDesktop ? 'var(--color-blue-bg)' : 'var(--bg-surface-2)',
+              color: settings.showIphoneFrameOnDesktop ? 'var(--color-blue)' : 'var(--text-muted)',
+              border: '1px solid var(--border-subtle)',
+            }}
+            onClick={() =>
+              onUpdateSettings({
+                ...settings,
+                showIphoneFrameOnDesktop: !settings.showIphoneFrameOnDesktop,
+              })
+            }
+          >
+            {settings.showIphoneFrameOnDesktop ? 'מוצגת' : 'מסך רחב'}
+          </button>
+        </div>
+      </div>
+
+      {/* Backup & Data Management */}
+      <div className="ios-card" style={{ padding: '16px' }}>
+        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 6 }}>גיבוי ושחזור נתונים</h3>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 14 }}>
+          כל המידע שלך נשמר מקומית על המכשיר. מומלץ לייצא גיבוי מדי פעם.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+          <button className="btn-secondary" onClick={handleExport}>
+            <Download size={16} />
+            ייצוא גיבוי לקובץ
+          </button>
+
+          <button className="btn-secondary" onClick={handleImportClick}>
+            <Upload size={16} />
+            ייבוא משחזור
+          </button>
+        </div>
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept=".json"
+          style={{ display: 'none' }}
+          onChange={handleFileSelected}
+        />
+
+        {importStatus && (
+          <div
+            style={{
+              background: 'var(--bg-surface-2)',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.8rem',
+              color: 'var(--color-green)',
+              textAlign: 'center',
+              marginBottom: 10,
+            }}
+          >
+            {importStatus}
+          </div>
+        )}
+
+        <button
+          className="btn-secondary"
+          style={{ width: '100%', color: 'var(--color-red)', fontSize: '0.8rem' }}
+          onClick={() => {
+            if (window.confirm('האם אתה בטוח שברצונך לאפס את כל הנתונים לנתוני ברירת מחדל?')) {
+              onResetData();
+            }
+          }}
+        >
+          <RotateCcw size={14} />
+          איפוס נתונים לברירת מחדל
+        </button>
+      </div>
+
+      {/* Account */}
+      {onLogout && (
+        <div className="ios-card" style={{ padding: '16px' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 10 }}>חשבון</h3>
+          {userEmail && (
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+              מחובר כ-{userEmail}
+            </p>
+          )}
+          <button
+            className="btn-secondary"
+            style={{ color: 'var(--color-red)' }}
+            onClick={onLogout}
+          >
+            <LogOut size={16} />
+            התנתק
+          </button>
+        </div>
+      )}
+
+      {/* Attribution for exercise images (CC-BY-SA) */}
+      <div className="ios-card" style={{ padding: '16px' }}>
+        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 6 }}>קרדיטים</h3>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          תמונות ההדגמה של התרגילים באפליקציה לקוחות מהמאגר הפתוח של{' '}
+          <a href="https://wger.de" target="_blank" rel="noreferrer" style={{ color: 'var(--color-blue)' }}>wger.de</a>
+          {' '}ומופצות תחת רישיון Creative Commons BY-SA. תודה לתורמים: 54str, AlucardEvil40, anto.kreegyr, ataraxie67, BFad07, benjamin.yildiz, carlos3c, clafal, cshep442, fabrice, flori, Franpol, lhegedus, nate303303, nishant0712, novadani, polloperro, roneydya, sebk, sistab2, Tierrasverdes, YYCfit ולצוות wger.de.
+        </p>
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,20 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Local Netlify folder
+.netlify
+
+# Local Supabase CLI state (project link, cached tokens)
+supabase/.temp
+
+# Environment secrets
+.env
+.env.local
+.env.*.local
+
+# Editor / OS junk
+.DS_Store
+Thumbs.db

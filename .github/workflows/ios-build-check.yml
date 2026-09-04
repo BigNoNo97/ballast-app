@@ -1,0 +1,54 @@
+# בדיקת בנייה ל-iOS - רץ אוטומטית, לא צריך שום חשבון אפל/מפתחות.
+#
+# מטרה: לוודא שהאפליקציה בכלל מתקמפלת בהצלחה כאפליקציית iOS אחרי כל שינוי -
+# בלי חתימה דיגיטלית ובלי העלאה לשום מקום. זו רק בדיקת "זה נבנה בסדר",
+# רצה על מחשב Mac חינמי שמריץ GitHub עצמו (macos-latest).
+#
+# כשזה ירוץ בהצלחה (V ירוק), זה אומר שכל השרשרת - קוד React, Capacitor,
+# ופרויקט ה-Xcode - עובדת ביחד. זה לא אומר שהאפליקציה מוכנה להעלאה לחנות,
+# בשביל זה יש את ios-release.yml.
+
+name: iOS Build Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the web app
+        run: npm run build
+
+      - name: Sync Capacitor (copy web build into the iOS project)
+        run: npx cap sync ios
+
+      - name: Build for iOS Simulator (no code signing needed)
+        working-directory: ios/App
+        run: |
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build

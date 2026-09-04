@@ -18,3 +18,12 @@ supabase/.temp
 # Editor / OS junk
 .DS_Store
 Thumbs.db
+
+# iOS native project (Capacitor) - keep the Xcode project itself,
+# ignore generated/user-local files that get recreated on each build.
+ios/App/App/public
+ios/App/Pods
+ios/App/output
+ios/App/.xcode.env.local
+**/xcuserdata/
+**/*.xcuserstate

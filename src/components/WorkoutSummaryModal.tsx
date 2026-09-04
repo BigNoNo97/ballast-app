@@ -44,7 +44,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
       navigator
         .share({
           title: `סיימתי אימון: ${session.title}!`,
-          text: `סיימתי אימון כושר באפליקציית ברזל!\n⏱️ משך: ${durationMin} דקות\n🏋️ משקל כולל: ${session.totalVolumeKg.toLocaleString()} ק״ג\n🔥 סטים: ${session.completedSetsCount}`,
+          text: `סיימתי אימון כושר באפליקציית Ballast!\n⏱️ משך: ${durationMin} דקות\n🏋️ משקל כולל: ${session.totalVolumeKg.toLocaleString()} ק״ג\n🔥 סטים: ${session.completedSetsCount}`,
         })
         .catch(() => {});
     }

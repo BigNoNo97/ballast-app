@@ -131,7 +131,7 @@ export const AuthView: React.FC = () => {
           <div style={logoWrap}>
             <Dumbbell size={32} color="var(--color-blue)" />
           </div>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 900 }}>ברזל</h1>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 900 }}>Ballast</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 4 }}>
             {mode === 'login' ? 'התחבר כדי לראות את הנתונים שלך' : 'צור חשבון כדי להתחיל לעקוב'}
           </p>

@@ -208,7 +208,7 @@ export const WorkoutDetailPreview: React.FC<WorkoutDetailPreviewProps> = ({
       navigator
         .share({
           title: `${routine.title} - ${day.dayTitle}`,
-          text: `תוכנית אימון בברזל: ${routine.title}\nתרגילים: ${exercisesList.length} תרגילים`,
+          text: `תוכנית אימון ב-Ballast: ${routine.title}\nתרגילים: ${exercisesList.length} תרגילים`,
         })
         .catch(() => {});
     }

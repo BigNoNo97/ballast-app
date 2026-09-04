@@ -11,8 +11,8 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ['icons/apple-touch-icon.png'],
       manifest: {
-        name: 'ברזל | מעקב אימוני כושר',
-        short_name: 'ברזל',
+        name: 'Ballast | מעקב אימוני כושר',
+        short_name: 'Ballast',
         description: 'אפליקציית מעקב אימוני כושר אישית - תרגילים, סטים ומשקלים',
         start_url: '/',
         scope: '/',

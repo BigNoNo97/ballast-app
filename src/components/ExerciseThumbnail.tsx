@@ -63,6 +63,7 @@ export const ExerciseThumbnail: React.FC<ExerciseThumbnailProps> = ({
   const isSquat = exerciseId.includes('squat') || exerciseId.includes('bulgarian');
   const isBench = exerciseId.includes('bench') || exerciseId.includes('chest');
   const isRow = exerciseId.includes('row') || exerciseId.includes('pulldown') || muscle === 'back';
+  const isLuRaise = exerciseId.includes('lu-raise');
   const isShoulder = muscle === 'shoulders';
   const isArm = muscle === 'biceps' || muscle === 'triceps';
 
@@ -242,7 +243,7 @@ export const ExerciseThumbnail: React.FC<ExerciseThumbnailProps> = ({
         )}
 
         {/* ================= SHOULDERS ================= */}
-        {isShoulder && !isBench && !isRow && (
+        {isShoulder && !isBench && !isRow && !isLuRaise && (
           <g>
             <circle cx="50" cy="22" r="6" fill={bodyColor} />
             <path d="M50 28 L50 60" stroke={bodyColor} strokeWidth="7" strokeLinecap="round" />
@@ -250,6 +251,19 @@ export const ExerciseThumbnail: React.FC<ExerciseThumbnailProps> = ({
             <circle cx="40" cy="32" r="5" fill={glowColor} filter={`url(#drop-shadow-${exerciseId})`} />
             <circle cx="60" cy="32" r="5" fill={glowColor} filter={`url(#drop-shadow-${exerciseId})`} />
             <path d="M40 32 L26 44 M60 32 L74 44" stroke={bodyColor} strokeWidth="4" strokeLinecap="round" />
+          </g>
+        )}
+
+        {/* ================= LU RAISE (extended lateral raise past shoulder height, wide V overhead) ================= */}
+        {isLuRaise && (
+          <g>
+            <circle cx="50" cy="22" r="6" fill={bodyColor} />
+            <path d="M50 28 L50 60" stroke={bodyColor} strokeWidth="7" strokeLinecap="round" />
+            <circle cx="40" cy="32" r="5" fill={glowColor} filter={`url(#drop-shadow-${exerciseId})`} />
+            <circle cx="60" cy="32" r="5" fill={glowColor} filter={`url(#drop-shadow-${exerciseId})`} />
+            <path d="M40 32 L26 14 M60 32 L74 14" stroke={bodyColor} strokeWidth="4" strokeLinecap="round" />
+            <circle cx="26" cy="14" r="3" fill={machineColor} />
+            <circle cx="74" cy="14" r="3" fill={machineColor} />
           </g>
         )}
 

@@ -373,6 +373,9 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
                     <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 2 }}>
                       {ex.nameHe}
                     </h4>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: 2 }} dir="ltr">
+                      {ex.nameEn}
+                    </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 3 }}>
                       {muscleLabel} ({equipLabel})
                     </div>

@@ -214,6 +214,9 @@ export const ExerciseSwapModal: React.FC<ExerciseSwapModalProps> = ({
                       <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 2 }}>
                         {exercise.nameHe}
                       </h4>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: 2 }} dir="ltr">
+                        {exercise.nameEn}
+                      </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 3 }}>
                         {EQUIPMENT_LABELS[exercise.equipment]?.he || exercise.equipment}
                       </div>

@@ -1,0 +1,26 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgGrad" cx="15%" cy="0%" r="140%">
+      <stop offset="0%" stop-color="#6E7CF5" />
+      <stop offset="46%" stop-color="#4B5FE0" />
+      <stop offset="100%" stop-color="#2E3AA8" />
+    </radialGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#bgGrad)" />
+
+  <!-- Monogram b: one solid bowl sitting low on the stem - the weight
+       that keeps you stable sits at the bottom, not the top. -->
+  <g fill="#ffffff">
+    <path d="M 340,250
+             A 30,30 0 0 1 370,220
+             L 450,220
+             A 30,30 0 0 1 480,250
+             L 480,800
+             L 340,800
+             Z" />
+    <circle cx="550" cy="615" r="210" />
+  </g>
+
+  <circle cx="640" cy="615" r="100" fill="url(#bgGrad)" />
+</svg>

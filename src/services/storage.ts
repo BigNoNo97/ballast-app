@@ -154,6 +154,16 @@ export const StorageService = {
     syncListToCloud('routines', routines);
   },
 
+  // מעביר תוכנית מסוימת לראש הרשימה, כך שהיא זו שתיבחר כברירת מחדל בפתיחה הבאה
+  reorderRoutineFirst(routineId: string) {
+    const routines = this.getRoutines();
+    const chosen = routines.find((r) => r.id === routineId);
+    if (!chosen) return;
+    const reordered = [chosen, ...routines.filter((r) => r.id !== routineId)];
+    localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(reordered));
+    syncListToCloud('routines', reordered);
+  },
+
   // Active Routine Day Tracker
   getSelectedDayNumber(routineId: string): number {
     try {

@@ -132,6 +132,9 @@ export interface PersonalRecord {
   isNew?: boolean;
 }
 
+export type OnboardingGoal = 'lose_weight' | 'gain_muscle' | 'strength' | 'maintain';
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+
 export interface UserSettings {
   weightUnit: 'kg' | 'lbs';
   defaultRestSeconds: number;
@@ -142,6 +145,12 @@ export interface UserSettings {
   showIphoneFrameOnDesktop: boolean;
   language: 'he' | 'en';
   scheduledWeekdays: number[]; // 0 = ראשון ... 6 = שבת
+  onboardingCompleted?: boolean;
+  gender?: 'male' | 'female';
+  ageYears?: number;
+  heightCm?: number;
+  goal?: OnboardingGoal;
+  experienceLevel?: ExperienceLevel;
 }
 
 export interface BodyWeightEntry {

@@ -36,6 +36,7 @@ import { WorkoutSummaryModal } from './components/WorkoutSummaryModal';
 import { ExerciseProfileView } from './components/ExerciseProfileView';
 import { IPhonePreviewFrame } from './components/IPhonePreviewFrame';
 import { AuthView } from './components/AuthView';
+import { OnboardingFlow } from './components/OnboardingFlow';
 import { supabase } from './services/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 
@@ -75,7 +76,16 @@ export const App: React.FC = () => {
 
     setDataReady(false);
     StorageService.hydrateFromCloud(userId).then(() => {
-      setSettings(StorageService.getSettings());
+      let loadedSettings = StorageService.getSettings();
+      // חשבון בלי דגל אונבורדינג בכלל: אם הוא נוצר עכשיו ממש (הרשמה טרייה) - נציג את
+      // תהליך ההיכרות; אם הוא ישן (חשבון מלפני התכונה הזו) - נסמן כבוצע בלי להציג כלום.
+      if (loadedSettings.onboardingCompleted === undefined && session) {
+        const createdAtMs = new Date(session.user.created_at).getTime();
+        const isFreshSignup = Date.now() - createdAtMs < 10 * 60 * 1000;
+        loadedSettings = { ...loadedSettings, onboardingCompleted: !isFreshSignup };
+        StorageService.saveSettings(loadedSettings);
+      }
+      setSettings(loadedSettings);
       setExercises(StorageService.getExercises());
       const freshRoutines = StorageService.getRoutines();
       setRoutines(freshRoutines);
@@ -405,6 +415,28 @@ export const App: React.FC = () => {
           <Dumbbell size={32} color="var(--color-blue)" className="spin" />
           <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>טוען את הנתונים שלך...</span>
         </div>
+      </IPhonePreviewFrame>
+    );
+  }
+
+  // חשבון חדש שעדיין לא עבר את תהליך ההיכרות
+  if (!settings.onboardingCompleted) {
+    return (
+      <IPhonePreviewFrame showFrameOnDesktop={settings.showIphoneFrameOnDesktop}>
+        <OnboardingFlow
+          user={session.user}
+          settings={settings}
+          routines={routines}
+          onComplete={(updatedSettings) => {
+            setSettings(updatedSettings);
+            setRoutines(StorageService.getRoutines());
+            const firstRoutine = StorageService.getRoutines()[0];
+            if (firstRoutine) {
+              setActiveRoutine(firstRoutine);
+              setSelectedDayNumber(StorageService.getSelectedDayNumber(firstRoutine.id));
+            }
+          }}
+        />
       </IPhonePreviewFrame>
     );
   }

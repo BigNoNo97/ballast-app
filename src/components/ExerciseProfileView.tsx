@@ -154,7 +154,7 @@ export const ExerciseProfileView: React.FC<ExerciseProfileViewProps> = ({ exerci
           </span>
         </div>
 
-        {/* Muscle Body Map - דוגמה לבדיקה לפני החלה על כל התרגילים */}
+        {/* Muscle Body Map - מוצג בנוסף לתמונת התרגיל למעלה (או במקום הפלייסהולדר אם אין תמונה) */}
         <div className="ios-card" style={{ marginBottom: 14 }}>
           <h3 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: 12 }}>שרירים מעורבים</h3>
           <MuscleBodyMap primaryMuscle={exercise.muscle} secondaryMuscles={exercise.secondaryMuscles} />

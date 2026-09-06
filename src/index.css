@@ -41,6 +41,7 @@ body.dark-theme {
   
   --color-blue: #6E7CF5;
   --color-blue-bg: rgba(110, 124, 245, 0.16);
+  --muscle-secondary: rgba(110, 124, 245, 0.45);
   --color-green: #2FD9B4;
   --color-green-bg: rgba(47, 217, 180, 0.14);
   --color-orange: #FF9F0A;
@@ -75,6 +76,7 @@ body.light-theme {
   
   --color-blue: #4B5FE0;
   --color-blue-bg: rgba(75, 95, 224, 0.1);
+  --muscle-secondary: rgba(75, 95, 224, 0.4);
   --color-green: #1FB899;
   --color-green-bg: rgba(31, 184, 153, 0.12);
   --color-orange: #FF9500;

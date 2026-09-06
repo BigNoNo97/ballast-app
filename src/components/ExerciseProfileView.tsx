@@ -5,6 +5,7 @@ import { MUSCLE_GROUP_LABELS, EQUIPMENT_LABELS } from '../data/exercises';
 import { EXERCISE_IMAGES, EXERCISE_INSTRUCTIONS_HE } from '../data/exerciseContent';
 import { StorageService, calculateEstimated1RM } from '../services/storage';
 import { TrendChart, TrendPoint } from './TrendChart';
+import { MuscleBodyMap } from './MuscleBodyMap';
 
 interface ExerciseProfileViewProps {
   exercise: Exercise;
@@ -151,6 +152,12 @@ export const ExerciseProfileView: React.FC<ExerciseProfileViewProps> = ({ exerci
           <span className="filter-chip" style={{ pointerEvents: 'none' }}>
             {EQUIPMENT_LABELS[exercise.equipment].he}
           </span>
+        </div>
+
+        {/* Muscle Body Map - דוגמה לבדיקה לפני החלה על כל התרגילים */}
+        <div className="ios-card" style={{ marginBottom: 14 }}>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: 12 }}>שרירים מעורבים</h3>
+          <MuscleBodyMap primaryMuscle={exercise.muscle} secondaryMuscles={exercise.secondaryMuscles} />
         </div>
 
         {/* Instructions */}

@@ -22,6 +22,7 @@ import {
   WorkoutSet,
 } from './types';
 import { StorageService } from './services/storage';
+import { AppleHealthService } from './services/appleHealthService';
 import { WorkoutHomeView } from './components/WorkoutHomeView';
 import { WorkoutDetailPreview } from './components/WorkoutDetailPreview';
 import { ActiveWorkout } from './components/ActiveWorkout';
@@ -233,6 +234,7 @@ export const App: React.FC = () => {
   // Finish Workout
   const handleFinishWorkout = (finishedSession: WorkoutSession) => {
     StorageService.saveWorkout(finishedSession);
+    AppleHealthService.syncWorkout(finishedSession);
     setHistory(StorageService.getWorkoutHistory());
     setActiveWorkout(null);
     setSummarySession(finishedSession);
@@ -343,6 +345,7 @@ export const App: React.FC = () => {
   // Save a workout logged retroactively (does not touch the active routine/day rotation)
   const handleSaveRetroactiveWorkout = (session: WorkoutSession) => {
     StorageService.saveWorkout(session);
+    AppleHealthService.syncWorkout(session);
     setHistory(StorageService.getWorkoutHistory());
   };
 

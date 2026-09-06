@@ -68,6 +68,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   showIphoneFrameOnDesktop: true,
   language: 'en',
   scheduledWeekdays: [],
+  appleHealthSyncEnabled: false,
 };
 
 // Calculate Estimated 1 Rep Max using Brzycki formula

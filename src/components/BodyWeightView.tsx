@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, Target, Plus, Trash2, Pencil } from 'lucide-react';
 import { BodyWeightEntry } from '../types';
 import { StorageService } from '../services/storage';
+import { AppleHealthService } from '../services/appleHealthService';
 import { TrendChart } from './TrendChart';
 
 interface BodyWeightViewProps {
@@ -23,6 +24,7 @@ export const BodyWeightView: React.FC<BodyWeightViewProps> = ({ onBack }) => {
     const val = parseFloat(newWeightInput);
     if (!val || val <= 0) return;
     StorageService.addBodyWeightEntry(val);
+    AppleHealthService.syncBodyWeight(val);
     setNewWeightInput('');
     refresh();
   };

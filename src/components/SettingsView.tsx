@@ -14,9 +14,11 @@ import {
   Share,
   Timer,
   LogOut,
+  Heart,
 } from 'lucide-react';
 import { UserSettings } from '../types';
 import { StorageService } from '../services/storage';
+import { AppleHealthService } from '../services/appleHealthService';
 
 interface SettingsViewProps {
   settings: UserSettings;
@@ -35,6 +37,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [healthBusy, setHealthBusy] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
+
+  const handleToggleAppleHealth = async () => {
+    setHealthError(null);
+
+    if (settings.appleHealthSyncEnabled) {
+      // כיבוי הסנכרון מהצד שלנו בלבד - את ההרשאה עצמה אפשר לבטל רק דרך אפליקציית ההגדרות של אייפון
+      onUpdateSettings({ ...settings, appleHealthSyncEnabled: false });
+      return;
+    }
+
+    setHealthBusy(true);
+    const result = await AppleHealthService.requestPermissions();
+    setHealthBusy(false);
+
+    if (result.success) {
+      onUpdateSettings({ ...settings, appleHealthSyncEnabled: true });
+    } else {
+      setHealthError(result.error || 'לא ניתן היה להתחבר ל-Apple Health.');
+    }
+  };
 
   const handleExport = () => {
     const jsonStr = StorageService.exportData();
@@ -272,6 +296,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Apple Health Sync - מוצג רק באפליקציית ה-iOS הנייטיבית, אין טעם להראות את זה ב-PWA/דסקטופ */}
+      {AppleHealthService.isSupported() && (
+        <div className="ios-card" style={{ padding: '16px' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 6 }}>Apple Health</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.45 }}>
+            סנכרון אוטומטי של אימונים שהושלמו ומדידות משקל לאפליקציית הבריאות של אפל.
+          </p>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Heart size={18} color="var(--color-red)" />
+              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>סנכרון עם Apple Health</span>
+            </div>
+
+            <button
+              className="btn-secondary"
+              disabled={healthBusy}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-full)',
+                background: settings.appleHealthSyncEnabled ? 'var(--color-green-bg)' : 'var(--bg-surface-2)',
+                color: settings.appleHealthSyncEnabled ? 'var(--color-green)' : 'var(--text-muted)',
+                border: '1px solid var(--border-subtle)',
+                opacity: healthBusy ? 0.6 : 1,
+              }}
+              onClick={handleToggleAppleHealth}
+            >
+              {healthBusy ? 'מתחבר...' : settings.appleHealthSyncEnabled ? 'פעיל ✓' : 'כבוי'}
+            </button>
+          </div>
+
+          {healthError && (
+            <div
+              style={{
+                marginTop: 10,
+                background: 'var(--color-red-bg)',
+                color: 'var(--color-red)',
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.78rem',
+              }}
+            >
+              {healthError}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Backup & Data Management */}
       <div className="ios-card" style={{ padding: '16px' }}>

@@ -151,6 +151,7 @@ export interface UserSettings {
   heightCm?: number;
   goal?: OnboardingGoal;
   experienceLevel?: ExperienceLevel;
+  appleHealthSyncEnabled?: boolean;
 }
 
 export interface BodyWeightEntry {

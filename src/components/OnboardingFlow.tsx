@@ -3,6 +3,7 @@ import { ChevronRight, Check } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import { ExperienceLevel, OnboardingGoal, RoutineTemplate, UserSettings } from '../types';
 import { StorageService } from '../services/storage';
+import { AppleHealthService } from '../services/appleHealthService';
 import { supabase } from '../services/supabaseClient';
 
 type Gender = 'male' | 'female';
@@ -62,6 +63,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, settings, 
 
     if (weight > 0) {
       StorageService.addBodyWeightEntry(weight);
+      AppleHealthService.syncBodyWeight(weight);
     }
 
     if (goal) {

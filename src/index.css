@@ -443,6 +443,27 @@ h1, h2, h3, h4, h5, h6 {
   color: #000;
 }
 
+.btn-remove-exercise {
+  background: var(--color-red-bg);
+  color: var(--color-red);
+  border: 1px solid rgba(255, 59, 48, 0.3);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-remove-exercise:active {
+  transform: scale(0.94);
+  background: var(--color-red);
+  color: #fff;
+}
+
 /* Badges & Pills */
 .pill-badge {
   display: inline-flex;

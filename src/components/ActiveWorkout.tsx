@@ -34,6 +34,10 @@ import { RestTimerModal } from './RestTimerModal';
 import { ExerciseThumbnail } from './ExerciseThumbnail';
 import { triggerHaptic } from '../services/sound';
 
+// גודל (בפיקסלים) של כפתור המחיקה שנחשף בסלייד על שורת תרגיל, וסף הגרירה להשארתו פתוח
+const SWIPE_DELETE_WIDTH = 84;
+const SWIPE_OPEN_THRESHOLD = 40;
+
 interface ActiveWorkoutProps {
   workout: WorkoutSession;
   allExercises: Exercise[];
@@ -85,6 +89,16 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   });
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  // הסרת תרגיל מהאימון הנוכחי (לא ממאגר התרגילים)
+  const [removeExerciseIdx, setRemoveExerciseIdx] = useState<number | null>(null);
+
+  // סלייד-למחיקה על שורת תרגיל ברשימת הסקירה
+  const [openSwipeIdx, setOpenSwipeIdx] = useState<number | null>(null);
+  const [swipeState, setSwipeState] = useState<{ idx: number; startX: number; baseX: number; deltaX: number } | null>(
+    null
+  );
+  const suppressRowClickRef = useRef(false);
 
   // Exercise map for fast lookup
   const exerciseMap = new Map<string, Exercise>();
@@ -346,6 +360,74 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
       exercises: updatedExercises,
     });
     triggerHaptic(40);
+  };
+
+  // הסרת תרגיל מהאימון הנוכחי בלבד - התרגיל עצמו נשאר במאגר התרגילים
+  const handleRemoveExercise = (index: number) => {
+    if (index < 0 || index >= workout.exercises.length) return;
+
+    let updatedExercises = workout.exercises.filter((_, i) => i !== index);
+
+    // אם ההסרה משאירה שותף סופרסט בודד - מנתקים אותו כי אין יותר עם מה לחבר
+    const groupCounts = new Map<string, number>();
+    updatedExercises.forEach((ex) => {
+      if (ex.supersetGroupId) groupCounts.set(ex.supersetGroupId, (groupCounts.get(ex.supersetGroupId) || 0) + 1);
+    });
+    updatedExercises = updatedExercises.map((ex) =>
+      ex.supersetGroupId && (groupCounts.get(ex.supersetGroupId) || 0) < 2
+        ? { ...ex, supersetGroupId: undefined }
+        : ex
+    );
+
+    setCurrentExerciseIndex((prev) => {
+      if (updatedExercises.length === 0) return 0;
+      if (index < prev) return prev - 1;
+      if (index === prev) return Math.min(prev, updatedExercises.length - 1);
+      return prev;
+    });
+
+    setOpenSwipeIdx(null);
+    setSwipeState(null);
+    triggerHaptic([40, 30, 60]);
+
+    onUpdateWorkout({
+      ...workout,
+      exercises: updatedExercises,
+    });
+  };
+
+  // סלייד-למחיקה: כפתור המחיקה יושב בקצה השמאלי של השורה, ולכן גוררים ימינה כדי לחשוף אותו
+  // (בדיוק כמו שקורה בממשקי RTL סטנדרטיים - מזיזים את תוכן השורה בכיוון הגרירה, וזה חושף את מה שמתחתיו בצד השני)
+  const handleSwipePointerDown = (idx: number, clientX: number) => {
+    if (isReorderingMidWorkout || isSupersetModeMidWorkout) return;
+    suppressRowClickRef.current = false;
+    const baseX = openSwipeIdx === idx ? SWIPE_DELETE_WIDTH : 0;
+    setSwipeState({ idx, startX: clientX, baseX, deltaX: baseX });
+  };
+
+  const handleSwipePointerMove = (clientX: number) => {
+    setSwipeState((prev) => {
+      if (!prev) return prev;
+      const raw = prev.baseX + (clientX - prev.startX);
+      const next = Math.max(0, Math.min(SWIPE_DELETE_WIDTH, raw));
+      if (Math.abs(next - prev.baseX) > 6) suppressRowClickRef.current = true;
+      return { ...prev, deltaX: next };
+    });
+  };
+
+  const handleSwipePointerUp = () => {
+    setSwipeState((prev) => {
+      if (!prev) return null;
+      const shouldOpen = prev.deltaX > SWIPE_OPEN_THRESHOLD;
+      setOpenSwipeIdx(shouldOpen ? prev.idx : null);
+      return null;
+    });
+  };
+
+  const closeOverviewSheet = () => {
+    setShowOverviewSheet(false);
+    setOpenSwipeIdx(null);
+    setSwipeState(null);
   };
 
   // Touch Handlers for mobile sheet
@@ -831,20 +913,32 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                 </div>
               </div>
 
-              {/* Smart Swap Button */}
-              <button
-                className="btn-swap-exercise"
-                onClick={() =>
-                  setSwapModalExercise({
-                    exercise: currentExData,
-                    index: safeCurrentIndex,
-                  })
-                }
-                title="מכשיר תפוס? לחץ להחלפת תרגיל"
-              >
-                <Shuffle size={13} />
-                החלף תרגיל
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                {/* Smart Swap Button */}
+                <button
+                  className="btn-swap-exercise"
+                  onClick={() =>
+                    setSwapModalExercise({
+                      exercise: currentExData,
+                      index: safeCurrentIndex,
+                    })
+                  }
+                  title="מכשיר תפוס? לחץ להחלפת תרגיל"
+                >
+                  <Shuffle size={13} />
+                  החלף תרגיל
+                </button>
+
+                {/* Remove From Current Workout Button */}
+                <button
+                  className="btn-remove-exercise"
+                  onClick={() => setRemoveExerciseIdx(safeCurrentIndex)}
+                  title="הסרת התרגיל מהאימון הנוכחי"
+                >
+                  <Trash2 size={13} />
+                  הסר מהאימון
+                </button>
+              </div>
             </div>
 
 
@@ -1106,7 +1200,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
       {/* Mid-Workout Overview & Reorder Sheet (≡ רשימת תרגילים) */}
       {showOverviewSheet && (
-        <div className="modal-overlay" onClick={() => setShowOverviewSheet(false)}>
+        <div className="modal-overlay" onClick={closeOverviewSheet}>
           <div
             className="action-sheet"
             onClick={(e) => e.stopPropagation()}
@@ -1129,6 +1223,8 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                   onClick={() => {
                     setIsReorderingMidWorkout(!isReorderingMidWorkout);
                     if (isSupersetModeMidWorkout) setIsSupersetModeMidWorkout(false);
+                    setOpenSwipeIdx(null);
+                    setSwipeState(null);
                     triggerHaptic(40);
                   }}
                   style={{
@@ -1155,6 +1251,8 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                     setIsSupersetModeMidWorkout(!isSupersetModeMidWorkout);
                     if (isReorderingMidWorkout) setIsReorderingMidWorkout(false);
                     setSelectedForSuperset([]);
+                    setOpenSwipeIdx(null);
+                    setSwipeState(null);
                     triggerHaptic(40);
                   }}
                   style={{
@@ -1176,7 +1274,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                 </button>
 
                 <button
-                  onClick={() => setShowOverviewSheet(false)}
+                  onClick={closeOverviewSheet}
                   style={{
                     background: 'var(--bg-surface-2)',
                     border: 'none',
@@ -1247,9 +1345,45 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                 const isSelectedSuperset = selectedForSuperset.includes(idx);
                 const hasSuperset = Boolean(item.supersetGroupId);
 
+                const swipeTranslate =
+                  swipeState?.idx === idx ? swipeState.deltaX : openSwipeIdx === idx ? SWIPE_DELETE_WIDTH : 0;
+
                 return (
-                  <div
-                    key={item.exerciseId + '-' + idx}
+                  <div key={item.exerciseId + '-' + idx} style={{ position: 'relative', overflow: 'hidden', borderRadius: 14 }}>
+                    {/* פעולת מחיקה שנחשפת בסלייד - מוצגת בצד השמאלי הפיזי (הקצה שנחשף בגרירה שמאלה) */}
+                    {/* מוצג רק כשהשורה בגרירה/פתוחה, כדי שלא "יבליח" מבעד לרקעים שקופים-חלקית של שורות מודגשות */}
+                    {swipeTranslate !== 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRemoveExerciseIdx(idx);
+                      }}
+                      title="מחיקת התרגיל מהאימון הנוכחי"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: 0,
+                        width: SWIPE_DELETE_WIDTH,
+                        border: 'none',
+                        background: 'var(--color-red)',
+                        color: '#fff',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 4,
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Trash2 size={18} />
+                      מחק
+                    </button>
+                    )}
+
+                    <div
                     data-overview-idx={idx}
                     draggable={isReorderingMidWorkout}
                     onDragStart={() => setDraggedIdx(idx)}
@@ -1266,12 +1400,34 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                       setDraggedIdx(null);
                       setDragOverIdx(null);
                     }}
+                    onPointerDown={(e) => {
+                      if (isReorderingMidWorkout || isSupersetModeMidWorkout) return;
+                      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                      handleSwipePointerDown(idx, e.clientX);
+                    }}
+                    onPointerMove={(e) => {
+                      if (swipeState?.idx === idx) handleSwipePointerMove(e.clientX);
+                    }}
+                    onPointerUp={() => {
+                      if (swipeState?.idx === idx) handleSwipePointerUp();
+                    }}
+                    onPointerCancel={() => {
+                      if (swipeState?.idx === idx) handleSwipePointerUp();
+                    }}
                     onClick={() => {
+                      if (suppressRowClickRef.current) {
+                        suppressRowClickRef.current = false;
+                        return;
+                      }
+                      if (openSwipeIdx === idx) {
+                        setOpenSwipeIdx(null);
+                        return;
+                      }
                       if (isSupersetModeMidWorkout) {
                         toggleSelectForSuperset(idx);
                       } else if (!isReorderingMidWorkout) {
                         setCurrentExerciseIndex(idx);
-                        setShowOverviewSheet(false);
+                        closeOverviewSheet();
                       }
                     }}
                     style={{
@@ -1304,8 +1460,14 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                       justifyContent: 'space-between',
                       cursor: isReorderingMidWorkout ? 'grab' : isSupersetModeMidWorkout ? 'pointer' : 'pointer',
                       opacity: isBeingDragged ? 0.6 : 1,
-                      transform: isBeingDragged ? 'scale(1.02)' : 'none',
-                      transition: 'transform 150ms ease, background-color 150ms ease',
+                      transform: isBeingDragged ? 'scale(1.02)' : `translateX(${swipeTranslate}px)`,
+                      transition:
+                        swipeState?.idx === idx
+                          ? 'background-color 150ms ease'
+                          : 'transform 200ms ease, background-color 150ms ease',
+                      touchAction: 'pan-y',
+                      position: 'relative',
+                      zIndex: 1,
                       userSelect: 'none',
                     }}
                   >
@@ -1402,6 +1564,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                         החלף
                       </button>
                     )}
+                    </div>
                   </div>
                 );
               })}
@@ -1455,6 +1618,43 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
           </div>
         </div>
       )}
+
+      {/* Remove Exercise From Current Workout - Confirmation Modal */}
+      {removeExerciseIdx !== null && (() => {
+        const workoutExToRemove = workout.exercises[removeExerciseIdx];
+        const exToRemove = workoutExToRemove ? exerciseMap.get(workoutExToRemove.exerciseId) : undefined;
+        return (
+          <div className="modal-overlay" onClick={() => setRemoveExerciseIdx(null)}>
+            <div className="action-sheet" onClick={(e) => e.stopPropagation()}>
+              <div className="sheet-handle" />
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <Trash2 size={40} color="var(--color-red)" style={{ marginBottom: 8 }} />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>
+                  להסיר את {exToRemove ? `"${exToRemove.nameHe}"` : 'התרגיל'} מהאימון הנוכחי?
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  התרגיל יימחק רק מהאימון שאתה מבצע עכשיו - הוא יישאר במאגר התרגילים ואפשר להוסיף אותו שוב בכל עת.
+                </p>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  className="btn-primary"
+                  style={{ background: 'var(--color-red)' }}
+                  onClick={() => {
+                    handleRemoveExercise(removeExerciseIdx);
+                    setRemoveExerciseIdx(null);
+                  }}
+                >
+                  כן, הסר מהאימון
+                </button>
+                <button className="btn-secondary" onClick={() => setRemoveExerciseIdx(null)}>
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Rest Timer Modal */}
       <RestTimerModal

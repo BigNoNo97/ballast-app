@@ -20,7 +20,7 @@ on:
 jobs:
   build:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -50,5 +50,47 @@ jobs:
             -sdk iphonesimulator \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      # בודק שהאפליקציה לא רק מתקמפלת אלא גם באמת עולה במסך - בלי צורך
+      # במחשב Mac אישי בכלל. תופס לוגים מלאים + צילום מסך כ-artifact,
+      # כדי שאפשר יהיה לאבחן בעיות (כמו מסך שחור) בלי לגעת ב-Xcode בעצמו.
+      - name: Boot Simulator and launch the app
+        working-directory: ios/App
+        run: |
+          set -e
+          UDID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | grep -oE '[0-9A-Fa-f-]{36}')
+          echo "Using simulator UDID: $UDID"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+
+          APP_PATH=$(find build/Build/Products -maxdepth 2 -name "App.app" -print -quit)
+          echo "App path: $APP_PATH"
+
+          # תופס לוגים ל-15 שניות אחרי ההרצה, ברקע
+          xcrun simctl spawn "$UDID" log stream --level debug --predicate 'process == "App"' > app-simulator.log 2>&1 &
+          LOG_PID=$!
+
+          xcrun simctl install "$UDID" "$APP_PATH"
+          xcrun simctl launch "$UDID" com.ballast.app
+
+          sleep 15
+          xcrun simctl io "$UDID" screenshot app-screenshot.png
+
+          kill $LOG_PID 2>/dev/null || true
+          sleep 1
+
+          echo "----- Last 200 lines of simulator log -----"
+          tail -n 200 app-simulator.log || true
+
+      - name: Upload simulator screenshot and log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-check
+          path: |
+            ios/App/app-screenshot.png
+            ios/App/app-simulator.log
+          if-no-files-found: warn

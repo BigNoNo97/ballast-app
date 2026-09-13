@@ -22,6 +22,7 @@ import {
   WorkoutSet,
 } from './types';
 import { StorageService } from './services/storage';
+import { DEFAULT_ROUTINES } from './data/defaultRoutines';
 import { AppleHealthService } from './services/appleHealthService';
 import { WorkoutHomeView } from './components/WorkoutHomeView';
 import { WorkoutDetailPreview } from './components/WorkoutDetailPreview';
@@ -455,7 +456,6 @@ export const App: React.FC = () => {
       <IPhonePreviewFrame showFrameOnDesktop={settings.showIphoneFrameOnDesktop}>
         <OnboardingFlow
           settings={settings}
-          routines={routines}
           onComplete={(updatedSettings) => {
             setSettings(updatedSettings);
             const freshRoutines = StorageService.getRoutines();
@@ -539,12 +539,16 @@ export const App: React.FC = () => {
                   /* אין למשתמש תוכנית פעילה - להציע לבנות אחת, לתת למערכת, או להתחיל בלי תוכנית */
                   <NoRoutineWorkoutView
                     onChooseSystem={() => {
-                      const fallback = routines[0];
-                      if (fallback) {
-                        setActiveRoutine(fallback);
-                        handleUpdateSettings({ ...settings, activeRoutineId: fallback.id });
-                        setSelectedDayNumber(StorageService.getSelectedDayNumber(fallback.id));
+                      // Placeholder עד שיהיה מנוע המלצות אמיתי: מעתיקים תבנית פתיחה
+                      // כללית לתוך התוכניות האישיות של המשתמש הזה (לא תוכנית של משתמש הדמו).
+                      const starter = routines.find((r) => r.id === DEFAULT_ROUTINES[0].id) || DEFAULT_ROUTINES[0];
+                      if (!routines.some((r) => r.id === starter.id)) {
+                        StorageService.saveRoutine(starter);
+                        setRoutines(StorageService.getRoutines());
                       }
+                      setActiveRoutine(starter);
+                      handleUpdateSettings({ ...settings, activeRoutineId: starter.id });
+                      setSelectedDayNumber(StorageService.getSelectedDayNumber(starter.id));
                     }}
                     onOpenRoutinesMenu={() => setShowRoutinesManagerModal(true)}
                     onStartEmptyWorkout={handleStartEmptyWorkout}
@@ -666,7 +670,7 @@ export const App: React.FC = () => {
               <div className="sheet-handle" />
               <RoutinesView
                 routines={routines}
-                activeRoutine={activeRoutine || routines[0]}
+                activeRoutine={activeRoutine}
                 allExercises={exercises}
                 onSelectActiveRoutine={(r) => {
                   setActiveRoutine(r);
@@ -704,9 +708,12 @@ export const App: React.FC = () => {
                   StorageService.deleteRoutine(id);
                   const remaining = StorageService.getRoutines();
                   setRoutines(remaining);
-                  if (activeRoutine && activeRoutine.id === id && remaining.length > 0) {
-                    setActiveRoutine(remaining[0]);
-                    handleUpdateSettings({ ...settings, activeRoutineId: remaining[0].id });
+                  if (activeRoutine && activeRoutine.id === id) {
+                    // אם זו הייתה התוכנית האחרונה שנמחקה - חוזרים למסך "עוד אין לך תוכנית",
+                    // לא נשארים עם הפניה לתוכנית שכבר לא קיימת.
+                    const next = remaining[0] || null;
+                    setActiveRoutine(next);
+                    handleUpdateSettings({ ...settings, activeRoutineId: next ? next.id : null });
                   }
                 }}
                 onClose={() => setShowRoutinesManagerModal(false)}

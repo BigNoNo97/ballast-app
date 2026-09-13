@@ -86,7 +86,9 @@ export const StorageService = {
     const initialized = localStorage.getItem(STORAGE_KEYS.APP_INITIALIZED);
     if (!initialized) {
       localStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(INITIAL_EXERCISES));
-      localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(DEFAULT_ROUTINES));
+      // תוכניות ה-DEFAULT_ROUTINES הן דוגמאות של חשבון הדמו בלבד - משתמש חדש מתחיל
+      // בלי תוכניות בכלל (NoRoutineWorkoutView מטפל במסך הריק), לא מקבל אותן אוטומטית.
+      localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.WORKOUT_HISTORY, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.USER_SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
       localStorage.setItem(STORAGE_KEYS.APP_INITIALIZED, 'true');
@@ -126,14 +128,15 @@ export const StorageService = {
   getRoutines(): RoutineTemplate[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.ROUTINES);
-      if (!data) return DEFAULT_ROUTINES;
+      if (!data) return [];
       const parsed = JSON.parse(data);
-      if (!Array.isArray(parsed) || parsed.length === 0 || !parsed[0].days) {
-        return DEFAULT_ROUTINES;
-      }
+      if (!Array.isArray(parsed)) return [];
+      // מערך ריק הוא מצב לגיטימי (משתמש בלי תוכניות), לא שגיאה - רק צורה ישנה/פגומה
+      // של רשומה בפועל (חסר days) נופלת חזרה לתוכניות ברירת המחדל.
+      if (parsed.length > 0 && !parsed[0].days) return DEFAULT_ROUTINES;
       return parsed;
     } catch {
-      return DEFAULT_ROUTINES;
+      return [];
     }
   },
 
@@ -651,10 +654,9 @@ export const StorageService = {
       ]);
 
       localStorage.setItem(STORAGE_KEYS.WORKOUT_HISTORY, JSON.stringify(workouts));
-      localStorage.setItem(
-        STORAGE_KEYS.ROUTINES,
-        JSON.stringify(routines.length > 0 ? routines : DEFAULT_ROUTINES)
-      );
+      // רשימה ריקה מהענן היא מצב תקין (משתמש בלי תוכניות משלו) - לא נופלים חזרה
+      // לתוכניות הדמו רק כי הוא עוד לא יצר לעצמו כלום.
+      localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(routines));
       localStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(customExercises));
       localStorage.setItem(STORAGE_KEYS.BODY_WEIGHT_LOG, JSON.stringify(bodyWeightEntries));
       localStorage.setItem(STORAGE_KEYS.MEASUREMENT_CATEGORIES, JSON.stringify(measurementCategories));

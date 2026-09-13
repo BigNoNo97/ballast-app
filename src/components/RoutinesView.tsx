@@ -26,7 +26,7 @@ import { triggerHaptic } from '../services/sound';
 
 interface RoutinesViewProps {
   routines: RoutineTemplate[];
-  activeRoutine: RoutineTemplate;
+  activeRoutine: RoutineTemplate | null;
   allExercises: Exercise[];
   onSelectActiveRoutine: (routine: RoutineTemplate) => void;
   onStartRoutine: (routine: RoutineTemplate) => void;
@@ -957,7 +957,25 @@ export const RoutinesView: React.FC<RoutinesViewProps> = ({
         </button>
       </div>
 
-      {/* Active Routine Card */}
+      {/* Active Routine Card - או מסך ריק אם עוד אין למשתמש שום תוכנית משלו */}
+      {!activeRoutine ? (
+        <div
+          className="ios-card"
+          style={{
+            border: '1px dashed var(--border-strong)',
+            padding: '20px 16px',
+            borderRadius: 18,
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>
+            עדיין אין לך תוכנית משלך
+          </div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            לחץ על "תוכנית חדשה" למעלה כדי לבנות את התוכנית הראשונה שלך.
+          </div>
+        </div>
+      ) : (
       <div
         className="ios-card"
         style={{
@@ -1066,16 +1084,17 @@ export const RoutinesView: React.FC<RoutinesViewProps> = ({
           ))}
         </div>
       </div>
+      )}
 
       {/* Other Available Routines List */}
       {(() => {
-        const otherRoutines = routines.filter((r) => r.id !== activeRoutine.id);
+        const otherRoutines = activeRoutine ? routines.filter((r) => r.id !== activeRoutine.id) : routines;
         if (otherRoutines.length === 0) return null;
 
         return (
           <>
             <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginTop: 4 }}>
-              כל התוכניות במאגר
+              התוכניות האחרות שלך
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

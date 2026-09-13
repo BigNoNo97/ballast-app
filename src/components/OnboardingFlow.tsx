@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Check } from 'lucide-react';
-import { ExperienceLevel, OnboardingGoal, RoutineTemplate, UserSettings } from '../types';
+import { ExperienceLevel, OnboardingGoal, UserSettings } from '../types';
 import { StorageService } from '../services/storage';
 import { AppleHealthService } from '../services/appleHealthService';
 
@@ -14,7 +14,6 @@ const STEP_IDS = [
   'weight',
   'goal',
   'level',
-  'routine',
   'success',
 ] as const;
 type StepId = (typeof STEP_IDS)[number];
@@ -27,7 +26,6 @@ const REST_SECONDS_BY_LEVEL: Record<ExperienceLevel, number> = {
 
 interface OnboardingFlowProps {
   settings: UserSettings;
-  routines: RoutineTemplate[];
   onComplete: (settings: UserSettings) => void;
 }
 
@@ -38,7 +36,7 @@ const GOAL_CALORIE_ADJUST: Record<OnboardingGoal, number> = {
   maintain: 0,
 };
 
-export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, routines, onComplete }) => {
+export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComplete }) => {
   const steps: StepId[] = [...STEP_IDS];
 
   const [stepIdx, setStepIdx] = useState(0);
@@ -52,7 +50,6 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, routin
   const [weight, setWeight] = useState(75);
   const [goals, setGoals] = useState<OnboardingGoal[]>([]);
   const [level, setLevel] = useState<ExperienceLevel | null>(null);
-  const [chosenRoutineId, setChosenRoutineId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const goNext = () => setStepIdx((i) => Math.min(i + 1, steps.length - 1));
@@ -88,8 +85,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, routin
     const newSettings: UserSettings = {
       ...settings,
       onboardingCompleted: true,
-      // null אם דילג על בחירת תוכנית - יגרום למסך "עוד אין לך תוכנית" בעמוד הבית
-      activeRoutineId: chosenRoutineId ?? null,
+      // תמיד null בסיום ההיכרות - תוכניות הן אישיות לכל משתמש, אף אחת לא מוצעת מראש.
+      // המסך "עוד אין לך תוכנית" בטאב אימון יציע לבנות אחת, לתת למערכת, או להתחיל בלי תוכנית.
+      activeRoutineId: null,
       gender,
       ageYears: age,
       heightCm: height,
@@ -110,7 +108,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, routin
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-app)' }}>
       {step !== 'welcome' && step !== 'success' && (
-        <Header dotCount={dotSteps.length} dotIndex={dotIndex} onSkip={skipAll} onBack={step === 'routine' ? goBack : undefined} />
+        <Header dotCount={dotSteps.length} dotIndex={dotIndex} onSkip={skipAll} />
       )}
 
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -121,13 +119,10 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, routin
         {step === 'weight' && <NumberPickerStep title="מה המשקל שלך?" subtitle="בקילוגרם. ייכנס כרשומה הראשונה בגרף המשקל שלך" min={35} max={200} value={weight} onChange={setWeight} />}
         {step === 'goal' && <GoalStep value={goals} onChange={setGoals} />}
         {step === 'level' && <LevelStep value={level} onChange={setLevel} />}
-        {step === 'routine' && (
-          <RoutineStep routines={routines} chosenId={chosenRoutineId} onChoose={setChosenRoutineId} onSkip={goNext} onContinue={goNext} />
-        )}
         {step === 'success' && <SuccessStep saving={saving} onDone={finish} />}
       </div>
 
-      {step !== 'welcome' && step !== 'success' && step !== 'routine' && (
+      {step !== 'welcome' && step !== 'success' && (
         <Footer onBack={stepIdx === 0 ? undefined : goBack} onContinue={goNext} />
       )}
     </div>
@@ -503,56 +498,6 @@ const LevelStep: React.FC<{ value: ExperienceLevel | null; onChange: (l: Experie
           </button>
         );
       })}
-    </div>
-  </>
-);
-
-const RoutineStep: React.FC<{
-  routines: RoutineTemplate[];
-  chosenId: string | null;
-  onChoose: (id: string) => void;
-  onSkip: () => void;
-  onContinue: () => void;
-}> = ({ routines, chosenId, onChoose, onSkip, onContinue }) => (
-  <>
-    <div style={{ padding: '20px 24px 6px' }}>
-      <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>תוכנית מומלצת בשבילך</div>
-      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>אפשר גם לדלג ולבחור בעצמך מהמאגר.</div>
-    </div>
-    <div style={{ flex: 1, padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {routines.slice(0, 3).map((r) => {
-        const selected = chosenId === r.id;
-        return (
-          <div key={r.id} style={{ background: 'var(--bg-surface-1)', border: selected ? '1.5px solid var(--color-blue)' : '1px solid var(--border-subtle)', borderRadius: 18, padding: 18 }}>
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)' }}>{r.title}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>{r.description}</div>
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-              {r.days.slice(0, 3).map((d) => (
-                <span key={d.dayNumber} style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg-surface-2)', padding: '5px 10px', borderRadius: 8 }}>
-                  {d.dayTitle}
-                </span>
-              ))}
-            </div>
-            <button
-              onClick={() => {
-                onChoose(r.id);
-                onContinue();
-              }}
-              className={selected ? 'btn-primary' : 'btn-secondary'}
-              style={{ width: '100%', fontSize: '0.88rem', padding: 11 }}
-            >
-              בחר תוכנית זו
-            </button>
-          </div>
-        );
-      })}
-    </div>
-    <div style={{ padding: '8px 24px 32px', textAlign: 'center' }}>
-      <button onClick={onSkip} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-        אני אבחר בעצמי מאוחר יותר
-      </button>
     </div>
   </>
 );

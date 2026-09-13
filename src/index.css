@@ -369,6 +369,16 @@ h1, h2, h3, h4, h5, h6 {
   transform: scale(0.97);
 }
 
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+
+.btn-primary:disabled:active {
+  transform: none;
+}
+
 .btn-success {
   background: #10E5A5;
   color: #08080a;

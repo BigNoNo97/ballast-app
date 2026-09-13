@@ -146,10 +146,11 @@ export interface UserSettings {
   language: 'he' | 'en';
   scheduledWeekdays: number[]; // 0 = ראשון ... 6 = שבת
   onboardingCompleted?: boolean;
+  hasSelectedRoutine?: boolean;
   gender?: 'male' | 'female';
   ageYears?: number;
   heightCm?: number;
-  goal?: OnboardingGoal;
+  goals?: OnboardingGoal[];
   experienceLevel?: ExperienceLevel;
   appleHealthSyncEnabled?: boolean;
 }

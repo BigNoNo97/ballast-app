@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dumbbell, Mail, Lock, Loader2, Sparkles } from 'lucide-react';
+import { Dumbbell, Mail, Lock, User, Loader2, Sparkles, Check } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 
 const GoogleIcon: React.FC = () => (
@@ -22,8 +22,10 @@ const AppleIcon: React.FC = () => (
 
 export const AuthView: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -70,11 +72,23 @@ export const AuthView: React.FC = () => {
       setError('הסיסמה חייבת להכיל לפחות 6 תווים.');
       return;
     }
+    if (mode === 'signup' && !fullName.trim()) {
+      setError('נא למלא שם מלא.');
+      return;
+    }
+    if (mode === 'signup' && !agreedToTerms) {
+      setError('יש לאשר את תנאי השימוש ומדיניות הפרטיות כדי להירשם.');
+      return;
+    }
 
     setLoading(true);
     try {
       if (mode === 'signup') {
-        const { error: signUpError } = await supabase.auth.signUp({ email: email.trim(), password });
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { data: { full_name: fullName.trim() } },
+        });
         if (signUpError) throw signUpError;
         setSignupDone(true);
       } else {
@@ -163,6 +177,21 @@ export const AuthView: React.FC = () => {
           <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
         </div>
 
+        {mode === 'signup' && (
+          <div style={fieldWrap}>
+            <User size={18} color="var(--text-muted)" />
+            <input
+              type="text"
+              autoCapitalize="words"
+              placeholder="שם מלא"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              style={inputStyle}
+              dir="rtl"
+            />
+          </div>
+        )}
+
         <div style={fieldWrap}>
           <Mail size={18} color="var(--text-muted)" />
           <input
@@ -190,13 +219,75 @@ export const AuthView: React.FC = () => {
           />
         </div>
 
+        {mode === 'signup' && (
+          <button
+            type="button"
+            onClick={() => setAgreedToTerms((v) => !v)}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 10,
+              background: 'transparent',
+              border: 'none',
+              padding: '4px 2px 14px',
+              cursor: 'pointer',
+              width: '100%',
+              textAlign: 'start',
+            }}
+          >
+            <span
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 6,
+                flexShrink: 0,
+                marginTop: 1,
+                background: agreedToTerms ? 'var(--color-blue)' : 'transparent',
+                border: agreedToTerms ? 'none' : '1.5px solid var(--border-strong)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {agreedToTerms && <Check size={13} color="#fff" strokeWidth={3} />}
+            </span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              אני מסכימ/ה ל
+              <a
+                href="/terms.html"
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{ color: 'var(--color-blue)', fontWeight: 700 }}
+              >
+                תנאי השימוש
+              </a>{' '}
+              ול
+              <a
+                href="/privacy.html"
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{ color: 'var(--color-blue)', fontWeight: 700 }}
+              >
+                מדיניות הפרטיות
+              </a>
+            </span>
+          </button>
+        )}
+
         {error && (
           <div style={{ color: 'var(--color-red)', fontSize: '0.82rem', marginBottom: 14, textAlign: 'center' }}>
             {error}
           </div>
         )}
 
-        <button type="submit" className="btn-primary" style={{ width: '100%', marginBottom: 14 }} disabled={loading}>
+        <button
+          type="submit"
+          className="btn-primary"
+          style={{ width: '100%', marginBottom: 14 }}
+          disabled={loading || (mode === 'signup' && !agreedToTerms)}
+        >
           {loading ? (
             <Loader2 size={18} className="spin" />
           ) : mode === 'login' ? (
@@ -346,7 +437,7 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
   color: 'var(--text-main)',
   fontSize: '0.95rem',
-  textAlign: 'left',
+  textAlign: 'right',
 };
 
 const linkButtonStyle: React.CSSProperties = {

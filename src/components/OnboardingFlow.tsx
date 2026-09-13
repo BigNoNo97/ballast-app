@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Check } from 'lucide-react';
-import type { User } from '@supabase/supabase-js';
 import { ExperienceLevel, OnboardingGoal, RoutineTemplate, UserSettings } from '../types';
 import { StorageService } from '../services/storage';
 import { AppleHealthService } from '../services/appleHealthService';
-import { supabase } from '../services/supabaseClient';
 
 type Gender = 'male' | 'female';
 
@@ -17,7 +15,6 @@ const STEP_IDS = [
   'goal',
   'level',
   'routine',
-  'name',
   'success',
 ] as const;
 type StepId = (typeof STEP_IDS)[number];
@@ -29,15 +26,20 @@ const REST_SECONDS_BY_LEVEL: Record<ExperienceLevel, number> = {
 };
 
 interface OnboardingFlowProps {
-  user: User;
   settings: UserSettings;
   routines: RoutineTemplate[];
   onComplete: (settings: UserSettings) => void;
 }
 
-export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, settings, routines, onComplete }) => {
-  const isEmailUser = user.app_metadata?.provider === 'email';
-  const steps: StepId[] = STEP_IDS.filter((s) => s !== 'name' || isEmailUser);
+const GOAL_CALORIE_ADJUST: Record<OnboardingGoal, number> = {
+  lose_weight: -500,
+  gain_muscle: 300,
+  strength: 150,
+  maintain: 0,
+};
+
+export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, routines, onComplete }) => {
+  const steps: StepId[] = [...STEP_IDS];
 
   const [stepIdx, setStepIdx] = useState(0);
   const step = steps[stepIdx];
@@ -48,10 +50,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, settings, 
   const [age, setAge] = useState(28);
   const [height, setHeight] = useState(175);
   const [weight, setWeight] = useState(75);
-  const [goal, setGoal] = useState<OnboardingGoal | null>(null);
+  const [goals, setGoals] = useState<OnboardingGoal[]>([]);
   const [level, setLevel] = useState<ExperienceLevel | null>(null);
   const [chosenRoutineId, setChosenRoutineId] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState('');
   const [saving, setSaving] = useState(false);
 
   const goNext = () => setStepIdx((i) => Math.min(i + 1, steps.length - 1));
@@ -66,13 +67,17 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, settings, 
       AppleHealthService.syncBodyWeight(weight);
     }
 
-    if (goal) {
+    if (goals.length > 0) {
       const bmr =
         gender === 'female'
           ? 10 * weight + 6.25 * height - 5 * age - 161
           : 10 * weight + 6.25 * height - 5 * age + 5;
       const tdee = bmr * 1.45; // פעילות מתונה כברירת מחדל
-      const adjust = goal === 'lose_weight' ? -500 : goal === 'gain_muscle' ? 300 : goal === 'strength' ? 150 : 0;
+      // כשנבחרו כמה מטרות (למשל גם ירידה במשקל וגם עלייה בכוח) - ממוצע ההתאמות
+      // הקלוריות של כולן, במקום לבחור מטרה אחת שרירותית.
+      const adjust = Math.round(
+        goals.reduce((sum, g) => sum + GOAL_CALORIE_ADJUST[g], 0) / goals.length
+      );
       const calories = Math.round(tdee + adjust);
       const protein = Math.round(weight * 2);
       const fat = Math.round((calories * 0.25) / 9);
@@ -84,21 +89,14 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, settings, 
       StorageService.reorderRoutineFirst(chosenRoutineId);
     }
 
-    if (isEmailUser && displayName.trim()) {
-      try {
-        await supabase.auth.updateUser({ data: { full_name: displayName.trim() } });
-      } catch {
-        // לא קריטי - אפשר לשנות שם תצוגה מאוחר יותר בפרופיל
-      }
-    }
-
     const newSettings: UserSettings = {
       ...settings,
       onboardingCompleted: true,
+      hasSelectedRoutine: Boolean(chosenRoutineId),
       gender,
       ageYears: age,
       heightCm: height,
-      goal: goal ?? settings.goal,
+      goals: goals.length > 0 ? goals : settings.goals,
       experienceLevel: level ?? settings.experienceLevel,
       defaultRestSeconds: level ? REST_SECONDS_BY_LEVEL[level] : settings.defaultRestSeconds,
     };
@@ -124,12 +122,11 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, settings, 
         {step === 'age' && <NumberPickerStep title="מה הגיל שלך?" subtitle="בשנים. אפשר תמיד לשנות את זה מאוחר יותר" min={14} max={90} value={age} onChange={setAge} />}
         {step === 'height' && <NumberPickerStep title="מה הגובה שלך?" subtitle="בסנטימטרים. אפשר תמיד לשנות את זה מאוחר יותר" min={130} max={220} value={height} onChange={setHeight} />}
         {step === 'weight' && <NumberPickerStep title="מה המשקל שלך?" subtitle="בקילוגרם. ייכנס כרשומה הראשונה בגרף המשקל שלך" min={35} max={200} value={weight} onChange={setWeight} />}
-        {step === 'goal' && <GoalStep value={goal} onChange={setGoal} />}
+        {step === 'goal' && <GoalStep value={goals} onChange={setGoals} />}
         {step === 'level' && <LevelStep value={level} onChange={setLevel} />}
         {step === 'routine' && (
           <RoutineStep routines={routines} chosenId={chosenRoutineId} onChoose={setChosenRoutineId} onSkip={goNext} onContinue={goNext} />
         )}
-        {step === 'name' && <NameStep value={displayName} onChange={setDisplayName} />}
         {step === 'success' && <SuccessStep saving={saving} onDone={finish} />}
       </div>
 
@@ -289,14 +286,24 @@ const NumberPickerStep: React.FC<{ title: string; subtitle: string; min: number;
   const scrollerRef = useRef<HTMLDivElement>(null);
   const values = Array.from({ length: max - min + 1 }, (_, i) => min + i);
   const scrollTimeout = useRef<number | undefined>(undefined);
+  const didMountRef = useRef(false);
 
+  // כל שינוי ב-value (מגלילה, מלחיצה על שורה, או מבחוץ) חייב לגרור את הגלגלת
+  // למרכז החדש - לא רק בטעינה הראשונית. בלי זה, לחיצה על מספר שאינו במרכז
+  // (dist 1/2) עדכנה את הערך אבל השאירה את הגלגלת מצוירת במקום הישן.
+  // (אין צורך להתגונן מפני החזרה-לאחור של האירוע שהגלילה הזו עצמה יוצרת -
+  // handleScroll כבר בודק v !== value ולא יריץ onChange שוב על אותו ערך.)
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      if (scrollerRef.current) scrollerRef.current.scrollTop = (value - min) * ROW_H;
-    }, 0);
-    return () => window.clearTimeout(t);
+    if (!scrollerRef.current) return;
+    const top = (value - min) * ROW_H;
+    if (!didMountRef.current) {
+      scrollerRef.current.scrollTop = top;
+      didMountRef.current = true;
+    } else {
+      scrollerRef.current.scrollTo({ top, behavior: 'smooth' });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [value, min]);
 
   const handleScroll = () => {
     window.clearTimeout(scrollTimeout.current);
@@ -360,7 +367,7 @@ const GOAL_OPTIONS: { id: OnboardingGoal; title: string; desc: string; icon: Rea
     title: 'ירידה במשקל',
     desc: 'גירעון קלורי מבוקר, ירידה הדרגתית ובריאה',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M22 17l-8.5-8.5-5 5L2 7" />
         <path d="M16 17h6v-6" />
       </svg>
@@ -371,7 +378,7 @@ const GOAL_OPTIONS: { id: OnboardingGoal; title: string; desc: string; icon: Rea
     title: 'עלייה במסת שריר',
     desc: 'עודף קלורי ודגש על אימוני כוח מתקדמים',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M2 17l8.5-8.5 5 5L22 7" />
         <path d="M16 7h6v6" />
       </svg>
@@ -382,7 +389,7 @@ const GOAL_OPTIONS: { id: OnboardingGoal; title: string; desc: string; icon: Rea
     title: 'שיפור כוח',
     desc: 'התמקדות בהעלאת משקלים ושיאים אישיים',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M13 2 3 14h7l-1 8 10-12h-7z" />
       </svg>
     ),
@@ -392,26 +399,30 @@ const GOAL_OPTIONS: { id: OnboardingGoal; title: string; desc: string; icon: Rea
     title: 'שמירה על כושר',
     desc: 'תחזוקה, בלי שינוי משמעותי במשקל',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20.8 4.6c-1.6-1.6-4.2-1.6-5.8 0L12 7.6 9 4.6c-1.6-1.6-4.2-1.6-5.8 0-1.6 1.6-1.6 4.2 0 5.8L12 19l8.8-8.6c1.6-1.6 1.6-4.2 0-5.8z" />
       </svg>
     ),
   },
 ];
 
-const GoalStep: React.FC<{ value: OnboardingGoal | null; onChange: (g: OnboardingGoal) => void }> = ({ value, onChange }) => (
+const GoalStep: React.FC<{ value: OnboardingGoal[]; onChange: (g: OnboardingGoal[]) => void }> = ({ value, onChange }) => {
+  const toggle = (id: OnboardingGoal) => {
+    onChange(value.includes(id) ? value.filter((g) => g !== id) : [...value, id]);
+  };
+  return (
   <>
     <div style={{ padding: '24px 24px 6px' }}>
       <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>מה המטרה שלך?</div>
-      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>נבחר לך יעד קלורי ותוכנית פתיחה שמתאימים למטרה הזו</div>
+      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>אפשר לבחור יותר ממטרה אחת - נבחר לך יעד קלורי ותוכנית פתיחה שמתאימים</div>
     </div>
     <div style={{ flex: 1, padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
       {GOAL_OPTIONS.map((opt) => {
-        const selected = value === opt.id;
+        const selected = value.includes(opt.id);
         return (
           <button
             key={opt.id}
-            onClick={() => onChange(opt.id)}
+            onClick={() => toggle(opt.id)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -431,17 +442,28 @@ const GoalStep: React.FC<{ value: OnboardingGoal | null; onChange: (g: Onboardin
               <div style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-main)' }}>{opt.title}</div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>{opt.desc}</div>
             </div>
-            {selected && (
-              <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--color-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Check size={13} color="#fff" strokeWidth={3} />
-              </div>
-            )}
+            <div
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 7,
+                background: selected ? 'var(--color-blue)' : 'transparent',
+                border: selected ? 'none' : '1.5px solid var(--border-strong)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {selected && <Check size={13} color="#fff" strokeWidth={3} />}
+            </div>
           </button>
         );
       })}
     </div>
   </>
-);
+  );
+};
 
 const LEVEL_OPTIONS: { id: ExperienceLevel; title: string; desc: string }[] = [
   { id: 'beginner', title: 'מתחיל', desc: 'עד חצי שנה של אימוני כוח' },
@@ -536,21 +558,6 @@ const RoutineStep: React.FC<{
       </button>
     </div>
   </>
-);
-
-const NameStep: React.FC<{ value: string; onChange: (v: string) => void }> = ({ value, onChange }) => (
-  <div style={{ flex: 1, padding: '28px 24px', display: 'flex', flexDirection: 'column' }}>
-    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>איך נקרא לך?</div>
-    <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 24 }}>השם הזה יופיע בפרופיל שלך באפליקציה.</div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-surface-2)', border: '1px solid var(--border-subtle)', borderRadius: 14, padding: '13px 14px' }}>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="שם או כינוי"
-        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: 600, textAlign: 'right' }}
-      />
-    </div>
-  </div>
 );
 
 const SuccessStep: React.FC<{ saving: boolean; onDone: () => void }> = ({ saving, onDone }) => (

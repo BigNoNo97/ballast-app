@@ -38,6 +38,7 @@ import { ExerciseProfileView } from './components/ExerciseProfileView';
 import { IPhonePreviewFrame } from './components/IPhonePreviewFrame';
 import { AuthView } from './components/AuthView';
 import { OnboardingFlow } from './components/OnboardingFlow';
+import { RoutineChoiceGate } from './components/RoutineChoiceGate';
 import { supabase } from './services/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 
@@ -84,6 +85,12 @@ export const App: React.FC = () => {
         const createdAtMs = new Date(session.user.created_at).getTime();
         const isFreshSignup = Date.now() - createdAtMs < 10 * 60 * 1000;
         loadedSettings = { ...loadedSettings, onboardingCompleted: !isFreshSignup };
+        StorageService.saveSettings(loadedSettings);
+      }
+      // חשבון שכבר סיים אונבורדינג לפני שהתכונה הזו (שער בחירת תוכנית) קיימת -
+      // לא לגרור אותו רטרואקטיבית למסך הבחירה, רק משתמשים חדשים שעוד לא בחרו כלום.
+      if (loadedSettings.hasSelectedRoutine === undefined && loadedSettings.onboardingCompleted) {
+        loadedSettings = { ...loadedSettings, hasSelectedRoutine: true };
         StorageService.saveSettings(loadedSettings);
       }
       setSettings(loadedSettings);
@@ -427,7 +434,6 @@ export const App: React.FC = () => {
     return (
       <IPhonePreviewFrame showFrameOnDesktop={settings.showIphoneFrameOnDesktop}>
         <OnboardingFlow
-          user={session.user}
           settings={settings}
           routines={routines}
           onComplete={(updatedSettings) => {
@@ -438,6 +444,26 @@ export const App: React.FC = () => {
               setActiveRoutine(firstRoutine);
               setSelectedDayNumber(StorageService.getSelectedDayNumber(firstRoutine.id));
             }
+          }}
+        />
+      </IPhonePreviewFrame>
+    );
+  }
+
+  // סיים אונבורדינג אבל לא בפועל בחר תוכנית אימונים (למשל דילג על השלב) -
+  // לפני עמוד הבית, חייבים לבחור: שהמערכת תיצור לו אחת (Placeholder בינתיים) או שיבנה בעצמו.
+  if (!settings.hasSelectedRoutine) {
+    return (
+      <IPhonePreviewFrame showFrameOnDesktop={settings.showIphoneFrameOnDesktop}>
+        <RoutineChoiceGate
+          onChooseSystem={() => {
+            // Placeholder: עד שתיבנה יצירת תוכנית מותאמת-אישית אמיתית, פשוט
+            // ממשיכים עם התוכנית הראשונה הקיימת (כמו שקורה כברירת מחדל היום).
+            handleUpdateSettings({ ...settings, hasSelectedRoutine: true });
+          }}
+          onChooseOwn={() => {
+            handleUpdateSettings({ ...settings, hasSelectedRoutine: true });
+            setShowRoutinesManagerModal(true);
           }}
         />
       </IPhonePreviewFrame>

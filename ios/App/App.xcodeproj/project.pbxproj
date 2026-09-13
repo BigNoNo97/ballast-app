@@ -32,9 +32,9 @@
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
-		E5CB63499EE0445792BDC3D6 /* AppleHealthPlugin.swift */ = {isa = PBXFileReference; name = "AppleHealthPlugin.swift"; path = "App/AppleHealthPlugin.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; includeInIndex = 0; };
-		AC14FEB029FD4FD8B1477C4F /* MainViewController.swift */ = {isa = PBXFileReference; name = "MainViewController.swift"; path = "App/MainViewController.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; includeInIndex = 0; };
-		C3DB90F721A14BCCB860F293 /* App.entitlements */ = {isa = PBXFileReference; name = "App.entitlements"; path = "App/App.entitlements"; sourceTree = "<group>"; lastKnownFileType = text.plist.entitlements; includeInIndex = 0; };
+		E5CB63499EE0445792BDC3D6 /* AppleHealthPlugin.swift */ = {isa = PBXFileReference; name = "AppleHealthPlugin.swift"; path = AppleHealthPlugin.swift; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; includeInIndex = 0; };
+		AC14FEB029FD4FD8B1477C4F /* MainViewController.swift */ = {isa = PBXFileReference; name = "MainViewController.swift"; path = MainViewController.swift; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; includeInIndex = 0; };
+		C3DB90F721A14BCCB860F293 /* App.entitlements */ = {isa = PBXFileReference; name = "App.entitlements"; path = App.entitlements; sourceTree = "<group>"; lastKnownFileType = text.plist.entitlements; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */

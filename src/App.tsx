@@ -38,7 +38,7 @@ import { ExerciseProfileView } from './components/ExerciseProfileView';
 import { IPhonePreviewFrame } from './components/IPhonePreviewFrame';
 import { AuthView } from './components/AuthView';
 import { OnboardingFlow } from './components/OnboardingFlow';
-import { RoutineChoiceGate } from './components/RoutineChoiceGate';
+import { NoRoutineWorkoutView } from './components/NoRoutineWorkoutView';
 import { supabase } from './services/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 
@@ -87,22 +87,31 @@ export const App: React.FC = () => {
         loadedSettings = { ...loadedSettings, onboardingCompleted: !isFreshSignup };
         StorageService.saveSettings(loadedSettings);
       }
-      // חשבון שכבר סיים אונבורדינג לפני שהתכונה הזו (שער בחירת תוכנית) קיימת -
-      // לא לגרור אותו רטרואקטיבית למסך הבחירה, רק משתמשים חדשים שעוד לא בחרו כלום.
-      if (loadedSettings.hasSelectedRoutine === undefined && loadedSettings.onboardingCompleted) {
-        loadedSettings = { ...loadedSettings, hasSelectedRoutine: true };
-        StorageService.saveSettings(loadedSettings);
-      }
-      setSettings(loadedSettings);
       setExercises(StorageService.getExercises());
       const freshRoutines = StorageService.getRoutines();
       setRoutines(freshRoutines);
       setHistory(StorageService.getWorkoutHistory());
       setActiveWorkout(StorageService.getActiveWorkout());
-      const firstRoutine = freshRoutines[0];
-      if (firstRoutine) {
-        setActiveRoutine(firstRoutine);
-        setSelectedDayNumber(StorageService.getSelectedDayNumber(firstRoutine.id));
+
+      // חשבון שכבר סיים אונבורדינג לפני שהתכונה הזו (מעקב מפורש אחר תוכנית פעילה) קיימת -
+      // "מגייר" אותו לתוכנית הראשונה שהוא ממילא היה משתמש בה (ההתנהגות ההיסטורית), במקום
+      // לגרור אותו רטרואקטיבית למסך "עוד אין לך תוכנית" שהוא לא ציפה לו.
+      if (loadedSettings.activeRoutineId === undefined && loadedSettings.onboardingCompleted) {
+        loadedSettings = { ...loadedSettings, activeRoutineId: freshRoutines[0]?.id ?? null };
+        StorageService.saveSettings(loadedSettings);
+      }
+      setSettings(loadedSettings);
+
+      const routineId = loadedSettings.activeRoutineId;
+      const resolvedRoutine =
+        routineId === null
+          ? null
+          : routineId
+          ? freshRoutines.find((r) => r.id === routineId) || freshRoutines[0] || null
+          : freshRoutines[0] || null;
+      setActiveRoutine(resolvedRoutine);
+      if (resolvedRoutine) {
+        setSelectedDayNumber(StorageService.getSelectedDayNumber(resolvedRoutine.id));
       }
       setDataReady(true);
     });
@@ -116,8 +125,9 @@ export const App: React.FC = () => {
     StorageService.getActiveWorkout()
   );
 
-  // Selected routine and day (persisted per routine)
-  const [activeRoutine, setActiveRoutine] = useState<RoutineTemplate>(() => routines[0] || StorageService.getRoutines()[0]);
+  // Selected routine and day (persisted per routine) - null = אין למשתמש תוכנית פעילה
+  // (הערך האמיתי נקבע סופית ב-hydrateFromCloud לפי settings.activeRoutineId; זה רק placeholder לפני זה)
+  const [activeRoutine, setActiveRoutine] = useState<RoutineTemplate | null>(() => routines[0] || StorageService.getRoutines()[0] || null);
   const [selectedDayNumber, setSelectedDayNumber] = useState<number>(() => {
     const defaultRot = routines[0] || StorageService.getRoutines()[0];
     return defaultRot ? StorageService.getSelectedDayNumber(defaultRot.id) : 1;
@@ -165,11 +175,15 @@ export const App: React.FC = () => {
   // Step 1 -> Step 2: Clicking "Start Workout" on Screen 1 opens Screen 2 (Preview / Reorder)
   const handleOpenWorkoutDetail = (routine: RoutineTemplate, day: RoutineDay) => {
     setActiveRoutine(routine);
+    if (settings.activeRoutineId !== routine.id) {
+      handleUpdateSettings({ ...settings, activeRoutineId: routine.id });
+    }
     setPreviewingDay(day);
   };
 
   // Step 2 -> Step 3: Clicking "Get Started" on Screen 2 begins Live Active Workout
   const handleGetStartedFromPreview = (configuredExercises: RoutineDayExercise[]) => {
+    if (!activeRoutine) return; // לא אמור לקרות - המסך הזה נגיש רק כשיש תוכנית פעילה
     const newWorkoutExercises: WorkoutExercise[] = configuredExercises.map((item) => {
       const lastPerf = StorageService.getLastExercisePerformance(item.exerciseId);
 
@@ -248,8 +262,14 @@ export const App: React.FC = () => {
     setCurrentTab('community'); // History view
 
     // Auto-advance to next day in chronological order!
-    const targetRoutineId = finishedSession.routineId || activeRoutine.id;
+    const targetRoutineId = finishedSession.routineId || activeRoutine?.id;
     const targetRoutine = routines.find((r) => r.id === targetRoutineId) || activeRoutine;
+
+    // אימון חופשי בלי שום תוכנית מעורבת (לא של האימון עצמו ולא פעילה כרגע) -
+    // אין "יום הבא" להתקדם אליו, פשוט מסיימים כאן.
+    if (!targetRoutine || !targetRoutineId) {
+      return;
+    }
 
     // אם התוכנית דורשת תיעוד לפני התקדמות, ולא נרשם אף סט - השאר את אותו יום להבא
     if (targetRoutine.requireLogToAdvance && finishedSession.completedSetsCount === 0) {
@@ -438,32 +458,16 @@ export const App: React.FC = () => {
           routines={routines}
           onComplete={(updatedSettings) => {
             setSettings(updatedSettings);
-            setRoutines(StorageService.getRoutines());
-            const firstRoutine = StorageService.getRoutines()[0];
-            if (firstRoutine) {
-              setActiveRoutine(firstRoutine);
-              setSelectedDayNumber(StorageService.getSelectedDayNumber(firstRoutine.id));
+            const freshRoutines = StorageService.getRoutines();
+            setRoutines(freshRoutines);
+            // finish()/skipAll() כבר קבעו activeRoutineId מפורש (מזהה אמיתי, או null אם דולג) -
+            // לא נופלים סתם על routines[0] כאן, אחרת מסך "עוד אין לך תוכנית" לעולם לא יוצג.
+            const id = updatedSettings.activeRoutineId;
+            const resolved = id ? freshRoutines.find((r) => r.id === id) || null : null;
+            setActiveRoutine(resolved);
+            if (resolved) {
+              setSelectedDayNumber(StorageService.getSelectedDayNumber(resolved.id));
             }
-          }}
-        />
-      </IPhonePreviewFrame>
-    );
-  }
-
-  // סיים אונבורדינג אבל לא בפועל בחר תוכנית אימונים (למשל דילג על השלב) -
-  // לפני עמוד הבית, חייבים לבחור: שהמערכת תיצור לו אחת (Placeholder בינתיים) או שיבנה בעצמו.
-  if (!settings.hasSelectedRoutine) {
-    return (
-      <IPhonePreviewFrame showFrameOnDesktop={settings.showIphoneFrameOnDesktop}>
-        <RoutineChoiceGate
-          onChooseSystem={() => {
-            // Placeholder: עד שתיבנה יצירת תוכנית מותאמת-אישית אמיתית, פשוט
-            // ממשיכים עם התוכנית הראשונה הקיימת (כמו שקורה כברירת מחדל היום).
-            handleUpdateSettings({ ...settings, hasSelectedRoutine: true });
-          }}
-          onChooseOwn={() => {
-            handleUpdateSettings({ ...settings, hasSelectedRoutine: true });
-            setShowRoutinesManagerModal(true);
           }}
         />
       </IPhonePreviewFrame>
@@ -495,7 +499,7 @@ export const App: React.FC = () => {
               onDisableAutoTimer={() => handleUpdateSettings({ ...settings, autoRestTimerEnabled: false })}
               onOpenExerciseProfile={setViewingExerciseId}
             />
-          ) : previewingDay ? (
+          ) : previewingDay && activeRoutine ? (
             /* Screen 2: Workout Preview & Reorder (Matching Image 2) */
             <WorkoutDetailPreview
               routine={activeRoutine}
@@ -509,26 +513,44 @@ export const App: React.FC = () => {
             /* Standard Tab Views */
             <>
               {currentTab === 'workout' && (
-                /* Screen 1: Workout Main Home (Matching Image 1) */
-                <WorkoutHomeView
-                  routines={routines}
-                  activeRoutine={activeRoutine}
-                  selectedDayNumber={selectedDayNumber}
-                  onSelectRoutine={(r) => {
-                    setActiveRoutine(r);
-                    const savedDay = StorageService.getSelectedDayNumber(r.id);
-                    setSelectedDayNumber(savedDay);
-                  }}
-                  onSelectDay={(dayNum) => {
-                    setSelectedDayNumber(dayNum);
-                    StorageService.saveSelectedDayNumber(activeRoutine.id, dayNum);
-                  }}
-                  onStartWorkoutClick={handleOpenWorkoutDetail}
-                  onStartEmptyWorkout={handleStartEmptyWorkout}
-                  onOpenRoutinesMenu={() => setShowRoutinesManagerModal(true)}
-                  onOpenSettings={() => setShowSettingsScreen(true)}
-                  onModalOpenChange={setHomeModalOpen}
-                />
+                activeRoutine ? (
+                  /* Screen 1: Workout Main Home (Matching Image 1) */
+                  <WorkoutHomeView
+                    routines={routines}
+                    activeRoutine={activeRoutine}
+                    selectedDayNumber={selectedDayNumber}
+                    onSelectRoutine={(r) => {
+                      setActiveRoutine(r);
+                      handleUpdateSettings({ ...settings, activeRoutineId: r.id });
+                      const savedDay = StorageService.getSelectedDayNumber(r.id);
+                      setSelectedDayNumber(savedDay);
+                    }}
+                    onSelectDay={(dayNum) => {
+                      setSelectedDayNumber(dayNum);
+                      StorageService.saveSelectedDayNumber(activeRoutine.id, dayNum);
+                    }}
+                    onStartWorkoutClick={handleOpenWorkoutDetail}
+                    onStartEmptyWorkout={handleStartEmptyWorkout}
+                    onOpenRoutinesMenu={() => setShowRoutinesManagerModal(true)}
+                    onOpenSettings={() => setShowSettingsScreen(true)}
+                    onModalOpenChange={setHomeModalOpen}
+                  />
+                ) : (
+                  /* אין למשתמש תוכנית פעילה - להציע לבנות אחת, לתת למערכת, או להתחיל בלי תוכנית */
+                  <NoRoutineWorkoutView
+                    onChooseSystem={() => {
+                      const fallback = routines[0];
+                      if (fallback) {
+                        setActiveRoutine(fallback);
+                        handleUpdateSettings({ ...settings, activeRoutineId: fallback.id });
+                        setSelectedDayNumber(StorageService.getSelectedDayNumber(fallback.id));
+                      }
+                    }}
+                    onOpenRoutinesMenu={() => setShowRoutinesManagerModal(true)}
+                    onStartEmptyWorkout={handleStartEmptyWorkout}
+                    onOpenSettings={() => setShowSettingsScreen(true)}
+                  />
+                )
               )}
 
               {currentTab === 'analysis' && (
@@ -644,15 +666,17 @@ export const App: React.FC = () => {
               <div className="sheet-handle" />
               <RoutinesView
                 routines={routines}
-                activeRoutine={activeRoutine}
+                activeRoutine={activeRoutine || routines[0]}
                 allExercises={exercises}
                 onSelectActiveRoutine={(r) => {
                   setActiveRoutine(r);
+                  handleUpdateSettings({ ...settings, activeRoutineId: r.id });
                   setSelectedDayNumber(StorageService.getSelectedDayNumber(r.id));
                   setShowRoutinesManagerModal(false);
                 }}
                 onStartRoutine={(r) => {
                   setActiveRoutine(r);
+                  handleUpdateSettings({ ...settings, activeRoutineId: r.id });
                   setSelectedDayNumber(1);
                   setShowRoutinesManagerModal(false);
                   const firstDay = r.days?.[0] || {
@@ -672,7 +696,7 @@ export const App: React.FC = () => {
                 onSaveRoutine={(r) => {
                   StorageService.saveRoutine(r);
                   setRoutines(StorageService.getRoutines());
-                  if (r.id === activeRoutine.id) {
+                  if (activeRoutine && r.id === activeRoutine.id) {
                     setActiveRoutine(r);
                   }
                 }}
@@ -680,8 +704,9 @@ export const App: React.FC = () => {
                   StorageService.deleteRoutine(id);
                   const remaining = StorageService.getRoutines();
                   setRoutines(remaining);
-                  if (activeRoutine.id === id && remaining.length > 0) {
+                  if (activeRoutine && activeRoutine.id === id && remaining.length > 0) {
                     setActiveRoutine(remaining[0]);
+                    handleUpdateSettings({ ...settings, activeRoutineId: remaining[0].id });
                   }
                 }}
                 onClose={() => setShowRoutinesManagerModal(false)}

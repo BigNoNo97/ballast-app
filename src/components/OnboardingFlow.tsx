@@ -85,14 +85,11 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, routin
       StorageService.saveNutritionGoals({ calories, protein, carbs, fat });
     }
 
-    if (chosenRoutineId) {
-      StorageService.reorderRoutineFirst(chosenRoutineId);
-    }
-
     const newSettings: UserSettings = {
       ...settings,
       onboardingCompleted: true,
-      hasSelectedRoutine: Boolean(chosenRoutineId),
+      // null אם דילג על בחירת תוכנית - יגרום למסך "עוד אין לך תוכנית" בעמוד הבית
+      activeRoutineId: chosenRoutineId ?? null,
       gender,
       ageYears: age,
       heightCm: height,
@@ -105,7 +102,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, routin
   };
 
   const skipAll = () => {
-    const newSettings: UserSettings = { ...settings, onboardingCompleted: true };
+    const newSettings: UserSettings = { ...settings, onboardingCompleted: true, activeRoutineId: null };
     StorageService.saveSettings(newSettings);
     onComplete(newSettings);
   };

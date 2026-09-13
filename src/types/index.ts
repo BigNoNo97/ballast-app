@@ -146,7 +146,9 @@ export interface UserSettings {
   language: 'he' | 'en';
   scheduledWeekdays: number[]; // 0 = ראשון ... 6 = שבת
   onboardingCompleted?: boolean;
-  hasSelectedRoutine?: boolean;
+  // undefined = חשבון ישן/עוד לא הוגדר (נופל חזרה על routines[0], ההתנהגות ההיסטורית),
+  // null = המשתמש מודע ואין לו תוכנית פעילה בכוונה, string = מזהה התוכנית הפעילה בפועל.
+  activeRoutineId?: string | null;
   gender?: 'male' | 'female';
   ageYears?: number;
   heightCm?: number;

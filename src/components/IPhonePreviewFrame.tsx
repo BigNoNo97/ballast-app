@@ -1,5 +1,6 @@
 import React from 'react';
 import { Wifi, Battery, Signal } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 interface IPhonePreviewFrameProps {
   children: React.ReactNode;
@@ -14,7 +15,10 @@ export const IPhonePreviewFrame: React.FC<IPhonePreviewFrameProps> = ({
   const now = new Date();
   const timeStr = `${now.getHours()}:${now.getMinutes() < 10 ? '0' : ''}${now.getMinutes()}`;
 
-  if (!showFrameOnDesktop) {
+  // המוקאפ הזה מדמה אייפון בתוך דפדפן דסקטופ - אין שום היגיון שהוא יוצג
+  // כשהאפליקציה כבר רצה כאפליקציית iOS אמיתית (Capacitor), בלי קשר להעדפה
+  // שנשמרה למשתמש (שברירת המחדל שלה היא true, ומיועדת רק לדפדפן).
+  if (!showFrameOnDesktop || Capacitor.isNativePlatform()) {
     return (
       <div style={{ minHeight: '100dvh', width: '100%', maxWidth: '768px', margin: '0 auto', position: 'relative' }}>
         {children}

@@ -76,14 +76,16 @@ jobs:
           xcrun simctl install "$UDID" "$APP_PATH"
           xcrun simctl launch "$UDID" com.ballast.app
 
-          sleep 15
-          xcrun simctl io "$UDID" screenshot app-screenshot.png
+          sleep 5
+          xcrun simctl io "$UDID" screenshot app-screenshot-early.png
+          sleep 20
+          xcrun simctl io "$UDID" screenshot app-screenshot-late.png
 
           kill $LOG_PID 2>/dev/null || true
           sleep 1
 
-          echo "----- Last 200 lines of simulator log -----"
-          tail -n 200 app-simulator.log || true
+          echo "----- Last 300 lines of simulator log -----"
+          tail -n 300 app-simulator.log || true
 
       - name: Upload simulator screenshot and log
         if: always()
@@ -91,6 +93,7 @@ jobs:
         with:
           name: ios-simulator-check
           path: |
-            ios/App/app-screenshot.png
+            ios/App/app-screenshot-early.png
+            ios/App/app-screenshot-late.png
             ios/App/app-simulator.log
           if-no-files-found: warn

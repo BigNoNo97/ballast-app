@@ -69,22 +69,28 @@ jobs:
           APP_PATH=$(find build/Build/Products -maxdepth 2 -name "App.app" -print -quit)
           echo "App path: $APP_PATH"
 
-          # תופס לוגים ל-15 שניות אחרי ההרצה, ברקע
+          xcrun simctl install "$UDID" "$APP_PATH"
+
+          # תופס שני סוגי לוג בו-זמנית ברקע:
+          # 1) unified log (os_log/NSLog) - לא תופס console.log/print() בפועל, גילינו בניסיון קודם
+          # 2) stdout/stderr גולמי של התהליך עצמו - שם באמת נופל console.log של Capacitor/WKWebView
           xcrun simctl spawn "$UDID" log stream --level debug --predicate 'process == "App"' > app-simulator.log 2>&1 &
           LOG_PID=$!
 
-          xcrun simctl install "$UDID" "$APP_PATH"
-          xcrun simctl launch "$UDID" com.ballast.app
+          xcrun simctl launch --console-pty "$UDID" com.ballast.app > app-stdout.log 2>&1 &
+          CONSOLE_PID=$!
 
           sleep 5
           xcrun simctl io "$UDID" screenshot app-screenshot-early.png
           sleep 20
           xcrun simctl io "$UDID" screenshot app-screenshot-late.png
 
-          kill $LOG_PID 2>/dev/null || true
+          kill $LOG_PID $CONSOLE_PID 2>/dev/null || true
           sleep 1
 
-          echo "----- Last 300 lines of simulator log -----"
+          echo "----- stdout/stderr (app-stdout.log) -----"
+          cat app-stdout.log || true
+          echo "----- Last 300 lines of unified log -----"
           tail -n 300 app-simulator.log || true
 
       - name: Upload simulator screenshot and log
@@ -96,4 +102,5 @@ jobs:
             ios/App/app-screenshot-early.png
             ios/App/app-screenshot-late.png
             ios/App/app-simulator.log
+            ios/App/app-stdout.log
           if-no-files-found: warn

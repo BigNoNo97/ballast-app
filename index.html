@@ -3,6 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <!-- אבחון זמני: אם קורה JS error/unhandled rejection לפני שהאפליקציה עולה,
+         מציג אותו ישירות על המסך (רקע צבעוני + טקסט השגיאה) כדי שאפשר יהיה
+         לראות אותו בצילום מסך של הסימולטור, בלי תלות בלכידת לוגים. להסיר
+         אחרי שהבעיה עם המסך השחור ב-Capacitor iOS תיפתר. -->
+    <script>
+      (function () {
+        function showError(title, detail) {
+          document.documentElement.style.background = '#b00020';
+          document.body.style.background = '#b00020';
+          document.body.innerHTML =
+            '<pre style="color:#fff;font-size:13px;line-height:1.4;white-space:pre-wrap;padding:20px;direction:ltr;text-align:left;font-family:monospace;">' +
+            title + '\n\n' + detail +
+            '</pre>';
+        }
+        window.addEventListener('error', function (e) {
+          showError('JS ERROR', (e.message || '') + '\nat ' + (e.filename || '') + ':' + e.lineno + ':' + e.colno + '\n\n' + (e.error && e.error.stack ? e.error.stack : ''));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var reason = e.reason;
+          var detail = reason && reason.stack ? reason.stack : String(reason);
+          showError('UNHANDLED PROMISE REJECTION', detail);
+        });
+      })();
+    </script>
     
     <!-- iOS Web App & PWA Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes" />

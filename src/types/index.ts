@@ -51,6 +51,10 @@ export interface WorkoutSet {
   completedAt?: number;
   previousWeight?: number;
   previousReps?: number;
+  // הערך שהיה בסט הזה ממש לפני שעדכון אוטומטי (עדכון-קבוצתי או הצעת "קל מדי") שינה אותו -
+  // לא ע"י המשתמש עצמו. מוצג כתזכורת קטנה מעל השדה; מתאפס כשהמשתמש עורך את השדה ידנית.
+  autoFilledFromWeight?: number;
+  autoFilledFromReps?: number;
 }
 
 export interface WorkoutExercise {

@@ -156,8 +156,17 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
     // שעדיין לא הושלמו - בלי לסמן אותם ✓ בעצמו, ובלי לגעת בסטים שכבר אושרו.
     const isCascadeField = field === 'weightKg' || field === 'reps';
     const updatedSets = exercise.sets.map((s, idx) => {
-      if (idx === setIndex) return { ...s, [field]: value };
-      if (isCascadeField && !s.completed) return { ...s, [field]: value };
+      if (idx === setIndex) {
+        // עריכה ישירה של המשתמש על השדה הזה - מבטלת את תזכורת "עודכן אוטומטית" שלו,
+        // כי מעכשיו זה הערך שהמשתמש עצמו בחר, לא הצעה של המערכת.
+        if (field === 'weightKg') return { ...s, weightKg: value, autoFilledFromWeight: undefined };
+        if (field === 'reps') return { ...s, reps: value, autoFilledFromReps: undefined };
+        return { ...s, [field]: value };
+      }
+      if (isCascadeField && !s.completed && s[field] !== value) {
+        const prevKey = field === 'weightKg' ? 'autoFilledFromWeight' : 'autoFilledFromReps';
+        return { ...s, [field]: value, [prevKey]: s[field] };
+      }
       return s;
     });
     updatedExercises[exerciseIndex] = { ...exercise, sets: updatedSets };
@@ -340,7 +349,11 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
     if (!easyNudge) return;
     const updatedExercises = [...workout.exercises];
     const exercise = updatedExercises[easyNudge.exerciseIndex];
-    const updatedSets = exercise.sets.map((s) => (s.completed ? s : { ...s, weightKg: easyNudge.suggestedWeight }));
+    const updatedSets = exercise.sets.map((s) =>
+      s.completed || s.weightKg === easyNudge.suggestedWeight
+        ? s
+        : { ...s, weightKg: easyNudge.suggestedWeight, autoFilledFromWeight: s.weightKg }
+    );
     updatedExercises[easyNudge.exerciseIndex] = { ...exercise, sets: updatedSets };
     onUpdateWorkout({ ...workout, durationSec: elapsedSec, exercises: updatedExercises });
     triggerHaptic(50);
@@ -1083,6 +1096,11 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
                   {/* Weight Input */}
                   <div>
+                    {s.autoFilledFromWeight != null && (
+                      <div style={{ fontSize: '0.62rem', color: 'var(--text-dim)', textAlign: 'center', marginBottom: 2 }}>
+                        משקל קודם: {s.autoFilledFromWeight}
+                      </div>
+                    )}
                     <input
                       type="number"
                       step="0.5"
@@ -1103,6 +1121,11 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
                   {/* Reps Input */}
                   <div>
+                    {s.autoFilledFromReps != null && (
+                      <div style={{ fontSize: '0.62rem', color: 'var(--text-dim)', textAlign: 'center', marginBottom: 2 }}>
+                        כמות חזרות קודמת: {s.autoFilledFromReps}
+                      </div>
+                    )}
                     <input
                       type="number"
                       inputMode="numeric"

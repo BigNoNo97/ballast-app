@@ -571,7 +571,7 @@ export const App: React.FC = () => {
                       // מטרות) - עם מחזור אימון ומנוע התקדמות משלה, לא תבנית קבועה של הדמו.
                       const { routine, progressStates } = buildRoutine(settings, exercises);
                       StorageService.saveRoutine(routine);
-                      progressStates.forEach((s) => StorageService.saveExerciseProgressState(s));
+                      StorageService.saveExerciseProgressStates(progressStates);
                       setRoutines(StorageService.getRoutines());
                       setActiveRoutine(routine);
                       handleUpdateSettings({ ...settings, activeRoutineId: routine.id });

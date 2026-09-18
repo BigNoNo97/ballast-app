@@ -32,6 +32,7 @@ export function processFinishedWorkout(
   const level: ExperienceLevel = settings.experienceLevel || 'beginner';
   const muscleById = new Map(library.map((e) => [e.id, e.muscle]));
   const stalledExerciseIds: string[] = [];
+  const statesToSave: ExerciseProgressState[] = []; // כתיבה אחת בסוף, לא קריאת סנכרון-ענן לכל תרגיל בלולאה
 
   session.exercises.forEach((workoutExercise) => {
     let state = getExerciseState(routine.id, workoutExercise.exerciseId);
@@ -61,7 +62,7 @@ export function processFinishedWorkout(
     // לא מוסיפים "עוד תוספת" מעל אפס.
     if (state.currentWeightKg === 0) {
       const actualMaxWeight = completedSets.reduce((max, s) => Math.max(max, s.weightKg), 0);
-      StorageService.saveExerciseProgressState({
+      statesToSave.push({
         ...state,
         currentWeightKg: actualMaxWeight || state.currentWeightKg,
         consecutiveStalls: 0,
@@ -86,13 +87,15 @@ export function processFinishedWorkout(
         next.currentWeightKg = round025(state.currentWeightKg + increment);
         next.currentTargetReps = state.repRangeMin;
       }
-      StorageService.saveExerciseProgressState(next);
+      statesToSave.push(next);
     } else {
       const consecutiveStalls = state.consecutiveStalls + 1;
-      StorageService.saveExerciseProgressState({ ...state, consecutiveStalls, lastSessionResult: 'held' });
+      statesToSave.push({ ...state, consecutiveStalls, lastSessionResult: 'held' });
       if (consecutiveStalls >= 2) stalledExerciseIds.push(workoutExercise.exerciseId);
     }
   });
+
+  StorageService.saveExerciseProgressStates(statesToSave);
 
   // התקדמות שבוע/מחזור - נספר לפי אימונים שהושלמו בתוכנית הזו, לא לפי לוח שנה
   // (כדי לא "להעניש" משתמש שהחמיץ יום ולהתאים את הקצב לקצב האמיתי שלו).
@@ -109,7 +112,7 @@ export function processFinishedWorkout(
   if (nextWeek > mesocycle.lengthWeeks) {
     // סוף שבוע הדילול - גלגול למחזור הבא (נפח פתיחה גבוה מעט, ואולי תרגילים מעט אחרים לגיוון).
     const { routine: rolledRoutine, progressStates } = regenerateForNewCycle(routine, settings, library);
-    progressStates.forEach((s) => StorageService.saveExerciseProgressState(s));
+    StorageService.saveExerciseProgressStates(progressStates);
     return { updatedRoutine: rolledRoutine, stalledExerciseIds, didRollover: true };
   }
 

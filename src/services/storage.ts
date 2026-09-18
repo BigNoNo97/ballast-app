@@ -602,9 +602,20 @@ export const StorageService = {
   },
 
   saveExerciseProgressState(state: ExerciseProgressState) {
+    this.saveExerciseProgressStates([state]);
+  },
+
+  // כותב כמה states בכתיבה אחת (localStorage + סנכרון-ענן אחד) - קריטי כשיוצרים/מעדכנים
+  // הרבה תרגילים בבת אחת (בניית תוכנית, אימון עם כמה תרגילים): קריאות מקבילות בלולאה
+  // ל-saveExerciseProgressState היו גורמות למספר קריאות syncListToCloud חופפות על אותה
+  // טבלה (delete+insert לא אטומי), ומזה שגיאות "duplicate key" מהתחרות בין הקריאות.
+  saveExerciseProgressStates(states: ExerciseProgressState[]) {
+    if (states.length === 0) return;
     const list = this.getAllExerciseProgressStates();
-    const idx = list.findIndex((s) => s.id === state.id);
-    if (idx >= 0) list[idx] = state; else list.push(state);
+    states.forEach((state) => {
+      const idx = list.findIndex((s) => s.id === state.id);
+      if (idx >= 0) list[idx] = state; else list.push(state);
+    });
     localStorage.setItem(STORAGE_KEYS.EXERCISE_PROGRESS, JSON.stringify(list));
     syncListToCloud('exercise_progress', list);
   },

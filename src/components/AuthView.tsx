@@ -398,7 +398,7 @@ const appleButtonStyle: React.CSSProperties = {
   gap: 10,
   background: '#000',
   color: '#fff',
-  border: 'none',
+  border: '1px solid var(--border-subtle)',
   borderRadius: 'var(--radius-md)',
   padding: '12px 14px',
   fontSize: '0.9rem',

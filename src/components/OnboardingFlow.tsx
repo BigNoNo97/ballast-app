@@ -17,6 +17,7 @@ const STEP_IDS = [
   'goal',
   'level',
   'trainingDays',
+  'trainingLocation',
   'equipment',
   'sessionDuration',
   'warmup',
@@ -38,13 +39,6 @@ interface OnboardingFlowProps {
 }
 
 export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComplete }) => {
-  const steps: StepId[] = [...STEP_IDS];
-
-  const [stepIdx, setStepIdx] = useState(0);
-  const step = steps[stepIdx];
-  const dotSteps: StepId[] = steps.filter((s) => s !== 'welcome' && s !== 'success');
-  const dotIndex = dotSteps.indexOf(step);
-
   const [gender, setGender] = useState<Gender>('male');
   const [age, setAge] = useState(28);
   const [height, setHeight] = useState(175);
@@ -52,8 +46,21 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
   const [goals, setGoals] = useState<OnboardingGoal[]>([]);
   const [level, setLevel] = useState<ExperienceLevel | null>(null);
   const [trainingDays, setTrainingDays] = useState(3);
-  const [equipment, setEquipment] = useState<EquipmentType[]>([...ALL_EQUIPMENT]);
+  const [trainingLocation, setTrainingLocation] = useState<'gym' | 'home' | null>(null);
+  // מתחיל ריק - המסך הזה מוצג רק למי שבחר "בבית", אז עדיף לבחור מה יש לו
+  // מאשר להתחיל עם הכל מסומן ולדרוש מהמשתמש להסיר. מי שבוחר "בחדר כושר" מקבל
+  // את כל הציוד אוטומטית (ראה onChange של TrainingLocationStep) ולא רואה את המסך הזה בכלל.
+  const [equipment, setEquipment] = useState<EquipmentType[]>([]);
   const [sessionDuration, setSessionDuration] = useState(60);
+
+  // מי שמתאמן בחדר כושר לא צריך את מסך בחירת הציוד בכלל - מניחים גישה לכל הציוד
+  // (equipment כבר מאותחל לכל הציוד כברירת מחדל, אז פשוט מדלגים על השלב).
+  const steps: StepId[] = STEP_IDS.filter((s) => !(s === 'equipment' && trainingLocation === 'gym'));
+
+  const [stepIdx, setStepIdx] = useState(0);
+  const step = steps[stepIdx];
+  const dotSteps: StepId[] = steps.filter((s) => s !== 'welcome' && s !== 'success');
+  const dotIndex = dotSteps.indexOf(step);
   const [includeWarmup, setIncludeWarmup] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -129,6 +136,15 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
         {step === 'goal' && <GoalStep value={goals} onChange={setGoals} />}
         {step === 'level' && <LevelStep value={level} onChange={setLevel} />}
         {step === 'trainingDays' && <TrainingDaysStep value={trainingDays} onChange={setTrainingDays} />}
+        {step === 'trainingLocation' && (
+          <TrainingLocationStep
+            value={trainingLocation}
+            onChange={(loc) => {
+              setTrainingLocation(loc);
+              if (loc === 'gym') setEquipment([...ALL_EQUIPMENT]);
+            }}
+          />
+        )}
         {step === 'equipment' && <EquipmentStep value={equipment} onChange={setEquipment} />}
         {step === 'sessionDuration' && <SessionDurationStep value={sessionDuration} onChange={setSessionDuration} />}
         {step === 'warmup' && <WarmupStep value={includeWarmup} onChange={setIncludeWarmup} />}
@@ -553,6 +569,50 @@ const TrainingDaysStep: React.FC<{ value: number; onChange: (n: number) => void 
   </>
 );
 
+const TRAINING_LOCATION_OPTIONS: { id: 'gym' | 'home'; title: string; desc: string }[] = [
+  { id: 'gym', title: 'בחדר כושר', desc: 'יש לי גישה לכל הציוד הסטנדרטי בחדר הכושר' },
+  { id: 'home', title: 'בבית / ציוד עצמאי', desc: 'מתאמן עם ציוד שיש לי בעצמי - נבחר יחד מה יש לך' },
+];
+
+const TrainingLocationStep: React.FC<{ value: 'gym' | 'home' | null; onChange: (v: 'gym' | 'home') => void }> = ({ value, onChange }) => (
+  <>
+    <div style={{ padding: '24px 24px 6px' }}>
+      <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>איפה אתה מתאמן?</div>
+      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>בחדר כושר נניח שיש לך גישה לכל הציוד. בבית - נבחר יחד מה יש לך.</div>
+    </div>
+    <div style={{ flex: 1, padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {TRAINING_LOCATION_OPTIONS.map((opt) => {
+        const selected = value === opt.id;
+        return (
+          <button
+            key={opt.id}
+            onClick={() => onChange(opt.id)}
+            style={{
+              padding: '16px 18px',
+              borderRadius: 14,
+              background: selected ? 'var(--color-blue-bg)' : 'var(--bg-surface-1)',
+              border: selected ? '1.5px solid var(--color-blue)' : '1px solid var(--border-subtle)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              cursor: 'pointer',
+              textAlign: 'start',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '0.95rem', fontWeight: selected ? 800 : 700, color: 'var(--text-main)' }}>{opt.title}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>{opt.desc}</div>
+            </div>
+            <div style={{ width: 22, height: 22, borderRadius: '50%', border: selected ? 'none' : '1.5px solid var(--border-strong)', background: selected ? 'var(--color-blue)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {selected && <Check size={13} color="#fff" strokeWidth={3} />}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  </>
+);
+
 const EquipmentStep: React.FC<{ value: EquipmentType[]; onChange: (e: EquipmentType[]) => void }> = ({ value, onChange }) => {
   const toggle = (id: EquipmentType) => {
     onChange(value.includes(id) ? value.filter((e) => e !== id) : [...value, id]);
@@ -561,7 +621,7 @@ const EquipmentStep: React.FC<{ value: EquipmentType[]; onChange: (e: EquipmentT
     <>
       <div style={{ padding: '24px 24px 6px' }}>
         <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>לאיזה ציוד יש לך גישה?</div>
-        <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>נבחר לך תרגילים שאפשר לבצע בפועל. ברירת המחדל היא חדר כושר מלא.</div>
+        <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>נבחר לך תרגילים שאפשר לבצע בפועל בבית. סמן מה יש לך בפועל.</div>
       </div>
       <div style={{ flex: 1, padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {ALL_EQUIPMENT.map((id) => {

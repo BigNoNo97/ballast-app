@@ -81,9 +81,10 @@ export function pickRepRange(goals: OnboardingGoal[] | undefined): { min: number
 }
 
 function equipmentSetFromSettings(settings: UserSettings): Set<string> | null {
-  return settings.availableEquipment && settings.availableEquipment.length > 0
-    ? new Set<string>(settings.availableEquipment)
-    : null; // null = כל הציוד (ברירת מחדל - חדר כושר מלא)
+  if (!settings.availableEquipment) return null; // לא נשאל מעולם (חשבון ישן) - כל הציוד, ברירת מחדל היסטורית
+  // בחר "בבית" ולא סימן שום ציוד - משקל גוף תמיד קיים בפועל, לא הופך את זה ל"כל הציוד"
+  if (settings.availableEquipment.length === 0) return new Set<string>(['bodyweight']);
+  return new Set<string>(settings.availableEquipment);
 }
 
 const SPLIT_LABELS: Record<SplitType, string> = {

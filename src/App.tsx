@@ -41,6 +41,7 @@ import { IPhonePreviewFrame } from './components/IPhonePreviewFrame';
 import { AuthView } from './components/AuthView';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { NoRoutineWorkoutView } from './components/NoRoutineWorkoutView';
+import { ProgramGeneratingLoader } from './components/ProgramGeneratingLoader';
 import { supabase } from './services/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 
@@ -140,6 +141,7 @@ export const App: React.FC = () => {
   const [previewingDay, setPreviewingDay] = useState<RoutineDay | null>(null);
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
   const [coachNote, setCoachNote] = useState<string | null>(null);
+  const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
   const [showAddExerciseToActiveModal, setShowAddExerciseToActiveModal] = useState(false);
   const [showRoutinesManagerModal, setShowRoutinesManagerModal] = useState(false);
   const [showSettingsScreen, setShowSettingsScreen] = useState(false);
@@ -541,7 +543,9 @@ export const App: React.FC = () => {
             /* Standard Tab Views */
             <>
               {currentTab === 'workout' && (
-                activeRoutine ? (
+                isGeneratingProgram ? (
+                  <ProgramGeneratingLoader />
+                ) : activeRoutine ? (
                   /* Screen 1: Workout Main Home (Matching Image 1) */
                   <WorkoutHomeView
                     routines={routines}
@@ -568,14 +572,20 @@ export const App: React.FC = () => {
                   <NoRoutineWorkoutView
                     onChooseSystem={() => {
                       // בונה תוכנית אישית אמיתית לפי נתוני המשתמש (ימים בשבוע, ציוד, רמת ניסיון,
-                      // מטרות) - עם מחזור אימון ומנוע התקדמות משלה, לא תבנית קבועה של הדמו.
-                      const { routine, progressStates } = buildRoutine(settings, exercises);
-                      StorageService.saveRoutine(routine);
-                      StorageService.saveExerciseProgressStates(progressStates);
-                      setRoutines(StorageService.getRoutines());
-                      setActiveRoutine(routine);
-                      handleUpdateSettings({ ...settings, activeRoutineId: routine.id });
-                      setSelectedDayNumber(StorageService.getSelectedDayNumber(routine.id));
+                      // מטרות, משך אימון) - עם מחזור אימון ומנוע התקדמות משלה, לא תבנית קבועה.
+                      // מסך טעינה קצר במקום הופעה מיידית - כדי שיהיה ברור שבפועל בונים תוכנית
+                      // מותאמת ולא רק מציגים דבר קבוע מראש.
+                      setIsGeneratingProgram(true);
+                      setTimeout(() => {
+                        const { routine, progressStates } = buildRoutine(settings, exercises);
+                        StorageService.saveRoutine(routine);
+                        StorageService.saveExerciseProgressStates(progressStates);
+                        setRoutines(StorageService.getRoutines());
+                        setActiveRoutine(routine);
+                        handleUpdateSettings({ ...settings, activeRoutineId: routine.id });
+                        setSelectedDayNumber(StorageService.getSelectedDayNumber(routine.id));
+                        setIsGeneratingProgram(false);
+                      }, 1300);
                     }}
                     onOpenRoutinesMenu={() => setShowRoutinesManagerModal(true)}
                     onStartEmptyWorkout={handleStartEmptyWorkout}

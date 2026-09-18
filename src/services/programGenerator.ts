@@ -112,11 +112,31 @@ function composeDescription(
   );
 }
 
-// כמה תרגילים ליום בהתאם למשך האימון המועדף - נגזר מהיחס הקיים כבר בקוד
-// (estimatedMinutes = מספר תרגילים * 8), כך ש-60 דק' (ברירת המחדל הישנה) נותן בדיוק 8 כמו קודם.
-function computeMaxExercisesPerDay(sessionDurationMinutes: number | undefined): number {
+// זמן משוער לתרגיל "מלא" (כולל סטים ומנוחה בין סטים) - לפי מחקר: תרגיל עם 3-4 סטים
+// ומנוחה של 60-90 שנ' (טווח היפרטרופיה, המטרה הכי נפוצה) לוקח בערך 6-9 דקות בפועל.
+// מקורות: aworkoutroutine.com/how-long-to-rest-between-sets-exercises,
+// strive-workout.com/2026/05/05/30-minute-workout-plan (עדיפות לתרגילים מורכבים בזמן מוגבל).
+const MINUTES_PER_MAIN_EXERCISE = 8;
+// תרגיל חימום סימלי (סט אחד, בלי משקל) לוקח משמעותית פחות זמן מתרגיל עבודה מלא.
+const MINUTES_PER_WARMUP_EXERCISE = 4;
+
+// כמה תרגילים "עיקריים" נכנסים בזמן שהוקצה, אחרי הפחתת זמן החימום (אם נבחר) - כדי
+// שהאומדן הכולל (תרגילים * זמן משוער) לא יחרוג משמעותית ממה שהמשתמש בפועל ביקש.
+function computeMaxExercisesPerDay(sessionDurationMinutes: number | undefined, includeWarmup: boolean | undefined): number {
   const minutes = sessionDurationMinutes || 60;
-  return Math.max(3, Math.round(minutes / 8));
+  const warmupMinutes = includeWarmup ? WARMUP_EXERCISES.length * MINUTES_PER_WARMUP_EXERCISE : 0;
+  const mainMinutes = Math.max(minutes - warmupMinutes, MINUTES_PER_MAIN_EXERCISE * 2);
+  return Math.max(2, Math.round(mainMinutes / MINUTES_PER_MAIN_EXERCISE));
+}
+
+// כשיש יותר שרירים ביום מהתקציב שהזמן מאפשר (למשל גוף מלא, 9 שרירים, ב-30 דק') - לא
+// אפשר לתת לכולם תרגיל נפרד. בוחרים subset בעדיפות לשרירים גדולים (שמכוסים חלקית גם
+// ע"י שרירים משניים בתרגילים המורכבים שנבחרים, כך שהם לא "מתעלמים" לגמרי מהאימון) -
+// זה בדיוק העיקרון שממחקר אימונים קצרים: להתמקד בתרגילים מורכבים רב-שריריים.
+function trimMusclesToBudget(muscles: MuscleGroup[], maxExercisesPerDay: number): MuscleGroup[] {
+  if (muscles.length <= maxExercisesPerDay) return muscles;
+  const rank = (m: MuscleGroup) => (LOW_PRIORITY_MUSCLES.has(m) ? 2 : MUSCLE_SIZE_CATEGORY[m] === 'large' ? 0 : 1);
+  return [...muscles].sort((a, b) => rank(a) - rank(b)).slice(0, Math.max(1, maxExercisesPerDay));
 }
 
 // שני תרגילי חימום כלליים (לא ספציפיים לשריר) שנוספים בתחילת כל יום כשהמשתמש בחר בכך.
@@ -243,12 +263,14 @@ export function buildRoutine(settings: UserSettings, library: Exercise[]): Gener
   const daysPerWeek = Math.min(6, Math.max(2, settings.trainingDaysPerWeek || 3));
   const equipment = equipmentSetFromSettings(settings);
   const split = chooseSplit(daysPerWeek, level);
-  const dayTemplates = tileDays(split, daysPerWeek);
+  const maxExercisesPerDay = computeMaxExercisesPerDay(settings.sessionDurationMinutes, settings.includeWarmup);
+  // מגבילים כל יום לכמות השרירים שהזמן בפועל מאפשר - לפני חישוב התדירות השבועית,
+  // כי שריר שנשמט מהיום הזה לא באמת מתאמן בו (אחרת ה"נפח לשבוע" יתחלק לפי תדירות שגויה).
+  const dayTemplates = tileDays(split, daysPerWeek).map((t) => ({ ...t, muscles: trimMusclesToBudget(t.muscles, maxExercisesPerDay) }));
   const freq = muscleFrequency(dayTemplates);
   const lengthWeeks = MESOCYCLE_LENGTH_BY_LEVEL[level];
   const repRange = pickRepRange(settings.goals);
   const usedIds = new Set<string>();
-  const maxExercisesPerDay = computeMaxExercisesPerDay(settings.sessionDurationMinutes);
   const warmup = settings.includeWarmup ? buildWarmupExercises() : [];
 
   const days: RoutineDay[] = dayTemplates.map((template, idx) => {
@@ -263,7 +285,7 @@ export function buildRoutine(settings: UserSettings, library: Exercise[]): Gener
       dayTitle: `יום ${idx + 1} (${template.title})`,
       targetMuscles: muscleLabels.join(', '),
       estimatedCalories: mainExercises.length * 45,
-      estimatedMinutes: exercises.length * 8,
+      estimatedMinutes: mainExercises.length * MINUTES_PER_MAIN_EXERCISE + warmup.length * MINUTES_PER_WARMUP_EXERCISE,
       exercises,
     };
   });
@@ -363,14 +385,14 @@ export function regenerateForNewCycle(routine: RoutineTemplate, settings: UserSe
   const daysPerWeek = Math.min(6, Math.max(2, settings.trainingDaysPerWeek || 3));
   const equipment = equipmentSetFromSettings(settings);
   const split = routine.splitType || chooseSplit(daysPerWeek, level);
-  const dayTemplates = tileDays(split, daysPerWeek);
+  const maxExercisesPerDay = computeMaxExercisesPerDay(settings.sessionDurationMinutes, settings.includeWarmup);
+  const dayTemplates = tileDays(split, daysPerWeek).map((t) => ({ ...t, muscles: trimMusclesToBudget(t.muscles, maxExercisesPerDay) }));
   const freq = muscleFrequency(dayTemplates);
   const lengthWeeks = routine.mesocycle?.lengthWeeks || MESOCYCLE_LENGTH_BY_LEVEL[level];
   const nextCycleNumber = (routine.mesocycle?.cycleNumber || 1) + 1;
   const repRange = pickRepRange(settings.goals);
   const existingIds = new Set(routine.days.flatMap((d) => d.exercises.map((e) => e.exerciseId)));
   const usedIds = new Set(existingIds); // מעדיף תרגילים אחרים מהמחזור הקודם, לגיוון
-  const maxExercisesPerDay = computeMaxExercisesPerDay(settings.sessionDurationMinutes);
   const warmup = settings.includeWarmup ? buildWarmupExercises() : [];
 
   const days: RoutineDay[] = dayTemplates.map((template, idx) => {
@@ -385,7 +407,7 @@ export function regenerateForNewCycle(routine: RoutineTemplate, settings: UserSe
       dayTitle: `יום ${idx + 1} (${template.title})`,
       targetMuscles: muscleLabels.join(', '),
       estimatedCalories: mainExercises.length * 45,
-      estimatedMinutes: exercises.length * 8,
+      estimatedMinutes: mainExercises.length * MINUTES_PER_MAIN_EXERCISE + warmup.length * MINUTES_PER_WARMUP_EXERCISE,
       exercises,
     };
   });

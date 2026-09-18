@@ -507,9 +507,13 @@ export const WorkoutDetailPreview: React.FC<WorkoutDetailPreviewProps> = ({
                       fontWeight: 800,
                       color: 'var(--text-main)',
                       marginBottom: 3,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
                     }}
                   >
                     {idx + 1}. {ex.nameHe}
+                    {ex.isWarmup && <span className="pill-badge pill-orange">חימום</span>}
                   </h3>
                   <span
                     style={{

@@ -15,6 +15,7 @@ import {
   ExerciseProgressState,
 } from '../types';
 import { INITIAL_EXERCISES } from '../data/exercises';
+import { WARMUP_EXERCISES } from '../data/warmupExercises';
 import { DEFAULT_ROUTINES } from '../data/defaultRoutines';
 import {
   setCloudUser,
@@ -101,16 +102,17 @@ export const StorageService = {
   getExercises(): Exercise[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.EXERCISES);
-      if (!data) return INITIAL_EXERCISES;
+      if (!data) return [...INITIAL_EXERCISES, ...WARMUP_EXERCISES];
       const list: Exercise[] = JSON.parse(data);
       // תרגילי הליבה תמיד מגיעים מהקוד העדכני (כדי שעדכונים כמו תמונות חדשות יחולו),
       // רק תרגילים מותאמים אישית של המשתמש נשמרים מה-localStorage
       const map = new Map<string, Exercise>();
       INITIAL_EXERCISES.forEach((e) => map.set(e.id, e));
+      WARMUP_EXERCISES.forEach((e) => map.set(e.id, e));
       list.filter((e) => e.isCustom).forEach((e) => map.set(e.id, e));
       return Array.from(map.values());
     } catch {
-      return INITIAL_EXERCISES;
+      return [...INITIAL_EXERCISES, ...WARMUP_EXERCISES];
     }
   },
 

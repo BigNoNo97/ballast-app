@@ -59,3 +59,9 @@ export const VOLUME_LANDMARKS: Record<MuscleSizeCategory, { mev: number; mav: nu
   medium: { mev: 6, mav: 14 },
   small: { mev: 6, mav: 12 },
 };
+
+// כמה ק"ג להוסיף בצעד התקדמות אחד - שרירים גדולים סופגים יותר עומס בכל פעם. נצרך גם
+// ממנוע ההתקדמות בין-אימונים וגם מהצעת "קל מדי" בזמן אמת תוך כדי אימון.
+export function getWeightIncrement(muscle: MuscleGroup): number {
+  return MUSCLE_SIZE_CATEGORY[muscle] === 'large' ? 2.5 : 1.25;
+}

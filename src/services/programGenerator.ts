@@ -12,6 +12,19 @@ import {
 } from '../types';
 import { MUSCLE_GROUP_LABELS } from '../data/exercises';
 import { COMPOUND_EXERCISE_IDS, MUSCLE_SIZE_CATEGORY, VOLUME_LANDMARKS } from '../data/exerciseClassification';
+import { WARMUP_EXERCISES } from '../data/warmupExercises';
+
+const LEVEL_LABELS_HE: Record<ExperienceLevel, string> = {
+  beginner: 'מתחילים',
+  intermediate: 'בינונית',
+  advanced: 'מתקדמת',
+};
+const GOAL_LABELS_HE: Record<OnboardingGoal, string> = {
+  lose_weight: 'ירידה במשקל',
+  gain_muscle: 'עלייה בשריר',
+  strength: 'שיפור כוח',
+  maintain: 'שמירה על כושר',
+};
 
 const UPPER: MuscleGroup[] = ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'traps'];
 const LOWER: MuscleGroup[] = ['quads', 'hamstrings', 'glutes', 'calves', 'core', 'lower_back'];
@@ -73,6 +86,44 @@ function equipmentSetFromSettings(settings: UserSettings): Set<string> | null {
     : null; // null = כל הציוד (ברירת מחדל - חדר כושר מלא)
 }
 
+const SPLIT_LABELS: Record<SplitType, string> = {
+  full_body: 'Full Body',
+  upper_lower: 'UL',
+  push_pull_legs: 'PPL',
+  ulppl: 'ULPPL',
+};
+
+function composeTitle(split: SplitType): string {
+  return `תוכנית אימונים ${SPLIT_LABELS[split]}`;
+}
+
+function composeDescription(
+  split: SplitType,
+  daysPerWeek: number,
+  level: ExperienceLevel,
+  goals: OnboardingGoal[] | undefined,
+  lengthWeeks: number
+): string {
+  const goalLabel = GOAL_LABELS_HE[goals && goals.length > 0 ? goals[0] : 'maintain'];
+  return (
+    `תוכנית ${SPLIT_LABELS[split]} בת ${daysPerWeek} ימים בשבוע, מותאמת לרמת ניסיון ${LEVEL_LABELS_HE[level]} ` +
+    `ולמטרת ${goalLabel}. עומס עולה בהדרגה במחזור בן ${lengthWeeks} שבועות (כולל שבוע דילול), ומתחדש אוטומטית בכל מחזור.`
+  );
+}
+
+// כמה תרגילים ליום בהתאם למשך האימון המועדף - נגזר מהיחס הקיים כבר בקוד
+// (estimatedMinutes = מספר תרגילים * 8), כך ש-60 דק' (ברירת המחדל הישנה) נותן בדיוק 8 כמו קודם.
+function computeMaxExercisesPerDay(sessionDurationMinutes: number | undefined): number {
+  const minutes = sessionDurationMinutes || 60;
+  return Math.max(3, Math.round(minutes / 8));
+}
+
+// שני תרגילי חימום כלליים (לא ספציפיים לשריר) שנוספים בתחילת כל יום כשהמשתמש בחר בכך.
+// לא נכנסים למעקב ההתקדמות (ExerciseProgressState) - אין להם מושג "עומס הדרגתי".
+function buildWarmupExercises(): RoutineDayExercise[] {
+  return WARMUP_EXERCISES.map((ex) => ({ exerciseId: ex.id, targetSets: 1, targetReps: ex.defaultReps }));
+}
+
 export function chooseSplit(daysPerWeek: number, level: ExperienceLevel): SplitType {
   if (daysPerWeek <= 2) return 'full_body';
   if (daysPerWeek === 3) return level === 'beginner' ? 'full_body' : 'push_pull_legs';
@@ -111,7 +162,6 @@ function weeklyVolumeForMuscle(muscle: MuscleGroup, week: number, lengthWeeks: n
 // שרירי תמיכה קטנים - תמיד תרגיל אחד בלבד, בלי "בונוס" בידוד (אין באמת הבדל
 // משמעותי בין תרגיל מורכב/בידוד לתאומים או גב תחתון, ולרוב הם לא המטרה המרכזית של היום).
 const LOW_PRIORITY_MUSCLES = new Set<MuscleGroup>(['calves', 'traps', 'lower_back']);
-const MAX_EXERCISES_PER_DAY = 8; // תקרה - יום עם יותר שרירים ממה שמקבל בונוס פשוט מסתפק בתרגיל אחד לשריר
 
 function pickOneExercise(
   muscle: MuscleGroup,
@@ -122,7 +172,7 @@ function pickOneExercise(
   excludeId?: string
 ): Exercise | null {
   const candidates = library.filter(
-    (e) => e.muscle === muscle && e.id !== excludeId && (!equipment || equipment.has(e.equipment))
+    (e) => e.muscle === muscle && e.id !== excludeId && !e.isWarmup && (!equipment || equipment.has(e.equipment))
   );
   if (candidates.length === 0) return null;
   const filtered = candidates.filter((e) => COMPOUND_EXERCISE_IDS.has(e.id) === preferCompound);
@@ -143,7 +193,8 @@ function buildDayExercises(
   week: number,
   lengthWeeks: number,
   cycleNumber: number,
-  usedIds: Set<string>
+  usedIds: Set<string>,
+  maxExercisesPerDay: number
 ): RoutineDayExercise[] {
   const picks = new Map<MuscleGroup, Exercise[]>();
   day.muscles.forEach((muscle) => {
@@ -151,7 +202,7 @@ function buildDayExercises(
     if (compound) picks.set(muscle, [compound]);
   });
 
-  let budget = Math.max(0, MAX_EXERCISES_PER_DAY - day.muscles.length);
+  let budget = Math.max(0, maxExercisesPerDay - day.muscles.length);
   const rank = (m: MuscleGroup) => (LOW_PRIORITY_MUSCLES.has(m) ? 2 : MUSCLE_SIZE_CATEGORY[m] === 'large' ? 0 : 1);
   const priorityOrder = [...day.muscles].sort((a, b) => rank(a) - rank(b));
   for (const muscle of priorityOrder) {
@@ -196,18 +247,21 @@ export function buildRoutine(settings: UserSettings, library: Exercise[]): Gener
   const lengthWeeks = MESOCYCLE_LENGTH_BY_LEVEL[level];
   const repRange = pickRepRange(settings.goals);
   const usedIds = new Set<string>();
+  const maxExercisesPerDay = computeMaxExercisesPerDay(settings.sessionDurationMinutes);
+  const warmup = settings.includeWarmup ? buildWarmupExercises() : [];
 
   const days: RoutineDay[] = dayTemplates.map((template, idx) => {
-    const exercises = buildDayExercises(template, library, equipment, freq, 1, lengthWeeks, 1, usedIds).map((e) => ({
+    const mainExercises = buildDayExercises(template, library, equipment, freq, 1, lengthWeeks, 1, usedIds, maxExercisesPerDay).map((e) => ({
       ...e,
       targetReps: repRange.min,
     }));
+    const exercises = [...warmup, ...mainExercises];
     const muscleLabels = template.muscles.map((m) => MUSCLE_GROUP_LABELS[m]?.he).filter(Boolean);
     return {
       dayNumber: idx + 1,
       dayTitle: `יום ${idx + 1} (${template.title})`,
       targetMuscles: muscleLabels.join(', '),
-      estimatedCalories: exercises.length * 45,
+      estimatedCalories: mainExercises.length * 45,
       estimatedMinutes: exercises.length * 8,
       exercises,
     };
@@ -215,8 +269,8 @@ export function buildRoutine(settings: UserSettings, library: Exercise[]): Gener
 
   const routine: RoutineTemplate = {
     id: `generated-${Date.now()}`,
-    title: 'התוכנית האישית שלי',
-    description: 'נבנתה אוטומטית לפי הנתונים שלך - מתעדכנת מאימון לאימון ומתחדשת בכל מחזור',
+    title: composeTitle(split),
+    description: composeDescription(split, daysPerWeek, level, settings.goals, lengthWeeks),
     category: split === 'full_body' ? 'fullbody' : split === 'upper_lower' ? 'upper_lower' : 'ppl',
     days,
     exercises: days.flatMap((d) => d.exercises),
@@ -233,8 +287,10 @@ export function buildRoutine(settings: UserSettings, library: Exercise[]): Gener
     },
   };
 
+  // תרגילי חימום לא נכנסים למעקב ההתקדמות - אין להם משמעות של עומס הדרגתי.
   const progressStates: ExerciseProgressState[] = days
     .flatMap((d) => d.exercises)
+    .filter((e) => !warmup.some((w) => w.exerciseId === e.exerciseId))
     .reduce<ExerciseProgressState[]>((acc, e) => {
       if (acc.some((s) => s.exerciseId === e.exerciseId)) return acc; // אותו תרגיל יכול לחזור בכמה ימים (תדירות 2x)
       acc.push({
@@ -260,12 +316,16 @@ export function applyWeeklyVolume(routine: RoutineTemplate, week: number, librar
   if (!routine.mesocycle) return routine;
   const { cycleNumber } = routine.mesocycle;
   const muscleById = new Map<string, MuscleGroup>();
+  const warmupIds = new Set(library.filter((e) => e.isWarmup).map((e) => e.id));
   library.forEach((e) => muscleById.set(e.id, e.muscle));
 
-  // תדירות שבועית לכל שריר - כמה ימים באותו שבוע כוללים אותו שריר.
+  // תדירות שבועית לכל שריר - כמה ימים באותו שבוע כוללים אותו שריר. תרגילי חימום לא נספרים -
+  // הם לא חלק מנפח האימון "האמיתי" ולא צריכים להשפיע על חלוקת הסטים.
   const freq = new Map<MuscleGroup, number>();
   routine.days.forEach((day) => {
-    const musclesToday = new Set(day.exercises.map((e) => muscleById.get(e.exerciseId)).filter(Boolean) as MuscleGroup[]);
+    const musclesToday = new Set(
+      day.exercises.filter((e) => !warmupIds.has(e.exerciseId)).map((e) => muscleById.get(e.exerciseId)).filter(Boolean) as MuscleGroup[]
+    );
     musclesToday.forEach((m) => freq.set(m, (freq.get(m) || 0) + 1));
   });
 
@@ -273,10 +333,12 @@ export function applyWeeklyVolume(routine: RoutineTemplate, week: number, librar
     // כמה תרגילים ביום הזה משותפים לאותו שריר - כדי לחלק את הנפח היומי ביניהם.
     const exercisesByMuscle = new Map<MuscleGroup, number>();
     day.exercises.forEach((e) => {
+      if (warmupIds.has(e.exerciseId)) return;
       const m = muscleById.get(e.exerciseId);
       if (m) exercisesByMuscle.set(m, (exercisesByMuscle.get(m) || 0) + 1);
     });
     const exercises = day.exercises.map((e) => {
+      if (warmupIds.has(e.exerciseId)) return e; // תרגילי חימום נשארים תמיד סט 1 קבוע
       const muscle = muscleById.get(e.exerciseId);
       if (!muscle) return e;
       const weeklySets = weeklyVolumeForMuscle(muscle, week, routine.mesocycle!.lengthWeeks, cycleNumber);
@@ -307,18 +369,21 @@ export function regenerateForNewCycle(routine: RoutineTemplate, settings: UserSe
   const repRange = pickRepRange(settings.goals);
   const existingIds = new Set(routine.days.flatMap((d) => d.exercises.map((e) => e.exerciseId)));
   const usedIds = new Set(existingIds); // מעדיף תרגילים אחרים מהמחזור הקודם, לגיוון
+  const maxExercisesPerDay = computeMaxExercisesPerDay(settings.sessionDurationMinutes);
+  const warmup = settings.includeWarmup ? buildWarmupExercises() : [];
 
   const days: RoutineDay[] = dayTemplates.map((template, idx) => {
-    const exercises = buildDayExercises(template, library, equipment, freq, 1, lengthWeeks, nextCycleNumber, usedIds).map((e) => ({
+    const mainExercises = buildDayExercises(template, library, equipment, freq, 1, lengthWeeks, nextCycleNumber, usedIds, maxExercisesPerDay).map((e) => ({
       ...e,
       targetReps: repRange.min,
     }));
+    const exercises = [...warmup, ...mainExercises];
     const muscleLabels = template.muscles.map((m) => MUSCLE_GROUP_LABELS[m]?.he).filter(Boolean);
     return {
       dayNumber: idx + 1,
       dayTitle: `יום ${idx + 1} (${template.title})`,
       targetMuscles: muscleLabels.join(', '),
-      estimatedCalories: exercises.length * 45,
+      estimatedCalories: mainExercises.length * 45,
       estimatedMinutes: exercises.length * 8,
       exercises,
     };
@@ -326,6 +391,8 @@ export function regenerateForNewCycle(routine: RoutineTemplate, settings: UserSe
 
   const newRoutine: RoutineTemplate = {
     ...routine,
+    title: composeTitle(split),
+    description: composeDescription(split, daysPerWeek, level, settings.goals, lengthWeeks),
     days,
     exercises: days.flatMap((d) => d.exercises),
     mesocycle: {
@@ -337,10 +404,11 @@ export function regenerateForNewCycle(routine: RoutineTemplate, settings: UserSe
     },
   };
 
+  const warmupIds = new Set(warmup.map((w) => w.exerciseId));
   const newIds = new Set(days.flatMap((d) => d.exercises.map((e) => e.exerciseId)));
   const progressStates: ExerciseProgressState[] = [];
   newIds.forEach((exerciseId) => {
-    if (!existingIds.has(exerciseId)) {
+    if (!existingIds.has(exerciseId) && !warmupIds.has(exerciseId)) {
       progressStates.push({
         id: `${routine.id}:${exerciseId}`,
         routineId: routine.id,

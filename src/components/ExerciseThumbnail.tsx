@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MuscleGroup } from '../types';
 
 interface ExerciseThumbnailProps {
@@ -18,6 +18,9 @@ export const ExerciseThumbnail: React.FC<ExerciseThumbnailProps> = ({
   image,
   onClick,
 }) => {
+  // אם טעינת התמונה נכשלת (404, מטמון תקוע וכו') - חוזרים לאייקון ה-SVG הגנרי
+  // במקום להשאיר אייקון "תמונה שבורה" של הדפדפן.
+  const [failed, setFailed] = useState(false);
   const clickProps = onClick
     ? {
         onClick: (e: React.MouseEvent) => {
@@ -28,7 +31,7 @@ export const ExerciseThumbnail: React.FC<ExerciseThumbnailProps> = ({
       }
     : {};
 
-  if (image) {
+  if (image && !failed) {
     return (
       <div
         {...clickProps}
@@ -47,6 +50,7 @@ export const ExerciseThumbnail: React.FC<ExerciseThumbnailProps> = ({
         <img
           src={image}
           alt={nameEn}
+          onError={() => setFailed(true)}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
       </div>

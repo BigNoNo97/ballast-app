@@ -28,7 +28,7 @@ export const ExerciseSwapModal: React.FC<ExerciseSwapModalProps> = ({
     const directAltIds = new Set(currentExercise.alternatives || []);
 
     return allExercises
-      .filter((ex) => ex.id !== currentExercise.id)
+      .filter((ex) => ex.id !== currentExercise.id && !ex.isWarmup)
       .map((ex) => {
         const isDirectAlt = directAltIds.has(ex.id);
         const isSameMuscle = ex.muscle === currentExercise.muscle;

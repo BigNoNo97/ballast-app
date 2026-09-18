@@ -18,6 +18,8 @@ const STEP_IDS = [
   'level',
   'trainingDays',
   'equipment',
+  'sessionDuration',
+  'warmup',
   'success',
 ] as const;
 type StepId = (typeof STEP_IDS)[number];
@@ -51,6 +53,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
   const [level, setLevel] = useState<ExperienceLevel | null>(null);
   const [trainingDays, setTrainingDays] = useState(3);
   const [equipment, setEquipment] = useState<EquipmentType[]>([...ALL_EQUIPMENT]);
+  const [sessionDuration, setSessionDuration] = useState(60);
+  const [includeWarmup, setIncludeWarmup] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
 
   const goNext = () => setStepIdx((i) => Math.min(i + 1, steps.length - 1));
@@ -97,6 +101,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
       defaultRestSeconds: level ? REST_SECONDS_BY_LEVEL[level] : settings.defaultRestSeconds,
       trainingDaysPerWeek: trainingDays,
       availableEquipment: equipment,
+      sessionDurationMinutes: sessionDuration,
+      includeWarmup: includeWarmup ?? false,
     };
     StorageService.saveSettings(newSettings);
     onComplete(newSettings);
@@ -124,6 +130,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
         {step === 'level' && <LevelStep value={level} onChange={setLevel} />}
         {step === 'trainingDays' && <TrainingDaysStep value={trainingDays} onChange={setTrainingDays} />}
         {step === 'equipment' && <EquipmentStep value={equipment} onChange={setEquipment} />}
+        {step === 'sessionDuration' && <SessionDurationStep value={sessionDuration} onChange={setSessionDuration} />}
+        {step === 'warmup' && <WarmupStep value={includeWarmup} onChange={setIncludeWarmup} />}
         {step === 'success' && <SuccessStep saving={saving} onDone={finish} />}
       </div>
 
@@ -599,6 +607,88 @@ const EquipmentStep: React.FC<{ value: EquipmentType[]; onChange: (e: EquipmentT
     </>
   );
 };
+
+const SESSION_DURATION_OPTIONS = [30, 45, 50, 60, 90];
+
+const SessionDurationStep: React.FC<{ value: number; onChange: (n: number) => void }> = ({ value, onChange }) => (
+  <>
+    <div style={{ padding: '24px 24px 6px' }}>
+      <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>כמה זמן יש לך לכל אימון?</div>
+      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>לפי זה נקבע כמה תרגילים יהיו בכל אימון - אפשר תמיד לשנות בהמשך.</div>
+    </div>
+    <div style={{ flex: 1, padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {SESSION_DURATION_OPTIONS.map((n) => {
+        const selected = value === n;
+        return (
+          <button
+            key={n}
+            onClick={() => onChange(n)}
+            style={{
+              padding: '16px 18px',
+              borderRadius: 14,
+              background: selected ? 'var(--color-blue-bg)' : 'var(--bg-surface-1)',
+              border: selected ? '1.5px solid var(--color-blue)' : '1px solid var(--border-subtle)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              cursor: 'pointer',
+              textAlign: 'start',
+            }}
+          >
+            <div style={{ fontSize: '0.95rem', fontWeight: selected ? 800 : 700, color: 'var(--text-main)' }}>{n} דקות</div>
+            <div style={{ width: 22, height: 22, borderRadius: '50%', border: selected ? 'none' : '1.5px solid var(--border-strong)', background: selected ? 'var(--color-blue)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {selected && <Check size={13} color="#fff" strokeWidth={3} />}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  </>
+);
+
+const WARMUP_OPTIONS: { id: boolean; title: string; desc: string }[] = [
+  { id: true, title: 'כן, תוסיף חימום', desc: 'שני תרגילי חימום קלים בתחילת כל אימון - קרדיו קל ומתיחות דינמיות' },
+  { id: false, title: 'לא, בלי חימום', desc: 'ישר לתרגילים העיקריים בלי תוספת' },
+];
+
+const WarmupStep: React.FC<{ value: boolean | null; onChange: (v: boolean) => void }> = ({ value, onChange }) => (
+  <>
+    <div style={{ padding: '24px 24px 6px' }}>
+      <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>רוצה שנוסיף תרגילי חימום?</div>
+      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>יתוספו בתחילת כל אימון, מסומנים בבירור כחימום.</div>
+    </div>
+    <div style={{ flex: 1, padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {WARMUP_OPTIONS.map((opt) => {
+        const selected = value === opt.id;
+        return (
+          <button
+            key={String(opt.id)}
+            onClick={() => onChange(opt.id)}
+            style={{
+              padding: '16px 18px',
+              borderRadius: 14,
+              background: selected ? 'var(--color-blue-bg)' : 'var(--bg-surface-1)',
+              border: selected ? '1.5px solid var(--color-blue)' : '1px solid var(--border-subtle)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              cursor: 'pointer',
+              textAlign: 'start',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '0.95rem', fontWeight: selected ? 800 : 700, color: 'var(--text-main)' }}>{opt.title}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>{opt.desc}</div>
+            </div>
+            <div style={{ width: 22, height: 22, borderRadius: '50%', border: selected ? 'none' : '1.5px solid var(--border-strong)', background: selected ? 'var(--color-blue)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {selected && <Check size={13} color="#fff" strokeWidth={3} />}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  </>
+);
 
 const SuccessStep: React.FC<{ saving: boolean; onDone: () => void }> = ({ saving, onDone }) => (
   <>

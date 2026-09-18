@@ -1,5 +1,5 @@
 import { Exercise, ExerciseProgressState, ExperienceLevel, RoutineTemplate, UserSettings, WorkoutSession } from '../types';
-import { MUSCLE_SIZE_CATEGORY } from '../data/exerciseClassification';
+import { getWeightIncrement } from '../data/exerciseClassification';
 import { StorageService } from './storage';
 import { applyWeeklyVolume, pickRepRange, regenerateForNewCycle } from './programGenerator';
 
@@ -35,6 +35,7 @@ export function processFinishedWorkout(
   const statesToSave: ExerciseProgressState[] = []; // כתיבה אחת בסוף, לא קריאת סנכרון-ענן לכל תרגיל בלולאה
 
   session.exercises.forEach((workoutExercise) => {
+    if (library.find((e) => e.id === workoutExercise.exerciseId)?.isWarmup) return; // חימום - לא במעקב התקדמות
     let state = getExerciseState(routine.id, workoutExercise.exerciseId);
     if (!state) {
       // "מתאושש" ממצב שבו ה-state אבד (למשל תקלת סנכרון) אבל התרגיל עדיין חלק מהתוכנית -
@@ -77,7 +78,7 @@ export function processFinishedWorkout(
 
     if (metTarget) {
       const muscle = muscleById.get(workoutExercise.exerciseId);
-      const increment = muscle && MUSCLE_SIZE_CATEGORY[muscle] === 'large' ? 2.5 : 1.25;
+      const increment = muscle ? getWeightIncrement(muscle) : 1.25;
       const next: ExerciseProgressState = { ...state, consecutiveStalls: 0, lastSessionResult: 'progressed' };
       if (level === 'beginner') {
         next.currentWeightKg = round025(state.currentWeightKg + increment);

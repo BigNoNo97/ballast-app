@@ -35,6 +35,7 @@ export interface Exercise {
   tipsHe?: string;
   isCustom?: boolean;
   image?: string; // תמונה אמיתית מהתרגיל (CC-BY-SA, קרדיט בהגדרות)
+  isWarmup?: boolean; // תרגיל חימום כללי - לא מוצע ברשימת התרגילים הרגילה/בהחלפה
 }
 
 export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
@@ -186,6 +187,8 @@ export interface UserSettings {
   availableEquipment?: EquipmentType[]; // undefined = גישה לכל סוגי הציוד (חדר כושר מלא)
   nutritionAutoAdjustEnabled?: boolean; // undefined/true = מופעל, false = המשתמש כיבה
   lastNutritionAdaptationPromptAt?: number; // timestamp - למנוע הצעות חזרתיות תכופות
+  sessionDurationMinutes?: number; // משך אימון מועדף (30/45/50/60/90) - קובע תקציב תרגילים ליום
+  includeWarmup?: boolean; // האם להוסיף תרגילי חימום כלליים בתחילת כל יום שנוצר
 }
 
 export interface BodyWeightEntry {

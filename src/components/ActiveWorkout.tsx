@@ -29,6 +29,8 @@ import {
 } from '../types';
 import { EQUIPMENT_LABELS, MUSCLE_GROUP_LABELS } from '../data/exercises';
 import { StorageService, calculateEstimated1RM } from '../services/storage';
+import { getExerciseState } from '../services/progressionEngine';
+import { getWeightIncrement } from '../data/exerciseClassification';
 import { ExerciseSwapModal } from './ExerciseSwapModal';
 import { RestTimerModal } from './RestTimerModal';
 import { ExerciseThumbnail } from './ExerciseThumbnail';
@@ -90,6 +92,12 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
+  // הצעת "קל מדי" בזמן אמת (בלי RPE) - מוצגת אחרי שסימנו סט ✓ עם חריגה בולטת מהמטרה/מהעבר
+  const [easyNudge, setEasyNudge] = useState<{ exerciseIndex: number; exerciseName: string; suggestedWeight: number } | null>(null);
+  useEffect(() => {
+    setEasyNudge(null);
+  }, [currentExerciseIndex]);
+
   // הסרת תרגיל מהאימון הנוכחי (לא ממאגר התרגילים)
   const [removeExerciseIdx, setRemoveExerciseIdx] = useState<number | null>(null);
 
@@ -143,8 +151,16 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
     value: any
   ) => {
     const updatedExercises = [...workout.exercises];
-    const targetSet = { ...updatedExercises[exerciseIndex].sets[setIndex], [field]: value };
-    updatedExercises[exerciseIndex].sets[setIndex] = targetSet;
+    const exercise = updatedExercises[exerciseIndex];
+    // עדכון מהיר: שינוי משקל/חזרות בסט אחד מחיל את אותו ערך גם על שאר הסטים באותו תרגיל
+    // שעדיין לא הושלמו - בלי לסמן אותם ✓ בעצמו, ובלי לגעת בסטים שכבר אושרו.
+    const isCascadeField = field === 'weightKg' || field === 'reps';
+    const updatedSets = exercise.sets.map((s, idx) => {
+      if (idx === setIndex) return { ...s, [field]: value };
+      if (isCascadeField && !s.completed) return { ...s, [field]: value };
+      return s;
+    });
+    updatedExercises[exerciseIndex] = { ...exercise, sets: updatedSets };
 
     const updated = {
       ...workout,
@@ -203,6 +219,24 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
       const exId = targetEx.exerciseId;
       const exData = exerciseMap.get(exId);
       const restTime = exData?.defaultRestSec || defaultRestSec;
+
+      // זיהוי "קל מדי" בזמן אמת בלי RPE - שני אותות אובייקטיביים: הגעה לתקרת טווח החזרות
+      // המתוכנן (לתוכניות שהמערכת בנתה, מדויק) או שיפור בולט לעומת האימון הקודם על התרגיל
+      // הזה (עובד לכל תוכנית, כולל תוכניות ידניות, כי לא תלוי ב-state של מנוע ההתקדמות).
+      if (exData && !exData.isWarmup && !easyNudge) {
+        const progressState = workout.routineId ? getExerciseState(workout.routineId, exId) : null;
+        const hitCeiling = !!progressState && set.reps >= progressState.repRangeMax;
+        const beatHistory = set.previousReps != null && set.reps >= set.previousReps + 3;
+        if (hitCeiling || beatHistory) {
+          const currentWeight = set.weightKg || progressState?.currentWeightKg || 0;
+          const increment = getWeightIncrement(exData.muscle);
+          setEasyNudge({
+            exerciseIndex,
+            exerciseName: exData.nameHe,
+            suggestedWeight: Math.round((currentWeight + increment) * 4) / 4,
+          });
+        }
+      }
 
       // Check if this exercise is part of a SUPERSET
       const supersetGroupId = targetEx.supersetGroupId;
@@ -298,6 +332,19 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
         }
       }
     }
+  };
+
+  // מפעיל את הצעת "קל מדי" - מעדכן את המשקל בכל הסטים שעדיין לא הושלמו באותו תרגיל,
+  // בלי לסמן אותם ✓ בעצמו (בדיוק כמו עדכון-קבוצתי רגיל, רק עם ערך מוצע מוכן מראש).
+  const applyEasyNudge = () => {
+    if (!easyNudge) return;
+    const updatedExercises = [...workout.exercises];
+    const exercise = updatedExercises[easyNudge.exerciseIndex];
+    const updatedSets = exercise.sets.map((s) => (s.completed ? s : { ...s, weightKg: easyNudge.suggestedWeight }));
+    updatedExercises[easyNudge.exerciseIndex] = { ...exercise, sets: updatedSets };
+    onUpdateWorkout({ ...workout, durationSec: elapsedSec, exercises: updatedExercises });
+    triggerHaptic(50);
+    setEasyNudge(null);
   };
 
   // Add a new set to an exercise
@@ -903,6 +950,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                     {currentWorkoutEx.swappedFromId && (
                       <span className="pill-badge pill-orange">הוחלף באימון זה</span>
                     )}
+                    {currentExData.isWarmup && <span className="pill-badge pill-orange">חימום</span>}
                   </div>
                   <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
                     {currentExData.nameHe}
@@ -941,7 +989,32 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
               </div>
             </div>
 
-
+            {/* הצעת "קל מדי" - לא חוסמת, רק לתרגיל שמוצג כרגע */}
+            {easyNudge && easyNudge.exerciseIndex === safeCurrentIndex && (
+              <div
+                style={{
+                  background: 'var(--color-blue-bg)',
+                  border: '1px solid var(--color-blue)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '10px 14px',
+                  marginBottom: 14,
+                  fontSize: '0.85rem',
+                  color: 'var(--text-main)',
+                }}
+              >
+                <div style={{ marginBottom: 8, lineHeight: 1.5 }}>
+                  הסט הזה יצא קל - להעלות ל-{easyNudge.suggestedWeight} ק"ג בסטים הנותרים?
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={applyEasyNudge} className="btn-primary" style={{ flex: 1, padding: 8, fontSize: '0.82rem' }}>
+                    כן, עדכן
+                  </button>
+                  <button onClick={() => setEasyNudge(null)} className="btn-secondary" style={{ flex: 1, padding: 8, fontSize: '0.82rem' }}>
+                    לא
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Exercise Notes Input Box */}
             <div
@@ -1521,8 +1594,9 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                             </span>
                           )}
                         </div>
-                        <h4 style={{ fontSize: '0.96rem', fontWeight: 700, color: isCurrent ? 'var(--color-blue)' : 'var(--text-main)' }}>
+                        <h4 style={{ fontSize: '0.96rem', fontWeight: 700, color: isCurrent ? 'var(--color-blue)' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 6 }}>
                           {idx + 1}. {ex.nameHe}
+                          {ex.isWarmup && <span className="pill-badge pill-orange">חימום</span>}
                         </h4>
                         <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                           {completedSetsCount}/{item.sets.length} סטים הושלמו</span>

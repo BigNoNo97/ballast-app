@@ -285,6 +285,7 @@ export const RoutinesView: React.FC<RoutinesViewProps> = ({
 
   // Filtered exercises for picker modal
   const filteredPickerExercises = allExercises.filter((ex) => {
+    if (ex.isWarmup) return false; // תרגילי חימום כלליים לא נבחרים ידנית - נוספים אוטומטית
     const matchesSearch =
       ex.nameHe.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ex.nameEn.toLowerCase().includes(searchQuery.toLowerCase());
@@ -372,7 +373,7 @@ export const RoutinesView: React.FC<RoutinesViewProps> = ({
 
           <div>
             <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
-              תיאור קצר
+              תיאור
             </label>
             <input
               type="text"
@@ -691,8 +692,9 @@ export const RoutinesView: React.FC<RoutinesViewProps> = ({
                                     onClick={onOpenExerciseProfile ? () => onOpenExerciseProfile(ex.id) : undefined}
                                   />
                                   <div>
-                                    <h5 style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                                    <h5 style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 6 }}>
                                       {exIdx + 1}. {ex.nameHe}
+                                      {ex.isWarmup && <span className="pill-badge pill-orange">חימום</span>}
                                     </h5>
                                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                                       {item.targetSets || 3} סטים × {item.targetReps || 10} חזרות

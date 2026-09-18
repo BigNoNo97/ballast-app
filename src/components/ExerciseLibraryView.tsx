@@ -69,6 +69,8 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
 
   const filteredExercises = useMemo(() => {
     return allExercises.filter((ex) => {
+      // תרגילי חימום כלליים לא מוצעים כתרגיל רגיל למאגר/הוספה לאימון
+      if (ex.isWarmup) return false;
       // Tab filter
       if (activeTab === 'favorites' && !favoriteIds.includes(ex.id)) return false;
       if (activeTab === 'recent' && !recentExerciseIds.has(ex.id)) return false;

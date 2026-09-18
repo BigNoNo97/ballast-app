@@ -40,12 +40,16 @@ export default defineConfig({
             urlPattern: /\/exercises2?\/.*\.(jpg|jpeg|png|gif)$/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'exercise-images',
+              // שם חדש (היה 'exercise-images') - כדי לנטרל cache ישן שאולי "תקוע" עם תגובות
+              // כושלות/opaque שנכנסו אליו בעבר. CacheFirst אף פעם לא מתקן את זה בעצמו.
+              cacheName: 'exercise-images-v2',
               expiration: {
                 maxEntries: 400,
                 maxAgeSeconds: 60 * 60 * 24 * 90,
               },
-              cacheableResponse: { statuses: [0, 200] },
+              // רק 200 אמיתי נכנס ל-cache - status 0 (תגובה opaque, למשל מכשל רשת חד-פעמי)
+              // הוסר בכוונה, כדי שכשל טעינה לא "יינעל" ל-90 יום כאילו היה הצלחה.
+              cacheableResponse: { statuses: [200] },
             },
           },
         ],

@@ -71,11 +71,10 @@ export const NoRoutineWorkoutView: React.FC<NoRoutineWorkoutViewProps> = ({
         </div>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-main)' }}>שהמערכת תיצור לי תוכנית</span>
-          <span className="pill-badge pill-purple">בקרוב</span>
         </div>
       </div>
       <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-        בעתיד ניצור לך כאן תוכנית מותאמת אישית. בינתיים נתחיל אותך עם תוכנית פתיחה מומלצת, ותמיד אפשר להחליף.
+        תוכנית אישית לפי הימים בשבוע, הציוד והמטרות שלך - עם מחזורי אימון ועומס שעולה בהדרגה, ותמיד אפשר להחליף בהמשך.
       </div>
     </button>
 

@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Check } from 'lucide-react';
-import { ExperienceLevel, OnboardingGoal, UserSettings } from '../types';
+import { EquipmentType, ExperienceLevel, OnboardingGoal, UserSettings } from '../types';
 import { StorageService } from '../services/storage';
 import { AppleHealthService } from '../services/appleHealthService';
+import { GOAL_CALORIE_ADJUST } from '../services/nutritionAdaptation';
+import { EQUIPMENT_LABELS } from '../data/exercises';
 
 type Gender = 'male' | 'female';
 
@@ -14,9 +16,13 @@ const STEP_IDS = [
   'weight',
   'goal',
   'level',
+  'trainingDays',
+  'equipment',
   'success',
 ] as const;
 type StepId = (typeof STEP_IDS)[number];
+
+const ALL_EQUIPMENT: EquipmentType[] = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight', 'smith', 'other'];
 
 const REST_SECONDS_BY_LEVEL: Record<ExperienceLevel, number> = {
   beginner: 60,
@@ -28,13 +34,6 @@ interface OnboardingFlowProps {
   settings: UserSettings;
   onComplete: (settings: UserSettings) => void;
 }
-
-const GOAL_CALORIE_ADJUST: Record<OnboardingGoal, number> = {
-  lose_weight: -500,
-  gain_muscle: 300,
-  strength: 150,
-  maintain: 0,
-};
 
 export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComplete }) => {
   const steps: StepId[] = [...STEP_IDS];
@@ -50,6 +49,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
   const [weight, setWeight] = useState(75);
   const [goals, setGoals] = useState<OnboardingGoal[]>([]);
   const [level, setLevel] = useState<ExperienceLevel | null>(null);
+  const [trainingDays, setTrainingDays] = useState(3);
+  const [equipment, setEquipment] = useState<EquipmentType[]>([...ALL_EQUIPMENT]);
   const [saving, setSaving] = useState(false);
 
   const goNext = () => setStepIdx((i) => Math.min(i + 1, steps.length - 1));
@@ -94,6 +95,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
       goals: goals.length > 0 ? goals : settings.goals,
       experienceLevel: level ?? settings.experienceLevel,
       defaultRestSeconds: level ? REST_SECONDS_BY_LEVEL[level] : settings.defaultRestSeconds,
+      trainingDaysPerWeek: trainingDays,
+      availableEquipment: equipment,
     };
     StorageService.saveSettings(newSettings);
     onComplete(newSettings);
@@ -119,6 +122,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
         {step === 'weight' && <NumberPickerStep title="מה המשקל שלך?" subtitle="בקילוגרם. ייכנס כרשומה הראשונה בגרף המשקל שלך" min={35} max={200} value={weight} onChange={setWeight} />}
         {step === 'goal' && <GoalStep value={goals} onChange={setGoals} />}
         {step === 'level' && <LevelStep value={level} onChange={setLevel} />}
+        {step === 'trainingDays' && <TrainingDaysStep value={trainingDays} onChange={setTrainingDays} />}
+        {step === 'equipment' && <EquipmentStep value={equipment} onChange={setEquipment} />}
         {step === 'success' && <SuccessStep saving={saving} onDone={finish} />}
       </div>
 
@@ -501,6 +506,99 @@ const LevelStep: React.FC<{ value: ExperienceLevel | null; onChange: (l: Experie
     </div>
   </>
 );
+
+const TRAINING_DAYS_OPTIONS = [2, 3, 4, 5, 6];
+
+const TrainingDaysStep: React.FC<{ value: number; onChange: (n: number) => void }> = ({ value, onChange }) => (
+  <>
+    <div style={{ padding: '24px 24px 6px' }}>
+      <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>כמה ימים בשבוע תוכל להתאמן?</div>
+      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>לפי זה נבנה את מבנה התוכנית - אפשר תמיד לשנות בהמשך.</div>
+    </div>
+    <div style={{ flex: 1, padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {TRAINING_DAYS_OPTIONS.map((n) => {
+        const selected = value === n;
+        return (
+          <button
+            key={n}
+            onClick={() => onChange(n)}
+            style={{
+              padding: '16px 18px',
+              borderRadius: 14,
+              background: selected ? 'var(--color-blue-bg)' : 'var(--bg-surface-1)',
+              border: selected ? '1.5px solid var(--color-blue)' : '1px solid var(--border-subtle)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              cursor: 'pointer',
+              textAlign: 'start',
+            }}
+          >
+            <div style={{ fontSize: '0.95rem', fontWeight: selected ? 800 : 700, color: 'var(--text-main)' }}>{n} ימים בשבוע</div>
+            <div style={{ width: 22, height: 22, borderRadius: '50%', border: selected ? 'none' : '1.5px solid var(--border-strong)', background: selected ? 'var(--color-blue)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {selected && <Check size={13} color="#fff" strokeWidth={3} />}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  </>
+);
+
+const EquipmentStep: React.FC<{ value: EquipmentType[]; onChange: (e: EquipmentType[]) => void }> = ({ value, onChange }) => {
+  const toggle = (id: EquipmentType) => {
+    onChange(value.includes(id) ? value.filter((e) => e !== id) : [...value, id]);
+  };
+  return (
+    <>
+      <div style={{ padding: '24px 24px 6px' }}>
+        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>לאיזה ציוד יש לך גישה?</div>
+        <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>נבחר לך תרגילים שאפשר לבצע בפועל. ברירת המחדל היא חדר כושר מלא.</div>
+      </div>
+      <div style={{ flex: 1, padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {ALL_EQUIPMENT.map((id) => {
+          const selected = value.includes(id);
+          return (
+            <button
+              key={id}
+              onClick={() => toggle(id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                padding: '14px 16px',
+                borderRadius: 14,
+                background: selected ? 'var(--color-blue-bg)' : 'var(--bg-surface-1)',
+                border: selected ? '1.5px solid var(--color-blue)' : '1px solid var(--border-subtle)',
+                cursor: 'pointer',
+                textAlign: 'start',
+              }}
+            >
+              <div style={{ flex: 1, fontSize: '0.95rem', fontWeight: selected ? 800 : 700, color: 'var(--text-main)' }}>
+                {EQUIPMENT_LABELS[id].he}
+              </div>
+              <div
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 7,
+                  background: selected ? 'var(--color-blue)' : 'transparent',
+                  border: selected ? 'none' : '1.5px solid var(--border-strong)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {selected && <Check size={13} color="#fff" strokeWidth={3} />}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+};
 
 const SuccessStep: React.FC<{ saving: boolean; onDone: () => void }> = ({ saving, onDone }) => (
   <>

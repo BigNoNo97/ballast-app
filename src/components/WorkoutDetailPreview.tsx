@@ -16,6 +16,7 @@ import { RoutineTemplate, RoutineDay, Exercise, RoutineDayExercise } from '../ty
 import { ExerciseThumbnail } from './ExerciseThumbnail';
 import { StorageService } from '../services/storage';
 import { computeProgressedTarget } from '../services/progression';
+import { getExerciseState } from '../services/progressionEngine';
 import { ExerciseSwapModal } from './ExerciseSwapModal';
 import { triggerHaptic } from '../services/sound';
 
@@ -38,6 +39,14 @@ export const WorkoutDetailPreview: React.FC<WorkoutDetailPreviewProps> = ({
 }) => {
   const [exercisesList, setExercisesList] = useState(() => {
     return day.exercises.map((item) => {
+      // תוכניות שהמערכת בנתה מנוהלות ע"י מנוע ההתקדמות המחזורי - ה"זיכרון" שלו (לא האימון
+      // האחרון בלבד) קובע את המשקל/חזרות הנוכחיים, ו-targetSets כבר משקף את נפח השבוע הנוכחי.
+      if (routine.isGenerated) {
+        const state = getExerciseState(routine.id, item.exerciseId);
+        if (state) {
+          return { ...item, targetReps: state.currentTargetReps, suggestedWeight: state.currentWeightKg || item.suggestedWeight };
+        }
+      }
       const lastPerf = StorageService.getLastExercisePerformance(item.exerciseId);
       const bestSet = lastPerf ? lastPerf.sets.find((s) => s.weightKg === lastPerf.bestWeight) || lastPerf.sets[0] : null;
       const progressed = computeProgressedTarget(item.progressionRule, bestSet, item.suggestedWeight, item.targetReps);

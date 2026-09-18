@@ -15,6 +15,7 @@ import {
   Timer,
   LogOut,
   Heart,
+  Flame,
 } from 'lucide-react';
 import { UserSettings } from '../types';
 import { StorageService } from '../services/storage';
@@ -293,6 +294,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             }
           >
             {settings.showIphoneFrameOnDesktop ? 'מוצגת' : 'מסך רחב'}
+          </button>
+        </div>
+      </div>
+
+      {/* התאמת תזונה אדפטיבית - מעדכן יעד קלוריות/מאקרו לפי מעקב משקל בפועל, לא נוסחה סטטית */}
+      <div className="ios-card" style={{ padding: '16px' }}>
+        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 6 }}>תזונה אדפטיבית</h3>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.45 }}>
+          כשיש מספיק היסטוריית משקל ותזונה, נציע לעדכן את יעד הקלוריות/מאקרו שלך לפי איך שהגוף שלך הגיב בפועל - עם אישור שלך בכל פעם, לא באופן שקוף.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Flame size={18} color="var(--color-orange)" />
+            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>הצעות עדכון יעד אוטומטיות</span>
+          </div>
+          <button
+            className="btn-secondary"
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              background: settings.nutritionAutoAdjustEnabled !== false ? 'var(--color-green-bg)' : 'var(--bg-surface-2)',
+              color: settings.nutritionAutoAdjustEnabled !== false ? 'var(--color-green)' : 'var(--text-muted)',
+              border: '1px solid var(--border-subtle)',
+            }}
+            onClick={() => onUpdateSettings({ ...settings, nutritionAutoAdjustEnabled: settings.nutritionAutoAdjustEnabled === false })}
+          >
+            {settings.nutritionAutoAdjustEnabled !== false ? 'פעיל ✓' : 'כבוי'}
           </button>
         </div>
       </div>

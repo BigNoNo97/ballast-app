@@ -12,6 +12,7 @@ import {
   FoodItem,
   NutritionEntry,
   NutritionGoals,
+  ExerciseProgressState,
 } from '../types';
 import { INITIAL_EXERCISES } from '../data/exercises';
 import { DEFAULT_ROUTINES } from '../data/defaultRoutines';
@@ -49,6 +50,7 @@ const STORAGE_KEYS = {
   FOOD_ITEMS: 'gym_tracker_food_items_v1',
   NUTRITION_ENTRIES: 'gym_tracker_nutrition_entries_v1',
   NUTRITION_GOALS: 'gym_tracker_nutrition_goals_v1',
+  EXERCISE_PROGRESS: 'gym_tracker_exercise_progress_v1',
 };
 
 export const DEFAULT_NUTRITION_GOALS: NutritionGoals = {
@@ -579,6 +581,40 @@ export const StorageService = {
     syncListToCloud('nutrition_entries', list);
   },
 
+  // "הזיכרון" של מנוע ההתקדמות המחזורי - state לכל תרגיל בתוכניות שהמערכת בנתה (isGenerated)
+  getExerciseProgressStates(routineId: string): ExerciseProgressState[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.EXERCISE_PROGRESS);
+      const list: ExerciseProgressState[] = data ? JSON.parse(data) : [];
+      return list.filter((s) => s.routineId === routineId);
+    } catch {
+      return [];
+    }
+  },
+
+  getAllExerciseProgressStates(): ExerciseProgressState[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.EXERCISE_PROGRESS);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  saveExerciseProgressState(state: ExerciseProgressState) {
+    const list = this.getAllExerciseProgressStates();
+    const idx = list.findIndex((s) => s.id === state.id);
+    if (idx >= 0) list[idx] = state; else list.push(state);
+    localStorage.setItem(STORAGE_KEYS.EXERCISE_PROGRESS, JSON.stringify(list));
+    syncListToCloud('exercise_progress', list);
+  },
+
+  deleteExerciseProgressStatesForRoutine(routineId: string) {
+    const list = this.getAllExerciseProgressStates().filter((s) => s.routineId !== routineId);
+    localStorage.setItem(STORAGE_KEYS.EXERCISE_PROGRESS, JSON.stringify(list));
+    syncListToCloud('exercise_progress', list);
+  },
+
   getNutritionGoals(): NutritionGoals {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.NUTRITION_GOALS);
@@ -639,7 +675,7 @@ export const StorageService = {
       const [
         workouts, routines, customExercises, bodyWeightEntries,
         measurementCategories, measurementEntries, progressPhotos,
-        foodItems, nutritionEntries, settingsBlob,
+        foodItems, nutritionEntries, exerciseProgressStates, settingsBlob,
       ] = await Promise.all([
         pullListFromCloud<WorkoutSession>('workouts'),
         pullListFromCloud<RoutineTemplate>('routines'),
@@ -650,6 +686,7 @@ export const StorageService = {
         pullListFromCloud<ProgressPhoto>('progress_photos'),
         pullListFromCloud<FoodItem>('food_items'),
         pullListFromCloud<NutritionEntry>('nutrition_entries'),
+        pullListFromCloud<ExerciseProgressState>('exercise_progress'),
         pullSettingsFromCloud<CloudSettingsBlob>(),
       ]);
 
@@ -664,6 +701,7 @@ export const StorageService = {
       localStorage.setItem(STORAGE_KEYS.PROGRESS_PHOTOS, JSON.stringify(progressPhotos));
       localStorage.setItem(STORAGE_KEYS.FOOD_ITEMS, JSON.stringify(foodItems));
       localStorage.setItem(STORAGE_KEYS.NUTRITION_ENTRIES, JSON.stringify(nutritionEntries));
+      localStorage.setItem(STORAGE_KEYS.EXERCISE_PROGRESS, JSON.stringify(exerciseProgressStates));
       if (settingsBlob) this.applySettingsBlob(settingsBlob);
     } else {
       // משתמש חדש - מעלים את מה שכבר קיים במכשיר (אם קיים) כדי לזרוע את החשבון שלו.
@@ -676,6 +714,7 @@ export const StorageService = {
       syncListToCloud('progress_photos', this.getProgressPhotos());
       syncListToCloud('food_items', this.getFoodItems());
       syncListToCloud('nutrition_entries', this.getAllNutritionEntries());
+      syncListToCloud('exercise_progress', this.getAllExerciseProgressStates());
       this.pushSettingsBlob();
     }
   },
@@ -698,6 +737,7 @@ export const StorageService = {
     localStorage.removeItem(STORAGE_KEYS.FOOD_ITEMS);
     localStorage.removeItem(STORAGE_KEYS.NUTRITION_ENTRIES);
     localStorage.removeItem(STORAGE_KEYS.NUTRITION_GOALS);
+    localStorage.removeItem(STORAGE_KEYS.EXERCISE_PROGRESS);
     localStorage.removeItem('gym_tracker_favorite_exercises_v2');
     this.init();
   },

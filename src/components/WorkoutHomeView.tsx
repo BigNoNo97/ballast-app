@@ -127,6 +127,19 @@ export const WorkoutHomeView: React.FC<WorkoutHomeViewProps> = ({
         </button>
       </div>
 
+      {/* מחזור אימון - רק לתוכניות שהמערכת בנתה, כדי שירידת נפח/עצימות בשבוע דילול תהיה מובנת */}
+      {activeRoutine.isGenerated && activeRoutine.mesocycle && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: -12 }}>
+          {activeRoutine.mesocycle.currentWeek >= activeRoutine.mesocycle.deloadWeekIndex ? (
+            <span className="pill-badge pill-purple">שבוע דילול - עומס מופחת להתאוששות</span>
+          ) : (
+            <span className="pill-badge pill-gray">
+              מחזור {activeRoutine.mesocycle.cycleNumber} · שבוע {activeRoutine.mesocycle.currentWeek}/{activeRoutine.mesocycle.lengthWeeks}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Day Selector Pill: אימון [שם האימון] ⌄ */}
       <div>
         <button

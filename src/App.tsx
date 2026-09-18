@@ -22,8 +22,9 @@ import {
   WorkoutSet,
 } from './types';
 import { StorageService } from './services/storage';
-import { DEFAULT_ROUTINES } from './data/defaultRoutines';
 import { AppleHealthService } from './services/appleHealthService';
+import { buildRoutine } from './services/programGenerator';
+import { processFinishedWorkout } from './services/progressionEngine';
 import { WorkoutHomeView } from './components/WorkoutHomeView';
 import { WorkoutDetailPreview } from './components/WorkoutDetailPreview';
 import { ActiveWorkout } from './components/ActiveWorkout';
@@ -138,6 +139,7 @@ export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<NavigationTab>('workout');
   const [previewingDay, setPreviewingDay] = useState<RoutineDay | null>(null);
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
+  const [coachNote, setCoachNote] = useState<string | null>(null);
   const [showAddExerciseToActiveModal, setShowAddExerciseToActiveModal] = useState(false);
   const [showRoutinesManagerModal, setShowRoutinesManagerModal] = useState(false);
   const [showSettingsScreen, setShowSettingsScreen] = useState(false);
@@ -260,16 +262,42 @@ export const App: React.FC = () => {
     setHistory(StorageService.getWorkoutHistory());
     setActiveWorkout(null);
     setSummarySession(finishedSession);
+    setCoachNote(null);
     setCurrentTab('community'); // History view
 
     // Auto-advance to next day in chronological order!
     const targetRoutineId = finishedSession.routineId || activeRoutine?.id;
-    const targetRoutine = routines.find((r) => r.id === targetRoutineId) || activeRoutine;
+    let targetRoutine = routines.find((r) => r.id === targetRoutineId) || activeRoutine;
 
     // אימון חופשי בלי שום תוכנית מעורבת (לא של האימון עצמו ולא פעילה כרגע) -
     // אין "יום הבא" להתקדם אליו, פשוט מסיימים כאן.
     if (!targetRoutine || !targetRoutineId) {
       return;
+    }
+
+    // מנוע ההתקדמות המחזורי - רק לתוכניות שהמערכת בנתה, ורק אם היו סטים לתעד בכלל.
+    if (targetRoutine.isGenerated && finishedSession.completedSetsCount > 0) {
+      const { updatedRoutine, stalledExerciseIds, didRollover } = processFinishedWorkout(
+        finishedSession,
+        targetRoutine,
+        settings,
+        exercises
+      );
+      targetRoutine = updatedRoutine;
+      StorageService.saveRoutine(updatedRoutine);
+      const freshRoutines = StorageService.getRoutines();
+      setRoutines(freshRoutines);
+      if (activeRoutine?.id === updatedRoutine.id) setActiveRoutine(updatedRoutine);
+
+      if (didRollover) {
+        setCoachNote(`התוכנית שלך עברה למחזור אימון חדש (מחזור ${updatedRoutine.mesocycle?.cycleNumber}) - נפח מעט גבוה יותר, ותרגילים מגוונים יותר 💪`);
+      } else if (stalledExerciseIds.length > 0) {
+        const names = stalledExerciseIds
+          .map((id) => exercises.find((e) => e.id === id)?.nameHe)
+          .filter(Boolean)
+          .join(', ');
+        if (names) setCoachNote(`שים לב: לא הייתה התקדמות ב-${names} כמה אימונים ברצף - שווה לבדוק טכניקה, לנוח יותר ביניהם, או להחליף לתרגיל חלופי.`);
+      }
     }
 
     // אם התוכנית דורשת תיעוד לפני התקדמות, ולא נרשם אף סט - השאר את אותו יום להבא
@@ -539,16 +567,15 @@ export const App: React.FC = () => {
                   /* אין למשתמש תוכנית פעילה - להציע לבנות אחת, לתת למערכת, או להתחיל בלי תוכנית */
                   <NoRoutineWorkoutView
                     onChooseSystem={() => {
-                      // Placeholder עד שיהיה מנוע המלצות אמיתי: מעתיקים תבנית פתיחה
-                      // כללית לתוך התוכניות האישיות של המשתמש הזה (לא תוכנית של משתמש הדמו).
-                      const starter = routines.find((r) => r.id === DEFAULT_ROUTINES[0].id) || DEFAULT_ROUTINES[0];
-                      if (!routines.some((r) => r.id === starter.id)) {
-                        StorageService.saveRoutine(starter);
-                        setRoutines(StorageService.getRoutines());
-                      }
-                      setActiveRoutine(starter);
-                      handleUpdateSettings({ ...settings, activeRoutineId: starter.id });
-                      setSelectedDayNumber(StorageService.getSelectedDayNumber(starter.id));
+                      // בונה תוכנית אישית אמיתית לפי נתוני המשתמש (ימים בשבוע, ציוד, רמת ניסיון,
+                      // מטרות) - עם מחזור אימון ומנוע התקדמות משלה, לא תבנית קבועה של הדמו.
+                      const { routine, progressStates } = buildRoutine(settings, exercises);
+                      StorageService.saveRoutine(routine);
+                      progressStates.forEach((s) => StorageService.saveExerciseProgressState(s));
+                      setRoutines(StorageService.getRoutines());
+                      setActiveRoutine(routine);
+                      handleUpdateSettings({ ...settings, activeRoutineId: routine.id });
+                      setSelectedDayNumber(StorageService.getSelectedDayNumber(routine.id));
                     }}
                     onOpenRoutinesMenu={() => setShowRoutinesManagerModal(true)}
                     onStartEmptyWorkout={handleStartEmptyWorkout}
@@ -763,6 +790,7 @@ export const App: React.FC = () => {
             isOpen={true}
             onClose={() => setSummarySession(null)}
             soundEnabled={settings.soundEnabled}
+            coachNote={coachNote || undefined}
           />
         )}
 

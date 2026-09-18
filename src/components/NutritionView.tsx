@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ChevronRight, ChevronLeft, Plus, Trash2, X, Search, Settings, Save, Coffee, Sun, Moon, Apple, Flame } from 'lucide-react';
 import { FoodItem, NutritionEntry, NutritionGoals, MealType } from '../types';
 import { StorageService } from '../services/storage';
+import { computeAdaptiveTarget } from '../services/nutritionAdaptation';
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 const MEAL_LABELS: Record<MealType, string> = {
@@ -37,6 +38,28 @@ export const NutritionView: React.FC = () => {
   const [goals, setGoals] = useState<NutritionGoals>(() => StorageService.getNutritionGoals());
   const [addingMeal, setAddingMeal] = useState<MealType | null>(null);
   const [showGoals, setShowGoals] = useState(false);
+  const [settings, setSettings] = useState(() => StorageService.getSettings());
+  const [suggestion, setSuggestion] = useState(() =>
+    computeAdaptiveTarget(StorageService.getBodyWeightLog(), StorageService.getAllNutritionEntries(), StorageService.getNutritionGoals(), settings.goals, settings)
+  );
+
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    const newGoals: NutritionGoals = { calories: suggestion.calories, protein: suggestion.protein, carbs: suggestion.carbs, fat: suggestion.fat };
+    StorageService.saveNutritionGoals(newGoals);
+    setGoals(newGoals);
+    const updatedSettings = { ...settings, lastNutritionAdaptationPromptAt: Date.now() };
+    StorageService.saveSettings(updatedSettings);
+    setSettings(updatedSettings);
+    setSuggestion(null);
+  };
+
+  const dismissSuggestion = () => {
+    const updatedSettings = { ...settings, lastNutritionAdaptationPromptAt: Date.now() };
+    StorageService.saveSettings(updatedSettings);
+    setSettings(updatedSettings);
+    setSuggestion(null);
+  };
 
   const refresh = () => setEntries(StorageService.getAllNutritionEntries());
 
@@ -111,6 +134,24 @@ export const NutritionView: React.FC = () => {
           <ChevronLeft size={20} />
         </button>
       </div>
+
+      {/* הצעת עדכון יעד אדפטיבי - לפי מעקב משקל/קלוריות בפועל, לא נכפה בלי אישור */}
+      {suggestion && (
+        <div className="ios-card" style={{ padding: 14, border: '1px solid var(--color-blue)', background: 'var(--color-blue-bg)' }}>
+          <div style={{ fontWeight: 800, fontSize: '0.92rem', marginBottom: 4 }}>
+            עדכון מוצע ליעד היומי: {goals.calories.toLocaleString()} ← {suggestion.calories.toLocaleString()} קלוריות
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.5 }}>{suggestion.rationale}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={applySuggestion} className="btn-primary" style={{ flex: 1, padding: 8, fontSize: '0.85rem' }}>
+              עדכן
+            </button>
+            <button onClick={dismissSuggestion} className="btn-secondary" style={{ flex: 1, padding: 8, fontSize: '0.85rem' }}>
+              לא כרגע
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Daily Summary */}
       <div className="ios-card" style={{ padding: 16 }}>

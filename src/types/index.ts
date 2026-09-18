@@ -102,6 +102,30 @@ export interface RoutineDay {
   exercises: RoutineDayExercise[];
 }
 
+export type SplitType = 'full_body' | 'upper_lower' | 'push_pull_legs' | 'ulppl';
+
+// מחזור אימון (מסוסייקל) - כמה שבועות של עומס עולה ואז שבוע דילול, לתוכניות שהמערכת בנתה.
+export interface MesocyclePlan {
+  lengthWeeks: number; // כולל שבוע הדילול (למשל 4 = 3 שבועות עומס + שבוע דילול)
+  currentWeek: number; // 1-based, מתאפס ל-1 אחרי שבוע דילול
+  cycleNumber: number; // עולה ב-1 בכל פעם שמחזור שלם מסתיים
+  deloadWeekIndex: number; // בפועל = lengthWeeks (השבוע האחרון במחזור)
+  sessionsCompletedThisWeek: number; // סופר אימונים שהושלמו בשבוע הנוכחי, כדי לדעת מתי לעבור לשבוע הבא
+}
+
+// "הזיכרון" של מנוע ההתקדמות לתרגיל בודד בתוכנית שהמערכת בנתה - מתעדכן אחרי כל אימון מתועד.
+export interface ExerciseProgressState {
+  id: string; // `${routineId}:${exerciseId}` - מזהה יציב לסנכרון ענן (אותו mechanism כמו כל שאר הרשימות)
+  exerciseId: string;
+  routineId: string;
+  currentWeightKg: number;
+  repRangeMin: number;
+  repRangeMax: number;
+  currentTargetReps: number; // המיקום הנוכחי בטווח החזרות (להתקדמות כפולה)
+  consecutiveStalls: number; // כמה אימונים רצופים לא עמדו במטרה על התרגיל הזה
+  lastSessionResult?: 'progressed' | 'held' | 'deloaded';
+}
+
 export interface RoutineTemplate {
   id: string;
   title: string;
@@ -116,6 +140,9 @@ export interface RoutineTemplate {
   isCustom?: boolean;
   createdAt?: number;
   requireLogToAdvance?: boolean; // אל תתקדם ליום הבא אם לא תועד אף סט באימון
+  isGenerated?: boolean; // true = נבנתה אוטומטית ע"י מנוע התוכניות, לא ע"י המשתמש
+  splitType?: SplitType;
+  mesocycle?: MesocyclePlan;
 }
 
 export interface PersonalRecord {
@@ -155,6 +182,10 @@ export interface UserSettings {
   goals?: OnboardingGoal[];
   experienceLevel?: ExperienceLevel;
   appleHealthSyncEnabled?: boolean;
+  trainingDaysPerWeek?: number; // 2-6, נאסף באונבורדינג - כמה ימי אימון בשבוע המשתמש יכול לעשות
+  availableEquipment?: EquipmentType[]; // undefined = גישה לכל סוגי הציוד (חדר כושר מלא)
+  nutritionAutoAdjustEnabled?: boolean; // undefined/true = מופעל, false = המשתמש כיבה
+  lastNutritionAdaptationPromptAt?: number; // timestamp - למנוע הצעות חזרתיות תכופות
 }
 
 export interface BodyWeightEntry {

@@ -9,6 +9,7 @@ interface WorkoutSummaryModalProps {
   isOpen: boolean;
   onClose: () => void;
   soundEnabled?: boolean;
+  coachNote?: string; // הודעה קצרה ממנוע ההתקדמות (למשל גלגול מחזור, או תרגיל שנתקע) - לא חוסמת
 }
 
 export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
@@ -16,6 +17,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   isOpen,
   onClose,
   soundEnabled = true,
+  coachNote,
 }) => {
   useEffect(() => {
     if (isOpen) {
@@ -84,9 +86,27 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
         <h2 style={{ fontSize: '1.45rem', fontWeight: 800, marginBottom: 4 }}>
           אימון מעולה! כל הכבוד 💪
         </h2>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 20 }}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: coachNote ? 12 : 20 }}>
           {session.title} נשמר בהצלחה ביומן האימונים
         </p>
+
+        {coachNote && (
+          <div
+            style={{
+              background: 'var(--color-blue-bg)',
+              border: '1px solid var(--color-blue)',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 14px',
+              marginBottom: 20,
+              fontSize: '0.82rem',
+              color: 'var(--text-main)',
+              textAlign: 'start',
+              lineHeight: 1.5,
+            }}
+          >
+            {coachNote}
+          </div>
+        )}
 
         {/* Highlight Stats Grid */}
         <div

@@ -1,0 +1,676 @@
+<title>Ballast Status Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@500;600;700;800&family=Heebo:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --paper: #faf9fc;
+    --surface: #ffffff;
+    --surface-2: #f1f0f7;
+    --ink: #16161d;
+    --muted: #6b6b78;
+    --dim: #9695a3;
+    --border: #e3e1ec;
+    --border-strong: #d2cfe0;
+    --accent: #4B5FE0;
+    --accent-deep: #2E3AA8;
+    --accent-soft: #eef0fd;
+    --accent-ink: #2a35a0;
+    --done: #158a56;
+    --done-bg: #e6f6ee;
+    --progress: #b1720a;
+    --progress-bg: #fbf1de;
+    --action: #9c3fc4;
+    --action-bg: #f6ebfb;
+    --todo: #7c7c8c;
+    --todo-bg: #f1f0f5;
+    --shadow: 0 1px 2px rgba(30,25,60,0.04), 0 8px 24px -12px rgba(30,25,60,0.10);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0c0c12;
+      --surface: #15151d;
+      --surface-2: #1c1c26;
+      --ink: #f1f1f6;
+      --muted: #a4a3b3;
+      --dim: #75748a;
+      --border: #2a2a37;
+      --border-strong: #38384a;
+      --accent: #8d97f8;
+      --accent-deep: #b7bdfb;
+      --accent-soft: #1e2040;
+      --accent-ink: #c2c7ff;
+      --done: #4bd08a;
+      --done-bg: #123425;
+      --progress: #e3ab4f;
+      --progress-bg: #3a2c11;
+      --action: #d597ef;
+      --action-bg: #33203c;
+      --todo: #9998ab;
+      --todo-bg: #1e1e29;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0c0c12;
+    --surface: #15151d;
+    --surface-2: #1c1c26;
+    --ink: #f1f1f6;
+    --muted: #a4a3b3;
+    --dim: #75748a;
+    --border: #2a2a37;
+    --border-strong: #38384a;
+    --accent: #8d97f8;
+    --accent-deep: #b7bdfb;
+    --accent-soft: #1e2040;
+    --accent-ink: #c2c7ff;
+    --done: #4bd08a;
+    --done-bg: #123425;
+    --progress: #e3ab4f;
+    --progress-bg: #3a2c11;
+    --action: #d597ef;
+    --action-bg: #33203c;
+    --todo: #9998ab;
+    --todo-bg: #1e1e29;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Heebo', -apple-system, 'Segoe UI', sans-serif;
+    direction: rtl;
+    text-align: right;
+    line-height: 1.6;
+    font-size: 15.5px;
+  }
+  ::selection { background: var(--accent-soft); color: var(--accent-ink); }
+
+  h1, h2, h3, h4 { font-family: 'Rubik', 'Heebo', sans-serif; text-wrap: balance; margin: 0; }
+  code, .mono { font-family: 'JetBrains Mono', monospace; direction: ltr; unicode-bidi: isolate; }
+  .num { font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+
+  a { color: var(--accent-ink); }
+
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px 120px; }
+
+  /* ---------- Masthead ---------- */
+  .masthead {
+    padding: 56px 24px 40px;
+    background:
+      radial-gradient(120% 160% at 85% -10%, rgba(75,95,224,0.16) 0%, rgba(75,95,224,0) 55%);
+    border-bottom: 1px solid var(--border);
+  }
+  .masthead-inner { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+  .brand-row { display: flex; align-items: center; gap: 16px; }
+  .b-icon {
+    width: 52px; height: 52px; border-radius: 15px; flex-shrink: 0;
+    background: radial-gradient(120% 160% at 15% 0%, #6E7CF5 0%, #4B5FE0 46%, #2E3AA8 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 16px -6px rgba(46,58,168,0.55);
+  }
+  .b-icon svg { width: 24px; height: 30px; }
+  .brand-text h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+  .brand-text .tagline { font-size: 0.92rem; color: var(--muted); margin-top: 2px; }
+  .status-line { font-size: 0.86rem; color: var(--dim); }
+  .status-line .num { color: var(--muted); }
+
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .stat-tile .stat-num { font-family: 'Rubik', sans-serif; font-size: 1.55rem; font-weight: 700; color: var(--accent-ink); }
+  .stat-tile .stat-label { font-size: 0.76rem; color: var(--muted); margin-top: 2px; }
+
+  /* ---------- Nav ---------- */
+  .toc {
+    position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .toc-inner {
+    max-width: 980px; margin: 0 auto; padding: 10px 24px; display: flex; gap: 8px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .toc-inner::-webkit-scrollbar { display: none; }
+  .toc a {
+    flex-shrink: 0; text-decoration: none; font-size: 0.82rem; font-weight: 600; color: var(--muted);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px;
+    white-space: nowrap;
+  }
+  .toc a:hover { color: var(--accent-ink); border-color: var(--border-strong); }
+
+  /* ---------- Sections ---------- */
+  section { padding: 48px 0 8px; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  .eyebrow { font-size: 0.76rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+  .section-head { margin-bottom: 28px; max-width: 68ch; }
+  .section-head h2 { font-size: 1.5rem; font-weight: 700; margin-top: 6px; }
+  .section-head p { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
+
+  /* ---------- Narrative ---------- */
+  .story p { max-width: 66ch; margin: 0 0 14px; color: var(--ink); }
+  .story .lede { font-size: 1.02rem; }
+  .milestone-list { list-style: none; margin: 20px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .milestone-list li {
+    display: flex; gap: 12px; align-items: baseline; font-size: 0.92rem; color: var(--ink);
+    padding-inline-start: 0;
+  }
+  .milestone-list .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 7px; }
+  .milestone-list b { font-weight: 700; }
+
+  /* ---------- Feature cards ---------- */
+  .feature-groups { display: flex; flex-direction: column; gap: 28px; }
+  .feature-group h3 {
+    font-size: 1.02rem; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .feature-group h3 .count {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--dim);
+    background: var(--surface-2); border-radius: 6px; padding: 2px 7px; direction: ltr;
+  }
+  .feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .feature-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .feature-card .fname { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+  .feature-card .fdesc { font-size: 0.83rem; color: var(--muted); line-height: 1.55; }
+
+  /* ---------- Integrations ---------- */
+  .integ-list { display: flex; flex-direction: column; gap: 10px; }
+  .integ-row {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: start;
+  }
+  .integ-name { font-weight: 700; font-size: 0.94rem; display: flex; align-items: center; gap: 8px; }
+  .integ-desc { font-size: 0.84rem; color: var(--muted); grid-column: 1 / -1; line-height: 1.55; }
+  .integ-desc code { font-size: 0.78rem; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+  .pill {
+    font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .pill-done { background: var(--done-bg); color: var(--done); }
+  .pill-progress { background: var(--progress-bg); color: var(--progress); }
+  .pill-action { background: var(--action-bg); color: var(--action); }
+  .pill-todo { background: var(--todo-bg); color: var(--todo); }
+
+  .flag {
+    margin-top: 10px; font-size: 0.82rem; background: var(--progress-bg); color: var(--progress);
+    border-radius: 10px; padding: 8px 12px; display: flex; gap: 8px;
+  }
+
+  /* ---------- Roadmap ---------- */
+  .roadmap-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; font-size: 0.8rem; color: var(--muted); }
+  .roadmap-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .roadmap-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  .road-block { margin-bottom: 22px; }
+  .road-block > h4 { font-size: 0.98rem; font-weight: 700; margin-bottom: 10px; }
+  .road-items { display: flex; flex-direction: column; gap: 8px; }
+  .road-item {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+  }
+  .road-item .mark { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-top: 1px; flex-shrink: 0; }
+  .road-item .mark svg { width: 12px; height: 12px; }
+  .mark-done { background: var(--done-bg); color: var(--done); }
+  .mark-progress { background: var(--progress-bg); color: var(--progress); }
+  .mark-action { background: var(--action-bg); color: var(--action); }
+  .mark-todo { background: var(--todo-bg); color: var(--dim); }
+  .road-item .rtitle { font-weight: 600; font-size: 0.9rem; }
+  .road-item .rdesc { font-size: 0.8rem; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+
+  .callout {
+    background: var(--action-bg); border: 1px solid color-mix(in srgb, var(--action) 30%, transparent);
+    border-radius: 14px; padding: 18px 20px; margin-bottom: 24px;
+  }
+  .callout h4 { color: var(--action); font-size: 0.95rem; margin-bottom: 6px; }
+  .callout p { font-size: 0.88rem; color: var(--ink); margin: 0; }
+  .callout a { font-weight: 700; }
+
+  /* ---------- Competitor research ---------- */
+  .app-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 28px; }
+  .app-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+  .app-card .app-name { font-family: 'Rubik', sans-serif; font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+  .app-card .app-tag { font-size: 0.78rem; color: var(--accent-ink); font-weight: 600; margin-bottom: 8px; }
+  .app-card ul { margin: 0; padding-inline-start: 18px; font-size: 0.82rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+
+  .idea-list { display: flex; flex-direction: column; gap: 12px; }
+  .idea-row {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .idea-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent-ink); background: var(--accent-soft);
+    border-radius: 8px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .idea-body .ititle { font-weight: 700; font-size: 0.9rem; }
+  .idea-body .idesc { font-size: 0.83rem; color: var(--muted); margin-top: 3px; line-height: 1.55; }
+  .idea-body .isource { font-size: 0.72rem; color: var(--dim); margin-top: 6px; }
+  .idea-body .isource a { color: var(--dim); }
+
+  .fit-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .fit-chip { font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+
+  /* ---------- Future note ---------- */
+  .future-box {
+    background: linear-gradient(135deg, var(--accent-soft), var(--surface-2));
+    border: 1px solid var(--border-strong); border-radius: 16px; padding: 22px 24px;
+  }
+  .future-box h4 { font-size: 1rem; margin-bottom: 8px; }
+  .future-box p { font-size: 0.9rem; color: var(--ink); margin: 0 0 8px; max-width: 62ch; }
+  .future-box .isource { font-size: 0.78rem; color: var(--muted); }
+
+  footer { text-align: center; padding: 40px 24px 10px; font-size: 0.78rem; color: var(--dim); }
+
+  @media (max-width: 640px) {
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+    .feature-grid { grid-template-columns: 1fr; }
+    .app-grid { grid-template-columns: 1fr; }
+    .integ-row { grid-template-columns: 1fr; }
+    .masthead { padding: 40px 16px 28px; }
+    .wrap { padding: 0 16px 100px; }
+  }
+</style>
+
+<div class="masthead">
+  <div class="masthead-inner">
+    <div class="brand-row">
+      <div class="b-icon">
+        <svg viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="6" height="28" rx="2" fill="white"/>
+          <circle cx="13.5" cy="17.5" r="9" fill="white"/>
+          <circle cx="13.5" cy="17.5" r="4.2" fill="#4B5FE0"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Ballast — דוח מצב מקיף</h1>
+        <div class="tagline">אפליקציית מעקב אימוני כושר (iOS + PWA) · <span class="mono num">com.ballast.app</span></div>
+      </div>
+    </div>
+    <div class="status-line">מצב נכון להיום: ה-PWA חי בפרודקשן עם "מוח" מבוסס-מחקר שבונה תוכנית אימונים אישית לכל משתמש, המעטפת הנייטיבית ל-iOS נבנית ורצה בהצלחה (מאומת אוטומטית ב-CI), <span class="num">0</span> מתוך <span class="num">8</span> סודות חתימה להגשה בפועל עדיין לא מוגדרים.</div>
+    <div class="stat-row">
+      <div class="stat-tile"><div class="stat-num num">208</div><div class="stat-label">תרגילים במאגר</div></div>
+      <div class="stat-tile"><div class="stat-num num">7</div><div class="stat-label">אינטגרציות פעילות</div></div>
+      <div class="stat-tile"><div class="stat-num num">~34</div><div class="stat-label">מסכים/פיצ'רים</div></div>
+      <div class="stat-tile"><div class="stat-num num">1</div><div class="stat-label">חסם קריטי לפני חנות</div></div>
+    </div>
+  </div>
+</div>
+
+<nav class="toc">
+  <div class="toc-inner">
+    <a href="#story">מה בנינו</a>
+    <a href="#features">פיצ'רים קיימים</a>
+    <a href="#integrations">אינטגרציות</a>
+    <a href="#roadmap">מפת דרכים לחנות</a>
+    <a href="#research">מחקר מתחרים</a>
+    <a href="#future">להמשך</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <section id="story">
+    <div class="section-head">
+      <div class="eyebrow">הרקע</div>
+      <h2>מה בנינו עד עכשיו</h2>
+    </div>
+    <div class="story">
+      <p class="lede">Ballast (שנקראה בתחילת הדרך "ברזל"/Barzel) היא אפליקציית מעקב אימוני כושר בעברית, RTL מלא, שנבנתה כ-React + TypeScript + Vite, עם Supabase כבק-אנד ו-Netlify לאירוח ה-PWA. בשלב מתקדם יותר נוסף Capacitor כדי לעטוף אותה כאפליקציית iOS אמיתית — בלי לשלם על שירותי ענן חיצוניים למק (Codemagic וכדומה), רק על תשתית חינמית: GitHub Actions עם runner מק חינמי.</p>
+      <p>הדרך עברה כמה שלבי מפתח: איפיון עומק של מסך הבית ואונבורדינג בהשראת אפליקציות כושר מובילות (כולל מוקאפים מלאים לכל מסך), בניית מאגר תרגילים עשיר עם תמונות אמיתיות ואיורים מותאמים, מערכת סופרסטים והחלפת תרגילים חכמה, חיבור ל-Apple Health, ולאחרונה — בניית "מוח" אמיתי מאחורי המערכת: מנוע שבונה תוכנית אימונים אישית לכל משתמש לפי מדעי האימון, במקום תבניות קבועות.</p>
+      <ul class="milestone-list">
+        <li><span class="dot"></span><span><b>"המוח" - מנוע תוכניות אישי:</b> בונה חלוקת ימים, תרגילים ונפח לפי ימים בשבוע, ציוד (חדר כושר/בית), רמת ניסיון, מטרה ומשך אימון מועדף - מבוסס על מחקר אמיתי (נפחי MEV/MAV, תדירות אימון, פריודיזציה), לא AI/LLM. כולל מחזורי אימון מלאים עם שבועות דילול וגלגול אוטומטי בין מחזורים, והתאמת יעדי תזונה אוטומטית לפי מעקב משקל/קלוריות בפועל.</span></li>
+        <li><span class="dot"></span><span><b>התקדמות בזמן אמת תוך כדי אימון:</b> עדכון-קבוצתי של משקל/חזרות לשאר הסטים באותו תרגיל, והצעת "קל מדי" אינטראקטיבית שמזהה חריגה מהיעד ומציעה להעלות משקל - בנוסף להתקדמות הקיימת בין אימונים.</span></li>
+        <li><span class="dot"></span><span><b>אונבורדינג מורחב:</b> נוספו שלבי בית/חדר-כושר (עם רשימת ציוד למי שמתאמן בבית), ימי אימון בשבוע, משך אימון מועדף וחימום אופציונלי - כל אלו מזינים את מנוע התוכניות.</span></li>
+        <li><span class="dot"></span><span><b>תיקון ארכיטקטורת בחירת תוכנית:</b> משתמש חדש כבר לא מקבל את תוכניות הדמו כברירת מחדל בטעות - מסך "עוד אין לך תוכנית" אמיתי בטאב האימון, עם 3 אפשרויות אמיתיות (מנוע/עצמאי/בלי תוכנית).</span></li>
+        <li><span class="dot"></span><span><b>מיתוג:</b> שינוי שם ל-Ballast, זהות ויזואלית (גרדיאנט כחול-סגול, מונוגרם אות b), אייקון מלא לכל הגדלים.</span></li>
+        <li><span class="dot"></span><span><b>תשתית משפטית/עסקית בסיסית:</b> מדיניות פרטיות, מייל תמיכה ייעודי, זרימת מחיקת חשבון עצמאית (נדרש ע"י אפל).</span></li>
+        <li><span class="dot"></span><span><b>Git/CI:</b> ריפו פרטי ב-GitHub, שתי זרימות עבודה אוטומטיות (בדיקת בנייה + הגשה חתומה עתידית).</span></li>
+        <li><span class="dot"></span><span><b>iOS נייטיבי:</b> Capacitor מותקן, נבנה ורץ בהצלחה — כולל אבחון ותיקון של תקלת "מסך שחור" שהתבררה כחוסר במשתני סביבה, לא בעיית חומרה.</span></li>
+        <li><span class="dot"></span><span><b>Apple Health:</b> שלב 1 (סנכרון אימונים ומשקל) הושלם ואומת; אפליקציית Watch (שלבים 2-4) עדיין לפנינו.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="section-head">
+      <div class="eyebrow">מצאי</div>
+      <h2>הפיצ'רים הקיימים באפליקציה</h2>
+      <p>כל מה שכבר עובד היום, מקובץ לפי אזור באפליקציה. מבוסס על סריקה מלאה של קוד המקור.</p>
+    </div>
+    <div class="feature-groups">
+
+      <div class="feature-group">
+        <h3>הרשמה ואונבורדינג <span class="count">2</span></h3>
+        <div class="feature-grid">
+          <div class="feature-card"><div class="fname">התחברות</div><div class="fdesc">אימייל+סיסמה, Google, Apple, וחשבון דמו ללחיצה אחת להתנסות מהירה.</div></div>
+          <div class="feature-card"><div class="fname">אשף הרשמה 14 שלבים</div><div class="fdesc">מגדר, גיל, גובה, משקל, מטרה (רב-בחירה), רמת ניסיון, ימי אימון בשבוע, בית/חדר-כושר (+ רשימת ציוד למי שבבית), משך אימון מועדף, חימום אופציונלי, ושם תצוגה — עם חישוב יעדי קלוריות/מאקרו אוטומטי (נוסחת Mifflin-St Jeor). ניתן לדלג בכל שלב.</div></div>
+        </div>
+      </div>
+
+      <div class="feature-group">
+        <h3>מעקב אימונים <span class="count">11</span></h3>
+        <div class="feature-grid">
+          <div class="feature-card"><div class="fname">מנוע תוכניות אישי ("המוח")</div><div class="fdesc">בונה תוכנית מלאה אוטומטית (חלוקת ימים, תרגילים, נפח) לפי הנתונים מהאונבורדינג, עם מחזורי אימון מלאים - עומס עולה בהדרגה, שבוע דילול, וגלגול לתרגילים/נפח מחודשים בכל מחזור.</div></div>
+          <div class="feature-card"><div class="fname">מסך בית לאימון</div><div class="fdesc">תצוגת התוכנית והיום הפעיל, מחזור/שבוע נוכחי לתוכניות שנבנו אוטומטית, סטטיסטיקות (תרגילים/סטים/קלוריות), התחלת אימון מתוכנית או חופשי.</div></div>
+          <div class="feature-card"><div class="fname">תצוגה מקדימה לאימון</div><div class="fdesc">כל תרגילי היום עם אפשרות סידור מחדש, חיבור לסופרסט, החלפה והוספה/הסרה — לפני שמתחילים.</div></div>
+          <div class="feature-card"><div class="fname">אימון פעיל (הליבה)</div><div class="fdesc">תיעוד משקל/חזרות לפי סט, סימון השלמה, עדכון-קבוצתי אוטומטי לשאר הסטים באותו תרגיל, הצעת "קל מדי" אינטראקטיבית, מעבר אוטומטי לתרגיל הבא, גרירה וסלייד-למחיקה, הערות פר-תרגיל, החלפת תרגיל באמצע אימון.</div></div>
+          <div class="feature-card"><div class="fname">ניהול תוכניות</div><div class="fdesc">יצירה/עריכה/מחיקה של תוכניות מרובות ימים, כללי התקדמות פרוגרסיבית אוטומטיים (הוספת משקל/חזרות בכל אימון), תבניות מובנות.</div></div>
+          <div class="feature-card"><div class="fname">מאגר תרגילים</div><div class="fdesc">חיפוש וסינון לפי שריר/ציוד/מועדפים/אחרונים, הוספת תרגילים מותאמים אישית.</div></div>
+          <div class="feature-card"><div class="fname">החלפה חכמה</div><div class="fdesc">מציאת תרגיל חלופי לפי שריר/ציוד תואם, תוך שמירת נתוני הביצוע האחרונים.</div></div>
+          <div class="feature-card"><div class="fname">פרופיל תרגיל</div><div class="fdesc">תמונת הדגמה מונפשת, הוראות בעברית, שיא אישי, מפת שרירים אנטומית, וגרף התקדמות.</div></div>
+          <div class="feature-card"><div class="fname">טיימר מנוחה</div><div class="fdesc">ספירה לאחור עם צפצופים ב-3-2-1, רטט/צליל בסיום, אפשרות כיבוי.</div></div>
+          <div class="feature-card"><div class="fname">סיכום אימון</div><div class="fdesc">מסך חגיגה (קונפטי + צליל) עם משך, נפח כולל, שיאים חדשים, והודעת "מאמן" כשמחזור מתגלגל או תרגיל נתקע.</div></div>
+          <div class="feature-card"><div class="fname">תיעוד רטרואקטיבי + לו"ז שבועי</div><div class="fdesc">הוספת אימון שלא תועד בזמן אמת, וסימון ימי אימון מתוכננים בשבוע.</div></div>
+        </div>
+      </div>
+
+      <div class="feature-group">
+        <h3>היסטוריה וניתוח נתונים <span class="count">4</span></h3>
+        <div class="feature-grid">
+          <div class="feature-card"><div class="fname">היסטוריית אימונים</div><div class="fdesc">יומן כרונולוגי מלא עם אפשרות "חזור על האימון" ומחיקה.</div></div>
+          <div class="feature-card"><div class="fname">אנליטיקס</div><div class="fdesc">נפח אימון שבועי, תדירות אימון לפי קבוצת שריר (30 יום), גרף 1RM לתרגיל, ומחשבון 1RM עצמאי.</div></div>
+          <div class="feature-card"><div class="fname">מפת שרירים</div><div class="fdesc">איור אנטומי קדמי/אחורי שמדגיש שריר עיקרי ומשני לכל תרגיל.</div></div>
+          <div class="feature-card"><div class="fname">שיאים אישיים (PR)</div><div class="fdesc">מחושבים אוטומטית בסיום אימון (משקל מקסימלי, חזרות, 1RM משוער לפי נוסחת Brzycki).</div></div>
+        </div>
+      </div>
+
+      <div class="feature-group">
+        <h3>מעקב גוף ותזונה <span class="count">5</span></h3>
+        <div class="feature-grid">
+          <div class="feature-card"><div class="fname">משקל גוף</div><div class="fdesc">יומן משקל עם יעד וגרף מגמה; כל רשומה מסונכרנת גם ל-Apple Health.</div></div>
+          <div class="feature-card"><div class="fname">מדידות גוף</div><div class="fdesc">קטגוריות מדידה מותאמות אישית (היקפים, אחוז שומן וכו') כל אחת עם היסטוריה וגרף.</div></div>
+          <div class="feature-card"><div class="fname">תמונות התקדמות</div><div class="fdesc">גלריית תמונות עם דחיסה אוטומטית, נשמרת מקומית במכשיר (IndexedDB).</div></div>
+          <div class="feature-card"><div class="fname">מעקב תזונה</div><div class="fdesc">יומן ארוחות (בוקר/צהריים/ערב/נשנוש) מול יעדי קלוריות/חלבון/פחמימות/שומן, עם מאגר מזונות לפי 100 גרם.</div></div>
+          <div class="feature-card"><div class="fname">התאמת תזונה אדפטיבית</div><div class="fdesc">אחרי 14+ יום של מעקב משקל+קלוריות, מציע עדכון יעד לפי TDEE בפועל (בסטייל MacroFactor) - עם הסבר, ודורש אישור המשתמש בכל פעם.</div></div>
+        </div>
+      </div>
+
+      <div class="feature-group">
+        <h3>פרופיל והגדרות <span class="count">3</span></h3>
+        <div class="feature-grid">
+          <div class="feature-card"><div class="fname">פרופיל</div><div class="fdesc">לוח שנה/היט-מאפ חודשי, רצפים (streaks), וגישה מהירה לכל מסכי המעקב.</div></div>
+          <div class="feature-card"><div class="fname">הגדרות</div><div class="fdesc">ערכת נושא, זמני מנוחה, טיימר/צלילים, סנכרון Apple Health, גיבוי/שחזור JSON, איפוס נתונים, מדריך התקנת PWA.</div></div>
+          <div class="feature-card"><div class="fname">מסגרת אייפון (דסקטופ)</div><div class="fdesc">מוקאפ ויזואלי לצפייה בדפדפן דסקטופ בלבד — כבוי אוטומטית באפליקציה הנייטיבית האמיתית.</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="integrations">
+    <div class="section-head">
+      <div class="eyebrow">מתחת למכסה המנוע</div>
+      <h2>כל האינטגרציות והחיבורים</h2>
+      <p>כולל שני ממצאים שכדאי לטפל בהם — לא חוסמים, אבל שווה להסדיר לפני ההגשה.</p>
+    </div>
+    <div class="integ-list">
+
+      <div class="integ-row">
+        <div class="integ-name">Supabase <span class="pill pill-done">פעיל</span></div>
+        <div class="integ-desc">בק-אנד ראשי: אימות (אימייל, Google OAuth, Apple OAuth), מסד PostgreSQL עם RLS לכל טבלה (אימונים, תוכניות, תרגילים מותאמים, משקל, מדידות, תמונות, תזונה, הגדרות) — כל שורה מוגנת לפי <code>auth.uid()</code>.</div>
+      </div>
+
+      <div class="integ-row">
+        <div class="integ-name">Supabase Edge Function <span class="pill pill-done">פעיל</span></div>
+        <div class="integ-desc">פונקציית <code>delete-account</code> (Deno) — מאמתת את הטוקן של המשתמש ומוחקת את חשבונו לצמיתות. זו בדיוק הדרישה של אפל (5.1.1v) למחיקת חשבון עצמאית באפליקציה.</div>
+      </div>
+
+      <div class="integ-row">
+        <div class="integ-name">Apple HealthKit <span class="pill pill-progress">שלב 1/4</span></div>
+        <div class="integ-desc">פלאגין Capacitor מותאם-אישית (לא ספרייה חיצונית) — קורא דופק/צעדים, כותב משקל גוף ואימונים שהושלמו (כ-HKWorkout אמיתי, מופיע גם באפליקציית הכושר של אפל). עדיין בלי אפליקציית Watch (שלבים 2-4).</div>
+      </div>
+
+      <div class="integ-row">
+        <div class="integ-name">Capacitor 8 (iOS) <span class="pill pill-done">פעיל</span></div>
+        <div class="integ-desc">עוטף את ה-web app כאפליקציית iOS נייטיבית, <code>com.ballast.app</code>. שום פלאגין נוסף מלבד HealthKit המותאם-אישית (אין עדיין מצלמה/פוש/קבצים).</div>
+      </div>
+
+      <div class="integ-row">
+        <div class="integ-name">GitHub Actions (CI) <span class="pill pill-done">פעיל</span></div>
+        <div class="integ-desc"><code>ios-build-check.yml</code> רץ על כל push — בונה, מתקין על סימולטור אמיתי, מריץ, ותופס צילום מסך + לוג. <code>ios-release.yml</code> (הגשה חתומה) מוכן בקוד אך <b>חסר את כל 8 הסודות הנדרשים</b> (ראו מפת הדרכים).</div>
+      </div>
+
+      <div class="integ-row">
+        <div class="integ-name">wger.de + Free Exercise DB <span class="pill pill-progress">כמעט</span></div>
+        <div class="integ-desc">שני מאגרי תמונות תרגיל פתוחים בשימוש: 65 תמונות מ-wger.de (CC-BY-SA, ל-66 תרגילים) לתמונות ברשימה, ו-202 תיקיות תמונה מ-Free Exercise DB (ציבורי) להדגמת לפני/אחרי בפרופיל התרגיל. שאר התרגילים משתמשים באיורי SVG מצוירים ידנית.</div>
+        <div class="flag">⚠ מסך ההגדרות מזכה קרדיט רק ל-wger.de — כדאי להוסיף גם קרדיט ל-Free Exercise DB לפני ההגשה, לשמור על היגיינת רישוי נקייה.</div>
+      </div>
+
+      <div class="integ-row">
+        <div class="integ-name">Supabase Storage — תמונות התקדמות <span class="pill pill-action">לא מחובר</span></div>
+        <div class="integ-desc">יש bucket מוכן במיגרציית ה-SQL עם מדיניות RLS פר-משתמש — אבל הקוד בפועל שומר תמונות התקדמות רק מקומית ב-IndexedDB. המשמעות: תמונות התקדמות <b>לא מסתנכרנות בין מכשירים ולא שורדות מחיקת אפליקציה</b>.</div>
+        <div class="flag">⚠ החלטה מכוונת נדרשת: לחבר את ה-bucket הקיים, או להשאיר מקומי-בלבד ולציין זאת למשתמש.</div>
+      </div>
+
+      <div class="integ-row">
+        <div class="integ-name">react-body-highlighter, canvas-confetti <span class="pill pill-done">פעיל</span></div>
+        <div class="integ-desc">ספריות npm קטנות: הראשונה למפת השרירים האנטומית, השנייה לאנימציית הקונפטי בסיום אימון.</div>
+      </div>
+
+      <div class="integ-row">
+        <div class="integ-name">Google Fonts <span class="pill pill-done">פעיל</span></div>
+        <div class="integ-desc">Heebo ו-Rubik, נטענים מ-<code>fonts.googleapis.com</code> — תלות רשת חיה שנשמרת במטמון אחרי התקנה כ-PWA.</div>
+      </div>
+
+      <div class="integ-row">
+        <div class="integ-name">אנליטיקס / דיווח קריסות <span class="pill pill-todo">אין</span></div>
+        <div class="integ-desc">לא נמצא שום SDK כזה (לא Sentry, לא Firebase, לא Amplitude) ואין גם התראות Push. כלומר כרגע — טלמטריה אפס. שווה לשקול בעתיד כדי לדעת איפה משתמשים נתקעים.</div>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="section-head">
+      <div class="eyebrow">היעד</div>
+      <h2>מפת הדרכים עד לפרסום ב-App Store</h2>
+      <p>מקובץ לפי מה שכבר בוצע, מה שדורש החלטה/כסף ממך באופן ספציפי, ומה שעדיין נשאר לבנות.</p>
+    </div>
+
+    <div class="callout">
+      <h4>🔑 החסם היחיד שמעכב הכל</h4>
+      <p>כל השלבים הבאים תלויים בהרשמה ל-<b>Apple Developer Program</b> ($99/שנה, בכתובת developer.apple.com) — בלי זה אי אפשר לקבל תעודת חתימה, לפתוח רשומת אפליקציה ב-App Store Connect, או להגיש כלום. זו נקודת ההחלטה הראשונה.</p>
+    </div>
+
+    <div class="roadmap-legend">
+      <span><i style="background:var(--done)"></i>הושלם</span>
+      <span><i style="background:var(--progress)"></i>בתהליך</span>
+      <span><i style="background:var(--action)"></i>דורש פעולה/החלטה ממך</span>
+      <span><i style="background:var(--todo)"></i>טרם התחלנו</span>
+    </div>
+
+    <div class="road-block">
+      <h4>הושלם ✓</h4>
+      <div class="road-items">
+        <div class="road-item"><div class="mark mark-done">✓</div><div><div class="rtitle">מדיניות פרטיות ומייל תמיכה</div><div class="rdesc">חיים בפרודקשן, זמינים לקישור מרשומת האפליקציה.</div></div></div>
+        <div class="road-item"><div class="mark mark-done">✓</div><div><div class="rtitle">אייקון אפליקציה מלא</div><div class="rdesc">כל הגדלים הנדרשים נוצרו מקובץ המאסטר.</div></div></div>
+        <div class="road-item"><div class="mark mark-done">✓</div><div><div class="rtitle">מחיקת חשבון עצמאית</div><div class="rdesc">דרישת חובה של אפל (הנחיה 5.1.1v) — כבר קיימת ועובדת.</div></div></div>
+        <div class="road-item"><div class="mark mark-done">✓</div><div><div class="rtitle">Sign in with Apple</div><div class="rdesc">מוצע לצד Google — עומד בדרישת אפל (הנחיה 4.8) כשמציעים כניסה חברתית אחרת.</div></div></div>
+        <div class="road-item"><div class="mark mark-done">✓</div><div><div class="rtitle">בנייה נייטיבית מאומתת</div><div class="rdesc">מוודא אוטומטית בכל push שהאפליקציה מתקמפלת <b>ורצה בפועל</b> בסימולטור — לא רק "מתקמפל".</div></div></div>
+      </div>
+    </div>
+
+    <div class="road-block">
+      <h4>דורש ממך פעולה/החלטה ספציפית</h4>
+      <div class="road-items">
+        <div class="road-item"><div class="mark mark-action">1</div><div><div class="rtitle">הרשמה ל-Apple Developer Program</div><div class="rdesc">$99/שנה. חוסם את כל השלבים הבאים.</div></div></div>
+        <div class="road-item"><div class="mark mark-action">2</div><div><div class="rtitle">תעודת חתימה + פרופיל provisioning</div><div class="rdesc">נוצר דרך Xcode או App Store Connect אחרי ההרשמה; משמש להגדרת 8 ה-secrets ב-<code>ios-release.yml</code>.</div></div></div>
+        <div class="road-item"><div class="mark mark-action">3</div><div><div class="rtitle">פתיחת רשומת אפליקציה ב-App Store Connect</div><div class="rdesc">בחירת קטגוריה (כנראה "בריאות וכושר"), מזהה החבילה <code>com.ballast.app</code>.</div></div></div>
+        <div class="road-item"><div class="mark mark-action">4</div><div><div class="rtitle">שאלון "תווית תזונה" לפרטיות</div><div class="rdesc">חובה להצהיר: נתוני בריאות/כושר (HealthKit), פרטי קשר (אימייל), תוכן משתמש (תמונות/אימונים) — ואם מקושר לזהות (כן, דרך Supabase auth).</div></div></div>
+        <div class="road-item"><div class="mark mark-action">5</div><div><div class="rtitle">צילומי מסך להגשה</div><div class="rdesc">מינימום 3, בגודל iPhone 6.9 אינץ' (היחיד שחובה כיום) — אפשר להפיק ישירות מהסימולטור ב-CI, בדיוק כמו שכבר עשינו לבדיקה.</div></div></div>
+        <div class="road-item"><div class="mark mark-action">6</div><div><div class="rtitle">טקסטים לחנות</div><div class="rdesc">שם (30 תו), כותרת משנה (30), תיאור (4000), מילות מפתח (100), דירוג גיל.</div></div></div>
+        <div class="road-item"><div class="mark mark-action">7</div><div><div class="rtitle">TestFlight</div><div class="rdesc">מומלץ מאוד לפני הגשה רשמית — לבדוק בעצמך (ואולי חבר/ה) על מכשיר אמיתי לפני שאפל רואה את זה.</div></div></div>
+      </div>
+    </div>
+
+    <div class="road-block">
+      <h4>בתהליך / טרם התחלנו</h4>
+      <div class="road-items">
+        <div class="road-item"><div class="mark mark-progress">⋯</div><div><div class="rtitle">אפליקציית Apple Watch</div><div class="rdesc">שלב 1 (סנכרון Health) הושלם. שלבים 2-4 (target חדש ב-Xcode, שליטה מהשעון, דופק חי) עדיין דורשים עבודה במק — לא חוסם הגשת גרסה ראשונה בלי שעון.</div></div></div>
+        <div class="road-item"><div class="mark mark-todo">○</div><div><div class="rtitle">קרדיט Free Exercise DB</div><div class="rdesc">תיקון קטן בהגדרות, מומלץ לפני הגשה (ראו סעיף אינטגרציות).</div></div></div>
+        <div class="road-item"><div class="mark mark-todo">○</div><div><div class="rtitle">החלטה על סנכרון תמונות התקדמות לענן</div><div class="rdesc">ה-bucket מוכן, רק לא מחובר (ראו סעיף אינטגרציות).</div></div></div>
+        <div class="road-item"><div class="mark mark-todo">○</div><div><div class="rtitle">מונטיזציה: מנוי / רכישה חד-פעמית / פרסומות</div><div class="rdesc">נדחה במכוון עד ההגשה בפועל — ה-PWA הנוכחי הוא רק גרסת בנייה שתרד מהאוויר עם ההגשה ל-App Store, אז אין טעם לבנות תשתית תשלומים (Stripe) לווב. כשנגיע לשלב הזה: RevenueCat + StoreKit (IAP נייטיבי) למנוי חודשי/שנתי ולרכישה חד-פעמית "לכל החיים", ואולי AdMob לפרסומות מתגמלות אופציונליות בלבד (לא כערוץ הכנסה מרכזי — מחקר 2026 מראה שמנויים דומיננטיים באפליקציות פיטנס).</div></div></div>
+        <div class="road-item"><div class="mark mark-todo">○</div><div><div class="rtitle">הגשה בפועל + מחזור בדיקה של אפל</div><div class="rdesc">אפליקציות עם HealthKit עוברות בדיקה קפדנית יותר — כדאי לוודא שדיאלוג ההרשאות וההסברים ב-Info.plist ברורים (כבר קיימים).</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="research">
+    <div class="section-head">
+      <div class="eyebrow">מחקר שוק</div>
+      <h2>מה יש באפליקציות כושר מובילות אחרות</h2>
+      <p>סקירה של האפליקציות המובילות בקטגוריה נכון להיום, ורעיונות קונקרטיים לשקול עבור Ballast.</p>
+    </div>
+
+    <div class="app-grid">
+      <div class="app-card">
+        <div class="app-name">Strong</div>
+        <div class="app-tag">המחברת הדיגיטלית — מהיר, בלי הסחות דעת</div>
+        <ul>
+          <li>תיעוד סופר-מהיר למי שכבר יש לו תוכנית</li>
+          <li>מחשבון פלטות + שדה RIR לכל סט</li>
+          <li>אפליקציית Watch עצמאית — אימון שלם בלי הטלפון בכלל</li>
+        </ul>
+      </div>
+      <div class="app-card">
+        <div class="app-name">Hevy</div>
+        <div class="app-tag">חינמי חזק + פיד חברתי פעיל</div>
+        <ul>
+          <li>Hevy Trainer — תוכניות מבוססות אלגוריתם שמתאימות משקלים אוטומטית</li>
+          <li>סנכרון חי בין הטלפון לשעון, כולל Complications למסך השעון</li>
+          <li>שיתוף אימונים ופיד קהילתי</li>
+        </ul>
+      </div>
+      <div class="app-card">
+        <div class="app-name">Fitbod</div>
+        <div class="app-tag">AI בונה כל אימון בשבילך</div>
+        <ul>
+          <li>1,600+ תרגילים עם וידאו הדגמה HD</li>
+          <li>תכנון אימון יומי לפי עייפות שריר משוערת והיסטוריה</li>
+          <li>לולאת משוב פר-סט שמתאימה את המשקל הבא</li>
+        </ul>
+      </div>
+      <div class="app-card">
+        <div class="app-name">JEFIT</div>
+        <div class="app-tag">מאגר הענק + אנליטיקס עמוק</div>
+        <ul>
+          <li>מעל 1,300 תרגילים עם אנימציות</li>
+          <li>"Adaptive Plan" — מחזורי 4 שבועות עם דילואד מתוכנן</li>
+          <li>הכי טוב ל-power users שרוצים נתונים</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="idea-list">
+      <div class="idea-row">
+        <div class="idea-num num">1</div>
+        <div class="idea-body">
+          <div class="ititle">התקדמות אוטומטית מבוססת ביצועים (autoregulation)</div>
+          <div class="idesc">✅ מומש בגרסה הנוכחית - ללא RPE (לפי החלטה מכוונת): מנוע ההתקדמות המחזורי מתאים משקל/חזרות אוטומטית בין אימונים (התקדמות כפולה למתקדמים, לינארית למתחילים), ובנוסף מזהה בזמן אמת תוך כדי אימון חריגה מהיעד ("קל מדי") ומציע העלאת משקל מיידית. Hevy Trainer ו-Fitbod עושים דבר דומה, אבל מבוססי RPE/RIR מדווח - זה עדיין נשאר רעיון #2 הפתוח.</div>
+          <div class="fit-row"><span class="fit-chip">מומש</span></div>
+          <div class="isource">מקור: <a href="https://www.sensai.fit/blog/adaptive-ai-workout-apps-fatigue-rationale" target="_blank">sensai.fit — Adaptive AI Workout Apps</a></div>
+        </div>
+      </div>
+      <div class="idea-row">
+        <div class="idea-num num">2</div>
+        <div class="idea-body">
+          <div class="ititle">שדה RPE/RIR לכל סט</div>
+          <div class="idesc">Strong, Hevy ו-JEFIT כולם מאפשרים לסמן "כמה חזרות היו לי בבנק" אחרי כל סט. זה גם משוב שימושי למשתמש, וגם דלק לרעיון #1.</div>
+          <div class="fit-row"><span class="fit-chip">WorkoutSet כבר תומך ב-rpe אופציונלי</span></div>
+        </div>
+      </div>
+      <div class="idea-row">
+        <div class="idea-num num">3</div>
+        <div class="idea-body">
+          <div class="ititle">מחשבון פלטות + מחשבון חימום</div>
+          <div class="idesc">כלי קטן אבל בשימוש יומיומי אצל כל מי שמתאמן עם מוט: "אילו פלטות לשים כדי להגיע ל-100 ק"ג" ו-"מה סדר סטי החימום לפני העבודה".</div>
+        </div>
+      </div>
+      <div class="idea-row">
+        <div class="idea-num num">4</div>
+        <div class="idea-body">
+          <div class="ititle">אפליקציית Watch עצמאית (בלי טלפון)</div>
+          <div class="idesc">Strong, Hevy ו-Gymaholic כולם מאפשרים אימון שלם מהשעון בלבד — כולל Complications למסך השעון והפעלה דרך Siri. זה בדיוק הכיוון של שלבים 2-4 שכבר תכננו.</div>
+          <div class="fit-row"><span class="fit-chip">כבר במפת הדרכים</span></div>
+          <div class="isource">מקור: <a href="https://help.strongapp.io/article/224-workout-on-apple-watch" target="_blank">Strong Help Center</a>, <a href="https://fitloop.app/compare/best-apple-watch-workout-apps" target="_blank">Fitloop</a></div>
+        </div>
+      </div>
+      <div class="idea-row">
+        <div class="idea-num num">5</div>
+        <div class="idea-body">
+          <div class="ititle">רצפים, תגים והישגים (gamification)</div>
+          <div class="idesc">כבר יש "streaks" בבסיס (פרופיל מציג רצף אימונים) — אפשר להרחיב עם תגים על אבני דרך (100 אימונים, שיא חדש, וכו') בלי לבנות מערכת חברתית מלאה.</div>
+          <div class="isource">מקור: <a href="https://yukaichou.com/gamification-analysis/top-10-gamification-in-fitness/" target="_blank">Top 10 Gamification in Fitness</a></div>
+        </div>
+      </div>
+      <div class="idea-row">
+        <div class="idea-num num">6</div>
+        <div class="idea-body">
+          <div class="ititle">סריקת ברקוד למעקב תזונה</div>
+          <div class="idesc">מעקב התזונה הנוכחי דורש חיפוש ידני. MyFitnessPal ו-Cronometer מבססים חלק גדול מהערך שלהם על סריקת ברקוד למוצר ומילוי אוטומטי של המאקרו — שדרוג משמעותי בלי לבנות מאגר מזונות ענק בעצמנו (יש APIs ציבוריים כמו Open Food Facts).</div>
+          <div class="isource">מקור: <a href="https://www.katelymannutrition.com/blog/best-tracking-app" target="_blank">Comparing the Best Macro Tracking Apps</a></div>
+        </div>
+      </div>
+      <div class="idea-row">
+        <div class="idea-num num">7</div>
+        <div class="idea-body">
+          <div class="ititle">בדיקת טכניקה בווידאו (AI form check)</div>
+          <div class="idesc">מגמה עולה ב-2026: כמה אפליקציות (Gravl, GetFit AI) מציעות ניתוח טכניקה מווידאו. פיצ'ר יקר יותר לבנייה — שווה לשים בתיבת "עתידי מעניין", לא בטווח הקרוב.</div>
+          <div class="fit-row"><span class="fit-chip">טווח רחוק</span></div>
+        </div>
+      </div>
+      <div class="idea-row">
+        <div class="idea-num num">8</div>
+        <div class="idea-body">
+          <div class="ititle">ציון "מוכנות" יומי (readiness) מבוסס Apple Health</div>
+          <div class="idesc">המגמה המרכזית של 2026 אצל Whoop/Oura וגם Apple עצמה: שילוב HRV ואיכות שינה כדי להציע לפני האימון אם היום מתאים לעומס מלא או שכדאי לדלל. Ballast כבר קוראת דופק/צעדים מ-HealthKit - הרחבה טבעית שמתחברת ישירות ל"מוח" הקיים (יכול להציע להוריד סט/משקל ביום עם מוכנות נמוכה).</div>
+          <div class="fit-row"><span class="fit-chip">ממנף HealthKit הקיים</span></div>
+          <div class="isource">מקור: <a href="https://www.webpronews.com/2026-fitness-wearables-ai-coaching-stress-metrics-and-vr-trends/" target="_blank">webpronews — 2026 Fitness Wearables</a>, <a href="https://thewellproven.com/fitness-wearables-2026/" target="_blank">Fitness Wearables 2026</a></div>
+        </div>
+      </div>
+      <div class="idea-row">
+        <div class="idea-num num">9</div>
+        <div class="idea-body">
+          <div class="ititle">שיתוף תוכנית אימון בקישור</div>
+          <div class="idesc">Hevy מאפשרת לשלוח תוכנית שלמה כקישור לחבר, שנפתח ישירות באפליקציה. אצלנו התוכניות כבר קיימות כ-JSON עם מזהה קבוע - בניית "ייצוא לקישור/טקסט" יחסית זולה ונותנת ערך ויראלי (המרה של משתמשים חדשים) בלי לבנות פיד חברתי מלא.</div>
+          <div class="isource">מקור: <a href="https://www.hevyapp.com/features/social-features/" target="_blank">Hevy — Social Features</a></div>
+        </div>
+      </div>
+      <div class="idea-row">
+        <div class="idea-num num">10</div>
+        <div class="idea-body">
+          <div class="ititle">Widget למסך הבית ב-iOS</div>
+          <div class="idesc">"האימון הבא בתוכנית" או הרצף הנוכחי, ישירות ממסך הבית - ניצול ממשי של ההשקעה בקליפה הנייטיבית (Capacitor) ולא רק PWA. מתחרים כמו Strong מציגים את זה כיתרון מרכזי על פני אפליקציות ווב.</div>
+          <div class="fit-row"><span class="fit-chip">דורש קוד Swift/WidgetKit נוסף</span></div>
+        </div>
+      </div>
+      <div class="idea-row">
+        <div class="idea-num num">11</div>
+        <div class="idea-body">
+          <div class="ititle">קיצור Siri להתחלת אימון</div>
+          <div class="idesc">"היי סירי, תתחיל אימון" - עוד ניצול קטן ומהיר יחסית של הנוכחות הנייטיבית, בלי לבנות מסך נוסף.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="future">
+    <div class="section-head">
+      <div class="eyebrow">רשום ליומן</div>
+      <h2>לתשומת לב להמשך</h2>
+    </div>
+    <div class="future-box">
+      <h4>✅ מחקר מקצועי בעולם הכושר — הושלם, זה "המוח" החדש של Ballast</h4>
+      <p>הבקשה הקודמת שנרשמה כאן הושלמה: נעשה מחקר בפועל (נפחי MEV/MAV, תדירות אימון, פריודיזציה ושבועות דילול, שיטות התקדמות, יעדי תזונה אדפטיביים, ומספר תרגילים אידיאלי למשך אימון) ונבנה עליו מנוע התוכניות האישי המתואר בסעיף "מה בנינו". ראו את המילסטון המתאים למעלה, ואת פירוט הפיצ'רים בסעיף "פיצ'רים קיימים".</p>
+      <p><b>נקודה חדשה לתשומת לב:</b> תוכניות מבוססות תבנית-יום-אחת (למשל "גוף מלא" ל-2-3 ימים בשבוע) מריצות כרגע את <i>אותם</i> תרגילים בכל אימון באותו שבוע — אין עדיין סבב/גיוון בין הימים באמצע שבוע, רק בין מחזורים שלמים. לא חוסם, אבל שווה שיפור עתידי אם תרצה יותר גיוון תוך-שבועי.</p>
+    </div>
+  </section>
+
+</div>
+
+<footer>Ballast · דוח מצב שנוצר אוטומטית מסריקת קוד המקור + מחקר רשת · com.ballast.app</footer>

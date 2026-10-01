@@ -77,7 +77,26 @@ export const App: React.FC = () => {
     const listenerPromise = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
       if (!url.includes('auth-callback')) return;
       await Browser.close().catch(() => {});
-      await supabase.auth.exchangeCodeForSession(url);
+
+      // ה-client עובד ב-implicit flow (ברירת המחדל של supabase-js) - הטוקנים מגיעים
+      // ב-hash. אם יום אחד נעבור ל-PKCE, יגיע ?code= ב-query במקום.
+      const parsed = new URL(url);
+      const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ''));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const code = parsed.searchParams.get('code');
+      const errorDescription =
+        hashParams.get('error_description') || parsed.searchParams.get('error_description');
+
+      if (accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (error) alert('ההתחברות נכשלה: ' + error.message);
+      } else if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) alert('ההתחברות נכשלה: ' + error.message);
+      } else if (errorDescription) {
+        alert('ההתחברות נכשלה: ' + errorDescription);
+      }
     });
     return () => {
       listenerPromise.then((l) => l.remove());

@@ -68,8 +68,10 @@ export const AuthView: React.FC = () => {
       setError('נא למלא אימייל וסיסמה.');
       return;
     }
-    if (password.length < 6) {
-      setError('הסיסמה חייבת להכיל לפחות 6 תווים.');
+    // הסף המחמיר (8) חל רק בהרשמה - לא על התחברות, כדי לא לנעול בטעות משתמשים קיימים
+    // שכבר נרשמו עם סיסמה קצרה יותר מלפני שהסף הזה הוחמר.
+    if (mode === 'signup' && password.length < 8) {
+      setError('הסיסמה חייבת להכיל לפחות 8 תווים.');
       return;
     }
     if (mode === 'signup' && !fullName.trim()) {
@@ -211,7 +213,7 @@ export const AuthView: React.FC = () => {
           <Lock size={18} color="var(--text-muted)" />
           <input
             type="password"
-            placeholder="סיסמה (6 תווים לפחות)"
+            placeholder={mode === 'signup' ? 'סיסמה (8 תווים לפחות)' : 'סיסמה'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={inputStyle}

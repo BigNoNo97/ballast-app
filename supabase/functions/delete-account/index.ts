@@ -2,9 +2,20 @@
 // (מחיקה עם הרשאת admin, אבל רק על המשתמש המזוהה מה-JWT שלו עצמו - לא אפשרי למחוק מישהו אחר).
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
+// מקורות מוכרים בלבד - לא * (wildcard). הפונקציה כבר מאמתת את המשתמש מהטוקן שלו ולא
+// סומכת על שום דבר מהקלט (ראו למטה), אז CORS פתוח לא היה חור אבטחה בפועל - אבל אין סיבה
+// טובה שפעולה הרסנית/בלתי-הפיכה כמו מחיקת חשבון תהיה קריאה לגיטימית מכל אתר בעולם.
+const ALLOWED_ORIGINS = new Set([
+  'https://gym-tracker-app-110.netlify.app',
+  'capacitor://localhost',
+  'ionic://localhost',
+  'http://localhost',
+]);
+
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get('Origin') || '';
   const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://gym-tracker-app-110.netlify.app',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   };
 

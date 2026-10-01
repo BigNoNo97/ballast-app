@@ -27,3 +27,6 @@ ios/App/output
 ios/App/.xcode.env.local
 **/xcuserdata/
 **/*.xcuserstate
+
+# חומר חתימה פרטי (מפתח/CSR/תעודות) - אף פעם לא נכנס לגיט
+.signing_tmp/

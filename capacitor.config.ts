@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.ballast.app',
+  appId: 'co.brainslead.ballast',
   appName: 'Ballast',
   webDir: 'dist'
 };

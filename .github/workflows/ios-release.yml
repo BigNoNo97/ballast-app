@@ -16,9 +16,13 @@
 #   KEYCHAIN_PASSWORD               סיסמה חופשית שממציאים - רק לשימוש פנימי
 #                                   של ה-keychain הזמני בתוך הריצה
 #   APPLE_TEAM_ID                   ה-Team ID מחשבון ה-Apple Developer (10 תווים)
-#   APP_STORE_CONNECT_API_KEY_ID    Key ID של מפתח App Store Connect API
-#   APP_STORE_CONNECT_ISSUER_ID     Issuer ID של אותו מפתח
-#   APP_STORE_CONNECT_API_KEY_BASE64  קובץ המפתח הפרטי (.p8) מקודד ב-base64
+#   APPLE_ID_EMAIL                  האימייל של ה-Apple ID שמעלה את הבנייה
+#   APP_SPECIFIC_PASSWORD           סיסמה ייעודית-לאפליקציה שנוצרת ב-
+#                                   appleid.apple.com (לא הסיסמה הרגילה של
+#                                   Apple ID!) - משמשת כאן במקום מפתח
+#                                   App Store Connect API, כי יצירת מפתח API
+#                                   דורשת אישור של ה-Account Holder בצוות
+#                                   (לא כל Admin), ואנחנו לא תלויים בו.
 #
 # את כל אלה מקבלים מפורטל ה-Apple Developer ומ-App Store Connect - זה
 # בדיוק השלב שנעשה יחד ברגע שההרשמה ל-Apple Developer Program תאושר.
@@ -90,6 +94,10 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          # הפרויקט ב-Xcode מוגדר ל-CODE_SIGN_STYLE=Automatic (ברירת המחדל), אבל ב-CI
+          # אין חשבון אפל מחובר ל-Xcode לניהול אוטומטי - אנחנו מייבאים תעודה ו-profile
+          # ידנית לשלב הקודם, אז חייבים לכפות כאן Manual + לציין בדיוק איזו תעודה/profile
+          # להשתמש בהם, אחרת הבנייה נכשלת או מתעלמת מהחתימה שהכנו.
           xcodebuild \
             -project App.xcodeproj \
             -scheme App \
@@ -97,6 +105,9 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath $RUNNER_TEMP/App.xcarchive \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="Ballast App Store Distribution" \
             archive
 
       - name: Export the .ipa for App Store
@@ -125,20 +136,16 @@ jobs:
 
       - name: Upload to App Store Connect
         env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          APPLE_ID_EMAIL: ${{ secrets.APPLE_ID_EMAIL }}
+          APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
         run: |
-          mkdir -p ~/private_keys
-          echo -n "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode -o ~/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
-
           IPA_PATH=$(find $RUNNER_TEMP/export -name "*.ipa" | head -n 1)
 
           xcrun altool --upload-app \
             -f "$IPA_PATH" \
             -t ios \
-            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+            -u "$APPLE_ID_EMAIL" \
+            -p "$APP_SPECIFIC_PASSWORD"
 
       - name: Clean up temporary keychain
         if: always()

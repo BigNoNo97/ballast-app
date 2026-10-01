@@ -81,7 +81,7 @@ jobs:
           xcrun simctl spawn "$UDID" log stream --level debug --predicate 'process == "App"' > app-simulator.log 2>&1 &
           LOG_PID=$!
 
-          xcrun simctl launch "$UDID" com.ballast.app
+          xcrun simctl launch "$UDID" co.brainslead.ballast
 
           sleep 5
           xcrun simctl io "$UDID" screenshot app-screenshot-early.png

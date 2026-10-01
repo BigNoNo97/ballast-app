@@ -225,18 +225,15 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 fontSize: '0.84rem',
               }}
             >
+              {/* השיא = הסט הכבד ביותר באימון ומספר החזרות בו (לא סכום משקלי כל הסטים) */}
               <div style={prHeaderCell}>תרגיל</div>
-              <div style={{ ...prHeaderCell, textAlign: 'center' }}>משקל כולל</div>
+              <div style={{ ...prHeaderCell, textAlign: 'center' }}>משקל</div>
               <div style={{ ...prHeaderCell, textAlign: 'center' }}>חזרות</div>
               {session.newPRs.map((pr, idx) => (
                 <React.Fragment key={idx}>
                   <div style={{ ...prBodyCell, fontWeight: 700, color: 'var(--text-main)' }}>{pr.exerciseNameHe}</div>
-                  <div style={{ ...prBodyCell, ...prNumberCell }}>
-                    {pr.totalExerciseWeight || pr.maxWeight} ק״ג
-                  </div>
-                  <div style={{ ...prBodyCell, ...prNumberCell }}>
-                    {pr.totalExerciseReps || pr.repsAtMaxWeight}
-                  </div>
+                  <div style={{ ...prBodyCell, ...prNumberCell }}>{pr.maxWeight} ק״ג</div>
+                  <div style={{ ...prBodyCell, ...prNumberCell }}>{pr.repsAtMaxWeight}</div>
                 </React.Fragment>
               ))}
             </div>

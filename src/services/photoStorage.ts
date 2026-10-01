@@ -80,4 +80,16 @@ export const PhotoStorage = {
       tx.onerror = () => reject(tx.error);
     });
   },
+
+  // מנקה את כל התמונות (logout על מכשיר משותף / איפוס נתונים מלא) - בלי זה בלובים
+  // נשארים "יתומים" ב-IndexedDB לצמיתות אחרי שה-metadata שמצביע עליהם כבר נמחק.
+  async clearAll(): Promise<void> {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
 };

@@ -761,6 +761,28 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
   const completedExercisesCount = workout.exercises.filter((e) => isExerciseFullyCompleted(e)).length;
 
+  // הסט ה"פתוח" = הסט הראשון שלא סומן בתרגיל הנוכחי - עליו פועל הכפתור הגדול "סמן כבוצע".
+  // המעבר לסט הבא הוא טבעי (הסט שאחריו הופך לפתוח), והמעבר לתרגיל הבא כשהתרגיל
+  // הושלם כבר קורה בתוך handleToggleSetComplete (כולל סופרסטים).
+  const currentOpenSetIdx = currentWorkoutEx ? currentWorkoutEx.sets.findIndex((s) => !s.completed) : -1;
+  const nextIncompleteExerciseIdx = (() => {
+    const n = workout.exercises.length;
+    for (let i = 1; i < n; i++) {
+      const idx = (safeCurrentIndex + i) % n;
+      if (workout.exercises[idx].sets.some((s) => !s.completed)) return idx;
+    }
+    return -1;
+  })();
+  const primaryAction: { label: string; onClick: () => void } =
+    currentOpenSetIdx !== -1
+      ? {
+          label: `סמן סט ${currentWorkoutEx.sets[currentOpenSetIdx].setNumber} כבוצע`,
+          onClick: () => handleToggleSetComplete(safeCurrentIndex, currentOpenSetIdx),
+        }
+      : nextIncompleteExerciseIdx !== -1
+        ? { label: 'לתרגיל הבא שלא הושלם', onClick: () => setCurrentExerciseIndex(nextIncompleteExerciseIdx) }
+        : { label: 'כל הסטים הושלמו - סיים אימון', onClick: () => handleFinish() };
+
   // Superset partner lookup for current exercise
   const currentSupersetGroupId = currentWorkoutEx?.supersetGroupId;
   const supersetPartnerExercises = currentSupersetGroupId
@@ -1151,7 +1173,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                 fontWeight: 700,
                 color: 'var(--text-muted)',
                 textAlign: 'center',
-                paddingBottom: 8,
+                padding: '0 6px 8px',
                 borderBottom: '1px solid var(--border-subtle)',
               }}
             >
@@ -1166,7 +1188,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
               {currentWorkoutEx.sets.map((s, setIdx) => (
                 <div
                   key={s.id || setIdx}
-                  className={`set-row ${s.completed ? 'completed' : ''}`}
+                  className={`set-row ${s.completed ? 'completed' : ''} ${setIdx === currentOpenSetIdx ? 'current' : ''}`}
                   style={{ gridTemplateColumns: '36px 1fr 1fr 44px' }}
                 >
                   {/* Set # */}
@@ -1337,10 +1359,10 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
           )}
         </div>
 
-        {/* Finish Workout Action */}
+        {/* Primary action (mark the open set done) + Finish/Cancel side by side */}
         <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button
-            onClick={handleFinish}
+            onClick={primaryAction.onClick}
             style={{
               backgroundColor: 'var(--color-blue)',
               color: '#fff',
@@ -1361,16 +1383,26 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
             onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.98)')}
             onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
-            סיים אימון
+            {currentOpenSetIdx !== -1 && <Check size={20} strokeWidth={3} />}
+            {primaryAction.label}
           </button>
 
-          <button
-            className="btn-secondary"
-            style={{ color: 'var(--color-red)', border: 'none', background: 'transparent' }}
-            onClick={() => setShowCancelConfirm(true)}
-          >
-            בטל אימון זה
-          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              className="btn-secondary"
+              style={{ flex: 1, padding: '12px', color: 'var(--color-blue)', fontWeight: 800 }}
+              onClick={handleFinish}
+            >
+              סיים אימון
+            </button>
+            <button
+              className="btn-secondary"
+              style={{ flex: 1, padding: '12px', color: 'var(--color-red)', fontWeight: 700 }}
+              onClick={() => setShowCancelConfirm(true)}
+            >
+              בטל אימון
+            </button>
+          </div>
         </div>
       </div>
 

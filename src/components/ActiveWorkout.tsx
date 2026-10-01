@@ -51,6 +51,16 @@ const computeElapsedSec = (w: WorkoutSession, now: number = Date.now()): number 
 // התווית "קודם: X" יושבת בתוך התיבה (absolute) כדי שהופעתה לא תשנה את גובה השורה.
 // הריפוד העליון המוגדל קבוע לכל התיבות, כך שהמספר לא קופץ כשהתווית מופיעה/נעלמת.
 const setInputStyle: React.CSSProperties = { paddingTop: 12, paddingBottom: 4 };
+
+// לחיצה על תיבה מסמנת את כל המספר, כך שהקלדה מחליפה אותו מיד. ב-iOS הנגיעה עצמה ממקמת
+// סמן אחרי ה-focus ומבטלת את הסימון, לכן מסמנים שוב רגע אחרי שהנגיעה הסתיימה.
+const selectAllOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+  const el = e.currentTarget;
+  el.select();
+  setTimeout(() => {
+    if (document.activeElement === el) el.select();
+  }, 50);
+};
 const setInputHintStyle: React.CSSProperties = {
   position: 'absolute',
   top: 3,
@@ -188,8 +198,8 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   ) => {
     const updatedExercises = [...workout.exercises];
     const exercise = updatedExercises[exerciseIndex];
-    // עדכון מהיר: שינוי משקל/חזרות בסט אחד מחיל את אותו ערך גם על שאר הסטים באותו תרגיל
-    // שעדיין לא הושלמו - בלי לסמן אותם ✓ בעצמו, ובלי לגעת בסטים שכבר אושרו.
+    // עדכון מהיר: שינוי משקל/חזרות בסט אחד מחיל את אותו ערך על הסטים *שאחריו* באותו תרגיל
+    // שעדיין לא הושלמו - אף פעם לא על סטים קודמים, בלי לסמן אותם ✓, ובלי לגעת בסטים שכבר אושרו.
     const isCascadeField = field === 'weightKg' || field === 'reps';
     const updatedSets = exercise.sets.map((s, idx) => {
       if (idx === setIndex) {
@@ -199,7 +209,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
         if (field === 'reps') return { ...s, reps: value, autoFilledFromReps: undefined };
         return { ...s, [field]: value };
       }
-      if (isCascadeField && !s.completed && s[field] !== value) {
+      if (isCascadeField && idx > setIndex && !s.completed && s[field] !== value) {
         const prevKey = field === 'weightKg' ? 'autoFilledFromWeight' : 'autoFilledFromReps';
         // שומרים את הערך שהיה לפני תחילת העריכה, לא את זה של ההקשה הקודמת -
         // אחרת הקלדת "12" משאירה "קודם: 1". ואם חזרנו בדיוק לערך המקורי, אין מה להציג.
@@ -1207,6 +1217,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                       inputMode="decimal"
                       className="gym-input-box"
                       style={setInputStyle}
+                      onFocus={selectAllOnFocus}
                       value={s.weightKg === 0 ? '' : s.weightKg}
                       placeholder={s.previousWeight ? `${s.previousWeight}` : '0'}
                       onChange={(e) =>
@@ -1232,6 +1243,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                       inputMode="numeric"
                       className="gym-input-box"
                       style={setInputStyle}
+                      onFocus={selectAllOnFocus}
                       value={s.reps === 0 ? '' : s.reps}
                       placeholder={s.previousReps ? `${s.previousReps}` : '0'}
                       onChange={(e) =>

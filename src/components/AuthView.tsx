@@ -22,7 +22,7 @@ const GoogleIcon: React.FC = () => (
 const AppleIcon: React.FC = () => (
   <svg width="18" height="18" viewBox="0 0 24 24">
     <path
-      fill="#fff"
+      fill="currentColor"
       d="M16.365 1.43c0 1.14-.468 2.033-1.11 2.68-.673.687-1.79 1.207-2.75 1.14-.13-1.1.42-2.07 1.07-2.72.72-.75 1.98-1.32 2.79-1.1Zm2.79 6.5c-1.54.06-2.36.9-3.53.9-1.19 0-2.13-.87-3.5-.85-1.8.03-3.46 1.04-4.38 2.65-1.87 3.24-.48 8.03 1.34 10.66.89 1.29 1.95 2.72 3.34 2.67 1.34-.05 1.84-.86 3.46-.86 1.62 0 2.06.86 3.48.83 1.44-.02 2.35-1.3 3.24-2.6.72-1.06 1.16-2.15 1.4-2.87-3.68-1.4-4.24-6.34-.6-8.05-1.06-1.35-2.56-1.5-3.2-1.48Z"
     />
   </svg>
@@ -186,9 +186,9 @@ export const AuthView: React.FC = () => {
           type="button"
           onClick={() => handleOAuth('apple')}
           disabled={oauthLoading !== null}
-          style={appleButtonStyle}
+          style={oauthButtonStyle}
         >
-          {oauthLoading === 'apple' ? <Loader2 size={18} className="spin" color="#fff" /> : <AppleIcon />}
+          {oauthLoading === 'apple' ? <Loader2 size={18} className="spin" /> : <AppleIcon />}
           המשך עם Apple
         </button>
 
@@ -411,27 +411,6 @@ const oauthButtonStyle: React.CSSProperties = {
   background: 'var(--bg-surface-1)',
   color: 'var(--text-main)',
   border: '1px solid var(--border-subtle)',
-  borderRadius: 'var(--radius-md)',
-  padding: '12px 14px',
-  fontSize: '0.9rem',
-  fontWeight: 700,
-  cursor: 'pointer',
-  marginBottom: 10,
-};
-
-// עיצוב "התחבר עם Apple" הוא קבוע (שחור עם טקסט לבן) בכל ערכת נושא -
-// זו אחת מסגנונות הכפתור הרשמיים שאפל מחייבת, לא צבע מהמערכת שלנו.
-// הגבול קבוע (לא var(--border-subtle)) כי ברקע הכהה שלנו הוא כמעט שחור בעצמו -
-// גבול תלוי-ערכת-נושא שם היה נבלע לגמרי והכפתור נראה "נעלם".
-const appleButtonStyle: React.CSSProperties = {
-  width: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 10,
-  background: '#000',
-  color: '#fff',
-  border: '1px solid rgba(255, 255, 255, 0.35)',
   borderRadius: 'var(--radius-md)',
   padding: '12px 14px',
   fontSize: '0.9rem',

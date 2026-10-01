@@ -737,7 +737,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
         style={{
           background: 'var(--bg-surface-glass)',
           backdropFilter: 'blur(20px)',
-          padding: '12px 16px 8px 16px',
+          padding: 'calc(var(--safe-top) + 12px) 16px 8px 16px',
           borderBottom: '1px solid var(--border-subtle)',
           display: 'flex',
           justifyContent: 'space-between',

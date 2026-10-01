@@ -514,6 +514,7 @@ export const App: React.FC = () => {
           className="app-content-scroll"
           style={{
             padding: activeWorkout ? 0 : '14px 16px',
+            paddingTop: activeWorkout ? 0 : 'calc(var(--safe-top) + 14px)',
             paddingBottom: activeWorkout ? 0 : 'calc(var(--safe-bottom) + 80px)',
           }}
         >
@@ -823,7 +824,7 @@ export const App: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                padding: '14px 16px',
+                padding: 'calc(var(--safe-top) + 14px) 16px 14px 16px',
                 borderBottom: '1px solid var(--border-subtle)',
                 flexShrink: 0,
               }}

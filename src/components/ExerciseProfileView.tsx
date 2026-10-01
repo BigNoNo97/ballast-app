@@ -87,7 +87,7 @@ export const ExerciseProfileView: React.FC<ExerciseProfileViewProps> = ({ exerci
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          padding: '14px 16px',
+          padding: 'calc(var(--safe-top) + 14px) 16px 14px 16px',
           borderBottom: '1px solid var(--border-subtle)',
           flexShrink: 0,
         }}

@@ -161,7 +161,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
 // ---------------------------------------------------------------------------
 
 const Header: React.FC<{ dotCount: number; dotIndex: number; onSkip: () => void; onBack?: () => void }> = ({ dotCount, dotIndex, onSkip, onBack }) => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 4px' }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(var(--safe-top) + 20px) 20px 4px' }}>
     {onBack ? (
       <button
         onClick={onBack}

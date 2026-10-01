@@ -72,7 +72,7 @@ export const ProgressPhotosView: React.FC<ProgressPhotosViewProps> = ({ onBack }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'var(--bg-app)', zIndex: 70, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'calc(var(--safe-top) + 14px) 16px 14px 16px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={onBack} style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: 4, display: 'flex' }}>
             <ChevronLeft size={24} />
@@ -117,7 +117,7 @@ export const ProgressPhotosView: React.FC<ProgressPhotosViewProps> = ({ onBack }
           onClick={() => setViewingId(null)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 80, display: 'flex', flexDirection: 'column' }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'calc(var(--safe-top) + 14px) 16px 14px 16px' }}>
             <span style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 600 }}>
               {new Date(viewingPhoto.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
             </span>

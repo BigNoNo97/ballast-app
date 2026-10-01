@@ -125,6 +125,11 @@ jobs:
             <string>$APPLE_TEAM_ID</string>
             <key>signingStyle</key>
             <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>co.brainslead.ballast</key>
+              <string>Ballast App Store Distribution</string>
+            </dict>
           </dict>
           </plist>
           EOF

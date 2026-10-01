@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   Plus,
@@ -39,6 +39,9 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
     StorageService.getFavoriteExerciseIds()
   );
   const [showAddModal, setShowAddModal] = useState(false);
+  // מציגים בהדרגה (60 בכל פעם) - אחרי ייבוא המאגר החיצוני יש מעל 1,400 תרגילים,
+  // ורינדור של כולם בבת אחת בלי וירטואליזציה היה תוקע את הגלילה במכשיר אמיתי.
+  const [visibleCount, setVisibleCount] = useState(60);
 
   // New custom exercise form states
   const [nameHe, setNameHe] = useState('');
@@ -95,20 +98,31 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
     });
   }, [allExercises, activeTab, selectedArea, selectedEquipment, searchQuery, favoriteIds, recentExerciseIds]);
 
+  // כל שינוי בסינון/חיפוש מתחיל שוב מ-60 הראשונים
+  useEffect(() => {
+    setVisibleCount(60);
+  }, [activeTab, selectedArea, selectedEquipment, searchQuery]);
+
+  const visibleExercises = useMemo(() => {
+    return filteredExercises.slice(0, visibleCount);
+  }, [filteredExercises, visibleCount]);
+
   const handleSaveCustom = () => {
     if (!nameHe.trim()) return;
 
+    // גבולות אורך סבירים - בלי זה משתמש (בטעות או בזדון) יכול לשמור מחרוזת ענקית שתנפח
+    // את רשומת ה-JSONB שלו בענן בלי שום תועלת אמיתית.
     const newEx: Exercise = {
       id: `custom-ex-${Date.now()}`,
-      nameHe: nameHe.trim(),
-      nameEn: nameEn.trim() || nameHe.trim(),
+      nameHe: nameHe.trim().slice(0, 60),
+      nameEn: (nameEn.trim() || nameHe.trim()).slice(0, 60),
       muscle,
       equipment,
       alternatives: [],
       defaultSets: 3,
       defaultReps: 10,
       defaultRestSec: 90,
-      tipsHe: tipsHe.trim() || undefined,
+      tipsHe: tipsHe.trim() ? tipsHe.trim().slice(0, 500) : undefined,
       isCustom: true,
     };
 
@@ -330,7 +344,7 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
             לא נמצאו תרגילים התואמים את החיפוש והסינון.
           </div>
         ) : (
-          filteredExercises.map((ex) => {
+          visibleExercises.map((ex) => {
             const muscleLabel = MUSCLE_GROUP_LABELS[ex.muscle]?.he || ex.muscle;
             const equipLabel = EQUIPMENT_LABELS[ex.equipment]?.he || ex.equipment;
             const workoutCount = StorageService.getExerciseWorkoutCount(ex.id);
@@ -434,6 +448,15 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
               </div>
             );
           })
+        )}
+        {visibleCount < filteredExercises.length && (
+          <button
+            onClick={() => setVisibleCount((c) => c + 60)}
+            className="btn-secondary"
+            style={{ margin: '4px 0 12px', padding: '10px' }}
+          >
+            טען עוד ({filteredExercises.length - visibleCount} נוספים)
+          </button>
         )}
       </div>
 

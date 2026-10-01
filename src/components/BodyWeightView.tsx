@@ -22,7 +22,7 @@ export const BodyWeightView: React.FC<BodyWeightViewProps> = ({ onBack }) => {
 
   const handleAddEntry = () => {
     const val = parseFloat(newWeightInput);
-    if (!val || val <= 0) return;
+    if (!val || val <= 0 || val > 500) return; // גבול עליון סביר - מונע ערך שבור שיהרוס את הגרף
     StorageService.addBodyWeightEntry(val);
     AppleHealthService.syncBodyWeight(val);
     setNewWeightInput('');
@@ -31,7 +31,7 @@ export const BodyWeightView: React.FC<BodyWeightViewProps> = ({ onBack }) => {
 
   const handleSaveTarget = () => {
     const val = parseFloat(targetInput);
-    const newTarget = val > 0 ? val : null;
+    const newTarget = val > 0 && val <= 500 ? val : null;
     StorageService.saveTargetWeight(newTarget);
     setTargetWeight(newTarget);
     setEditingTarget(false);
@@ -81,6 +81,8 @@ export const BodyWeightView: React.FC<BodyWeightViewProps> = ({ onBack }) => {
               <input
                 type="number"
                 step="0.1"
+                min="1"
+                max="500"
                 inputMode="decimal"
                 className="gym-input-box"
                 placeholder="ק״ג"
@@ -134,6 +136,8 @@ export const BodyWeightView: React.FC<BodyWeightViewProps> = ({ onBack }) => {
             <input
               type="number"
               step="0.1"
+              min="1"
+              max="500"
               inputMode="decimal"
               className="gym-input-box"
               placeholder="לדוגמה: 78.5"

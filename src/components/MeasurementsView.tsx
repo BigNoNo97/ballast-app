@@ -146,7 +146,8 @@ const CategoryDetail: React.FC<{ category: MeasurementCategory; onBack: () => vo
 
   const handleAdd = () => {
     const val = parseFloat(newValue);
-    if (!val || val <= 0) return;
+    // אין יחידה אחידה (ס"מ/אחוז/ק"ג לפי הקטגוריה) אז הגבול העליון סתם מונע ערך שבור לגמרי
+    if (!val || val <= 0 || val > 10000) return;
     StorageService.addMeasurementEntry(category.id, val);
     setNewValue('');
     refresh();
@@ -199,6 +200,8 @@ const CategoryDetail: React.FC<{ category: MeasurementCategory; onBack: () => vo
             <input
               type="number"
               step="0.1"
+              min="0.1"
+              max="10000"
               inputMode="decimal"
               className="gym-input-box"
               value={newValue}

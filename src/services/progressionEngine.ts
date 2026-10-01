@@ -35,18 +35,22 @@ export function processFinishedWorkout(
   const statesToSave: ExerciseProgressState[] = []; // כתיבה אחת בסוף, לא קריאת סנכרון-ענן לכל תרגיל בלולאה
 
   session.exercises.forEach((workoutExercise) => {
-    if (library.find((e) => e.id === workoutExercise.exerciseId)?.isWarmup) return; // חימום - לא במעקב התקדמות
-    let state = getExerciseState(routine.id, workoutExercise.exerciseId);
+    // תרגיל שהוחלף (Smart Swap) באמצע האימון עדיין "שייך" לסלוט המקורי בתוכנית - התוכנית
+    // עצמה (routine.days) עדיין מתכננת את התרגיל המקורי לפעם הבאה, לא את זה שהוחלף אליו
+    // הפעם. בלי זה, גם התרגיל הישן וגם החדש היו מפסידים לגמרי מעקב התקדמות בכל פעם שהוחלף.
+    const trackedExerciseId = workoutExercise.swappedFromId || workoutExercise.exerciseId;
+    if (library.find((e) => e.id === trackedExerciseId)?.isWarmup) return; // חימום - לא במעקב התקדמות
+    let state = getExerciseState(routine.id, trackedExerciseId);
     if (!state) {
       // "מתאושש" ממצב שבו ה-state אבד (למשל תקלת סנכרון) אבל התרגיל עדיין חלק מהתוכנית -
       // בלי זה, אובדן state חד-פעמי היה משבית את ההתקדמות על התרגיל הזה לצמיתות בלי דרך חזרה.
-      const isPartOfRoutine = routine.days.some((d) => d.exercises.some((e) => e.exerciseId === workoutExercise.exerciseId));
+      const isPartOfRoutine = routine.days.some((d) => d.exercises.some((e) => e.exerciseId === trackedExerciseId));
       if (!isPartOfRoutine) return; // תרגיל שנוסף ידנית לאימון, לא חלק מהתוכנית שנבנתה - לא במעקב
       const repRange = pickRepRange(settings.goals);
       state = {
-        id: `${routine.id}:${workoutExercise.exerciseId}`,
+        id: `${routine.id}:${trackedExerciseId}`,
         routineId: routine.id,
-        exerciseId: workoutExercise.exerciseId,
+        exerciseId: trackedExerciseId,
         currentWeightKg: 0,
         repRangeMin: repRange.min,
         repRangeMax: repRange.max,
@@ -55,9 +59,18 @@ export function processFinishedWorkout(
       };
     }
 
+    // כמות הסטים שהתוכנית בפועל קבעה לתרגיל הזה - לא sets.length, כי זה משתנה בתוך האימון
+    // (המשתמש יכול להוסיף/להסיר סטים דרך handleAddSet/handleRemoveSet). בלעדי זה, מחיקת סט
+    // לא-מושלם באמצע אימון הייתה גורמת ל"allCompleted" שקרי (3/3 סטים שנשארו, לא 3/4 שתוכננו)
+    // ומקדמת משקל/חזרות גם כשהמשתמש בפועל ביצע פחות נפח ממה שהתוכנית ביקשה.
+    const prescribedTargetSets = routine.days
+      .flatMap((d) => d.exercises)
+      .find((e) => e.exerciseId === trackedExerciseId)?.targetSets;
+
     const sets = workoutExercise.sets;
     const completedSets = sets.filter((s) => s.completed);
-    const allCompleted = sets.length > 0 && completedSets.length === sets.length;
+    const requiredSets = prescribedTargetSets ?? sets.length;
+    const allCompleted = requiredSets > 0 && completedSets.length >= requiredSets;
 
     // אימון ראשון על התרגיל הזה - קולטים את המשקל שהמשתמש בפועל השתמש בו כנקודת פתיחה,
     // לא מוסיפים "עוד תוספת" מעל אפס.
@@ -77,7 +90,7 @@ export function processFinishedWorkout(
       sets.every((s) => s.reps >= state.currentTargetReps && s.weightKg >= state.currentWeightKg);
 
     if (metTarget) {
-      const muscle = muscleById.get(workoutExercise.exerciseId);
+      const muscle = muscleById.get(trackedExerciseId);
       const increment = muscle ? getWeightIncrement(muscle) : 1.25;
       const next: ExerciseProgressState = { ...state, consecutiveStalls: 0, lastSessionResult: 'progressed' };
       if (level === 'beginner') {
@@ -92,7 +105,7 @@ export function processFinishedWorkout(
     } else {
       const consecutiveStalls = state.consecutiveStalls + 1;
       statesToSave.push({ ...state, consecutiveStalls, lastSessionResult: 'held' });
-      if (consecutiveStalls >= 2) stalledExerciseIds.push(workoutExercise.exerciseId);
+      if (consecutiveStalls >= 2) stalledExerciseIds.push(trackedExerciseId);
     }
   });
 

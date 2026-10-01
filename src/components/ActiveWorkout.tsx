@@ -208,13 +208,15 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
     const set = targetEx.sets[setIndex];
     const newCompleted = !set.completed;
 
-    // Clone exercises
-    const updatedExercises = [...workout.exercises];
-    updatedExercises[exerciseIndex].sets[setIndex] = {
-      ...set,
-      completed: newCompleted,
-      completedAt: newCompleted ? Date.now() : undefined,
-    };
+    // Clone exercises (עמוק - לא רק המערך החיצוני, אחרת updatedExercises[exerciseIndex] היה
+    // עדיין אותו רפרנס בדיוק ל-workout.exercises[exerciseIndex] ומוטציה עליו הייתה פוגעת גם ב-state הקודם)
+    const updatedExercises = workout.exercises.map((ex, idx) => {
+      if (idx !== exerciseIndex) return ex;
+      const updatedSets = ex.sets.map((s, sIdx) =>
+        sIdx === setIndex ? { ...s, completed: newCompleted, completedAt: newCompleted ? Date.now() : undefined } : s
+      );
+      return { ...ex, sets: updatedSets };
+    });
 
     const updated = {
       ...workout,
@@ -362,8 +364,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
   // Add a new set to an exercise
   const handleAddSet = (exerciseIndex: number) => {
-    const updatedExercises = [...workout.exercises];
-    const currentSets = updatedExercises[exerciseIndex].sets;
+    const currentSets = workout.exercises[exerciseIndex].sets;
     const lastSet = currentSets[currentSets.length - 1];
 
     const newSet: WorkoutSet = {
@@ -377,23 +378,29 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
       previousReps: lastSet?.previousReps,
     };
 
-    updatedExercises[exerciseIndex].sets.push(newSet);
+    const updatedExercises = workout.exercises.map((ex, idx) =>
+      idx === exerciseIndex ? { ...ex, sets: [...ex.sets, newSet] } : ex
+    );
     onUpdateWorkout({
       ...workout,
+      durationSec: elapsedSec,
       exercises: updatedExercises,
     });
   };
 
   // Remove a set
   const handleRemoveSet = (exerciseIndex: number, setIndex: number) => {
-    const updatedExercises = [...workout.exercises];
-    updatedExercises[exerciseIndex].sets.splice(setIndex, 1);
-    updatedExercises[exerciseIndex].sets.forEach((s, idx) => {
-      s.setNumber = idx + 1;
+    const updatedExercises = workout.exercises.map((ex, idx) => {
+      if (idx !== exerciseIndex) return ex;
+      const remainingSets = ex.sets
+        .filter((_, sIdx) => sIdx !== setIndex)
+        .map((s, i) => ({ ...s, setNumber: i + 1 }));
+      return { ...ex, sets: remainingSets };
     });
 
     onUpdateWorkout({
       ...workout,
+      durationSec: elapsedSec,
       exercises: updatedExercises,
     });
   };
@@ -417,6 +424,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
     onUpdateWorkout({
       ...workout,
+      durationSec: elapsedSec,
       exercises: updatedExercises,
     });
     triggerHaptic(40);
@@ -452,6 +460,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
     onUpdateWorkout({
       ...workout,
+      durationSec: elapsedSec,
       exercises: updatedExercises,
     });
   };
@@ -551,6 +560,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
     onUpdateWorkout({
       ...workout,
+      durationSec: elapsedSec,
       exercises: updated,
     });
     setSelectedForSuperset([]);
@@ -597,6 +607,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
     onUpdateWorkout({
       ...workout,
+      durationSec: elapsedSec,
       exercises: updatedExercises,
     });
 
@@ -1104,6 +1115,8 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                     <input
                       type="number"
                       step="0.5"
+                      min="0"
+                      max="500"
                       inputMode="decimal"
                       className="gym-input-box"
                       value={s.weightKg === 0 ? '' : s.weightKg}
@@ -1113,7 +1126,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                           safeCurrentIndex,
                           setIdx,
                           'weightKg',
-                          parseFloat(e.target.value) || 0
+                          Math.min(500, Math.max(0, parseFloat(e.target.value) || 0))
                         )
                       }
                     />
@@ -1128,6 +1141,8 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                     )}
                     <input
                       type="number"
+                      min="0"
+                      max="999"
                       inputMode="numeric"
                       className="gym-input-box"
                       value={s.reps === 0 ? '' : s.reps}
@@ -1137,7 +1152,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                           safeCurrentIndex,
                           setIdx,
                           'reps',
-                          parseInt(e.target.value, 10) || 0
+                          Math.min(999, Math.max(0, parseInt(e.target.value, 10) || 0))
                         )
                       }
                     />

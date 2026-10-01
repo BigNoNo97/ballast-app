@@ -22,7 +22,16 @@ export const ProgressPhotosView: React.FC<ProgressPhotosViewProps> = ({ onBack }
       const entries = await Promise.all(
         photos.map(async (p) => {
           const url = await PhotoStorage.getPhotoUrl(p.id);
-          if (url) objectUrls.push(url);
+          if (url) {
+            // ה-effect הזה כבר הוחלף (photos השתנה שוב) לפני שההבטחה הזו הספיקה להיפתר -
+            // ה-cleanup של המופע הקודם כבר רץ (על objectUrls שהיה עדיין ריק באותו רגע),
+            // אז אף אחד לא ישחרר את ה-URL הזה - משחררים אותו כאן מיד במקום שידלוף לצמיתות.
+            if (cancelled) {
+              URL.revokeObjectURL(url);
+              return [p.id, null] as const;
+            }
+            objectUrls.push(url);
+          }
           return [p.id, url] as const;
         })
       );

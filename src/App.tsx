@@ -267,12 +267,14 @@ export const App: React.FC = () => {
     setCoachNote(null);
     setCurrentTab('community'); // History view
 
-    // Auto-advance to next day in chronological order!
-    const targetRoutineId = finishedSession.routineId || activeRoutine?.id;
-    let targetRoutine = routines.find((r) => r.id === targetRoutineId) || activeRoutine;
+    // Auto-advance to next day in chronological order! חשוב: לא נופלים חזרה ל-activeRoutine
+    // כשלסשן עצמו אין routineId (אימון חופשי / חזרה על אימון ישן) - אחרת אימון חופשי בזמן
+    // שתוכנית אוטומטית פעילה היה נספר בטעות כאימון שלה (מקדם שבוע/מחזור ומעדכן את יום ה-
+    // "הבא" שלה, למרות שהמשתמש כלל לא ביצע את התרגילים שהתוכנית קבעה).
+    const targetRoutineId = finishedSession.routineId;
+    let targetRoutine = targetRoutineId ? routines.find((r) => r.id === targetRoutineId) : undefined;
 
-    // אימון חופשי בלי שום תוכנית מעורבת (לא של האימון עצמו ולא פעילה כרגע) -
-    // אין "יום הבא" להתקדם אליו, פשוט מסיימים כאן.
+    // אימון חופשי בלי שום תוכנית מעורבת - אין "יום הבא" להתקדם אליו, פשוט מסיימים כאן.
     if (!targetRoutine || !targetRoutineId) {
       return;
     }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, Plus, Minus, Bell, BellOff, TimerOff } from 'lucide-react';
 import { playTimerWarningBeep, playTimerFinishBeep, triggerHaptic } from '../services/sound';
 
@@ -20,11 +20,19 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
   const [timeLeft, setTimeLeft] = useState(initialSeconds);
   const [totalTime, setTotalTime] = useState(initialSeconds);
   const [isMuted, setIsMuted] = useState(!soundEnabled);
+  // עוקב אחרי הערך העדכני ביותר של timeLeft בזמן אמת (גם באמצע אותה קריאה סינכרונית) -
+  // צריך את זה כדי ש-addTime יוכל לחשב totalTime נכון על בסיס timeLeft העדכני, לא הערך
+  // המיושן מה-closure של הרנדר האחרון (בעייתי בלחיצות כפולות מהירות על "+30 שנ'").
+  const timeLeftRef = useRef(initialSeconds);
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+  }, [timeLeft]);
 
   useEffect(() => {
     if (isOpen) {
       setTimeLeft(initialSeconds);
       setTotalTime(initialSeconds);
+      timeLeftRef.current = initialSeconds;
     }
   }, [isOpen, initialSeconds]);
 
@@ -65,8 +73,12 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
   const progressPercent = totalTime > 0 ? ((totalTime - timeLeft) / totalTime) * 100 : 100;
 
   const addTime = (secs: number) => {
-    setTimeLeft((prev) => Math.max(0, prev + secs));
-    setTotalTime((prev) => Math.max(prev, timeLeft + secs));
+    setTimeLeft((prev) => {
+      const next = Math.max(0, prev + secs);
+      timeLeftRef.current = next;
+      return next;
+    });
+    setTotalTime((prev) => Math.max(prev, timeLeftRef.current));
   };
 
   const handleDisableAuto = () => {

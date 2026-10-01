@@ -16,15 +16,18 @@ import {
 } from '../types';
 import { INITIAL_EXERCISES } from '../data/exercises';
 import { WARMUP_EXERCISES } from '../data/warmupExercises';
+import { IMPORTED_EXERCISES } from '../data/importedExercises';
 import { DEFAULT_ROUTINES } from '../data/defaultRoutines';
 import {
   setCloudUser,
+  getCloudUser,
   syncListToCloud,
   pullListFromCloud,
   syncSettingsToCloud,
   pullSettingsFromCloud,
   cloudHasAnyData,
 } from './cloudSync';
+import { PhotoStorage } from './photoStorage';
 
 interface CloudSettingsBlob {
   settings: UserSettings;
@@ -102,17 +105,18 @@ export const StorageService = {
   getExercises(): Exercise[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.EXERCISES);
-      if (!data) return [...INITIAL_EXERCISES, ...WARMUP_EXERCISES];
+      if (!data) return [...INITIAL_EXERCISES, ...WARMUP_EXERCISES, ...IMPORTED_EXERCISES];
       const list: Exercise[] = JSON.parse(data);
       // תרגילי הליבה תמיד מגיעים מהקוד העדכני (כדי שעדכונים כמו תמונות חדשות יחולו),
       // רק תרגילים מותאמים אישית של המשתמש נשמרים מה-localStorage
       const map = new Map<string, Exercise>();
       INITIAL_EXERCISES.forEach((e) => map.set(e.id, e));
       WARMUP_EXERCISES.forEach((e) => map.set(e.id, e));
+      IMPORTED_EXERCISES.forEach((e) => map.set(e.id, e));
       list.filter((e) => e.isCustom).forEach((e) => map.set(e.id, e));
       return Array.from(map.values());
     } catch {
-      return [...INITIAL_EXERCISES, ...WARMUP_EXERCISES];
+      return [...INITIAL_EXERCISES, ...WARMUP_EXERCISES, ...IMPORTED_EXERCISES];
     }
   },
 
@@ -134,11 +138,14 @@ export const StorageService = {
       const data = localStorage.getItem(STORAGE_KEYS.ROUTINES);
       if (!data) return [];
       const parsed = JSON.parse(data);
-      if (!Array.isArray(parsed)) return [];
-      // מערך ריק הוא מצב לגיטימי (משתמש בלי תוכניות), לא שגיאה - רק צורה ישנה/פגומה
-      // של רשומה בפועל (חסר days) נופלת חזרה לתוכניות ברירת המחדל.
-      if (parsed.length > 0 && !parsed[0].days) return DEFAULT_ROUTINES;
-      return parsed;
+      if (!Array.isArray(parsed) || parsed.length === 0) return [];
+      // מערך ריק הוא מצב לגיטימי (משתמש בלי תוכניות), לא שגיאה. רק אם *אף* רשומה במערך
+      // אינה בפורמט תקין (חסר days) זו כנראה צורה ישנה/פגומה לגמרי - נופלים לתוכניות ברירת
+      // המחדל. רשומה בודדת פגומה (למשל תקלת סנכרון חד-פעמית) לא צריכה למחוק את כל שאר
+      // התוכניות התקינות של המשתמש.
+      const valid = parsed.filter((r) => r && Array.isArray(r.days));
+      if (valid.length === 0) return DEFAULT_ROUTINES;
+      return valid;
     } catch {
       return [];
     }
@@ -383,20 +390,26 @@ export const StorageService = {
     return JSON.stringify(exportObject, null, 2);
   },
 
+  // חשוב: אחרי כתיבה מקומית חייבים לדחוף גם לענן - אחרת ברענון הבא (מיד אחרי הייבוא)
+  // hydrateFromCloud היה מוריד את הנתונים הישנים מהענן ודורס בחזרה את מה שזה עתה יובא.
   importData(jsonString: string): boolean {
     try {
       const data = JSON.parse(jsonString);
       if (data.exercises && Array.isArray(data.exercises)) {
         localStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(data.exercises));
+        syncListToCloud('custom_exercises', (data.exercises as Exercise[]).filter((e) => e.isCustom));
       }
       if (data.routines && Array.isArray(data.routines)) {
         localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(data.routines));
+        syncListToCloud('routines', data.routines);
       }
       if (data.history && Array.isArray(data.history)) {
         localStorage.setItem(STORAGE_KEYS.WORKOUT_HISTORY, JSON.stringify(data.history));
+        syncListToCloud('workouts', data.history);
       }
       if (data.settings) {
         localStorage.setItem(STORAGE_KEYS.USER_SETTINGS, JSON.stringify(data.settings));
+        this.pushSettingsBlob();
       }
       return true;
     } catch (e) {
@@ -405,14 +418,31 @@ export const StorageService = {
     }
   },
 
+  // איפוס מלא: מנקים כל מפתח מקומי (Object.values כדי לכלול אוטומטית גם מפתחות שנוספו
+  // מאז שהפונקציה הזו נכתבה במקור - במקור החסירה בטעות משקל גוף/מדידות/תזונה/תמונות/
+  // התקדמות-תרגילים) ודוחפים איפוס גם לענן - אחרת ה-hydrate הבא (רענון/מכשיר אחר) פשוט
+  // מחזיר את כל מה ש"אופס" בחזרה מהעותק הישן שנשאר שם.
   resetAllData() {
-    localStorage.removeItem(STORAGE_KEYS.APP_INITIALIZED);
-    localStorage.removeItem(STORAGE_KEYS.EXERCISES);
-    localStorage.removeItem(STORAGE_KEYS.ROUTINES);
-    localStorage.removeItem(STORAGE_KEYS.WORKOUT_HISTORY);
-    localStorage.removeItem(STORAGE_KEYS.ACTIVE_WORKOUT);
-    localStorage.removeItem(STORAGE_KEYS.USER_SETTINGS);
+    Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
+    localStorage.removeItem('gym_tracker_favorite_exercises_v2');
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith('gym_tracker_active_day_'))
+      .forEach((k) => localStorage.removeItem(k));
+    PhotoStorage.clearAll().catch(() => {});
     this.init();
+    if (getCloudUser()) {
+      syncListToCloud('workouts', []);
+      syncListToCloud('routines', []);
+      syncListToCloud('custom_exercises', []);
+      syncListToCloud('body_weight_entries', []);
+      syncListToCloud('measurement_categories', []);
+      syncListToCloud('measurement_entries', []);
+      syncListToCloud('progress_photos', []);
+      syncListToCloud('food_items', []);
+      syncListToCloud('nutrition_entries', []);
+      syncListToCloud('exercise_progress', []);
+      this.pushSettingsBlob();
+    }
   },
 
   // Body Weight Tracking
@@ -685,11 +715,11 @@ export const StorageService = {
     const hasCloudData = await cloudHasAnyData();
 
     if (hasCloudData) {
-      const [
-        workouts, routines, customExercises, bodyWeightEntries,
-        measurementCategories, measurementEntries, progressPhotos,
-        foodItems, nutritionEntries, exerciseProgressStates, settingsBlob,
-      ] = await Promise.all([
+      // Promise.allSettled ולא Promise.all: pullListFromCloud עכשיו זורק בשגיאה (ולא מחזיר [])
+      // כשהשליפה נכשלת (רשת/timeout) - בלי ה-allSettled, כשל ברשת בטבלה אחת היה מפיל את כל
+      // הבטחת ה-Promise.all, וחמור מזה - קודם לתיקון הזה, כשל שקט כזה היה גורם לדריסת הנתונים
+      // המקומיים ב-[] (מערך ריק) בטעות. עכשיו: טבלה שנכשלה - משאירים את הנתון המקומי הקיים.
+      const results = await Promise.allSettled([
         pullListFromCloud<WorkoutSession>('workouts'),
         pullListFromCloud<RoutineTemplate>('routines'),
         pullListFromCloud<Exercise>('custom_exercises'),
@@ -700,21 +730,29 @@ export const StorageService = {
         pullListFromCloud<FoodItem>('food_items'),
         pullListFromCloud<NutritionEntry>('nutrition_entries'),
         pullListFromCloud<ExerciseProgressState>('exercise_progress'),
-        pullSettingsFromCloud<CloudSettingsBlob>(),
       ]);
 
-      localStorage.setItem(STORAGE_KEYS.WORKOUT_HISTORY, JSON.stringify(workouts));
-      // רשימה ריקה מהענן היא מצב תקין (משתמש בלי תוכניות משלו) - לא נופלים חזרה
-      // לתוכניות הדמו רק כי הוא עוד לא יצר לעצמו כלום.
-      localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(routines));
-      localStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(customExercises));
-      localStorage.setItem(STORAGE_KEYS.BODY_WEIGHT_LOG, JSON.stringify(bodyWeightEntries));
-      localStorage.setItem(STORAGE_KEYS.MEASUREMENT_CATEGORIES, JSON.stringify(measurementCategories));
-      localStorage.setItem(STORAGE_KEYS.MEASUREMENT_ENTRIES, JSON.stringify(measurementEntries));
-      localStorage.setItem(STORAGE_KEYS.PROGRESS_PHOTOS, JSON.stringify(progressPhotos));
-      localStorage.setItem(STORAGE_KEYS.FOOD_ITEMS, JSON.stringify(foodItems));
-      localStorage.setItem(STORAGE_KEYS.NUTRITION_ENTRIES, JSON.stringify(nutritionEntries));
-      localStorage.setItem(STORAGE_KEYS.EXERCISE_PROGRESS, JSON.stringify(exerciseProgressStates));
+      const listKeys = [
+        STORAGE_KEYS.WORKOUT_HISTORY,
+        STORAGE_KEYS.ROUTINES,
+        STORAGE_KEYS.EXERCISES,
+        STORAGE_KEYS.BODY_WEIGHT_LOG,
+        STORAGE_KEYS.MEASUREMENT_CATEGORIES,
+        STORAGE_KEYS.MEASUREMENT_ENTRIES,
+        STORAGE_KEYS.PROGRESS_PHOTOS,
+        STORAGE_KEYS.FOOD_ITEMS,
+        STORAGE_KEYS.NUTRITION_ENTRIES,
+        STORAGE_KEYS.EXERCISE_PROGRESS,
+      ];
+      results.forEach((result, i) => {
+        if (result.status === 'fulfilled') {
+          localStorage.setItem(listKeys[i], JSON.stringify(result.value));
+        } else {
+          console.error(`[hydrateFromCloud] pull failed for "${listKeys[i]}" - keeping local data as-is`, result.reason);
+        }
+      });
+
+      const settingsBlob = await pullSettingsFromCloud<CloudSettingsBlob>();
       if (settingsBlob) this.applySettingsBlob(settingsBlob);
     } else {
       // משתמש חדש - מעלים את מה שכבר קיים במכשיר (אם קיים) כדי לזרוע את החשבון שלו.
@@ -732,26 +770,17 @@ export const StorageService = {
     }
   },
 
-  // בהתנתקות - מנקים את המכשיר כדי שמשתמש הבא שיתחבר כאן לא יראה נתונים שלא שלו.
+  // בהתנתקות - מנקים את המכשיר כדי שמשתמש הבא שיתחבר כאן (מכשיר משותף) לא יראה נתונים
+  // שלא שלו. כולל גם מפתחות "יום נבחר" פר-תוכנית (מפתח דינמי, לא ב-STORAGE_KEYS) ותמונות
+  // ההתקדמות ב-IndexedDB - שני אלה נשארו בעבר כ"יתומים" אחרי logout על מכשיר משותף.
   clearLocalDataOnLogout() {
     setCloudUser(null);
-    localStorage.removeItem(STORAGE_KEYS.APP_INITIALIZED);
-    localStorage.removeItem(STORAGE_KEYS.EXERCISES);
-    localStorage.removeItem(STORAGE_KEYS.ROUTINES);
-    localStorage.removeItem(STORAGE_KEYS.WORKOUT_HISTORY);
-    localStorage.removeItem(STORAGE_KEYS.ACTIVE_WORKOUT);
-    localStorage.removeItem(STORAGE_KEYS.USER_SETTINGS);
-    localStorage.removeItem(STORAGE_KEYS.EXERCISE_NOTES);
-    localStorage.removeItem(STORAGE_KEYS.BODY_WEIGHT_LOG);
-    localStorage.removeItem(STORAGE_KEYS.TARGET_WEIGHT);
-    localStorage.removeItem(STORAGE_KEYS.MEASUREMENT_CATEGORIES);
-    localStorage.removeItem(STORAGE_KEYS.MEASUREMENT_ENTRIES);
-    localStorage.removeItem(STORAGE_KEYS.PROGRESS_PHOTOS);
-    localStorage.removeItem(STORAGE_KEYS.FOOD_ITEMS);
-    localStorage.removeItem(STORAGE_KEYS.NUTRITION_ENTRIES);
-    localStorage.removeItem(STORAGE_KEYS.NUTRITION_GOALS);
-    localStorage.removeItem(STORAGE_KEYS.EXERCISE_PROGRESS);
+    Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
     localStorage.removeItem('gym_tracker_favorite_exercises_v2');
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith('gym_tracker_active_day_'))
+      .forEach((k) => localStorage.removeItem(k));
+    PhotoStorage.clearAll().catch(() => {});
     this.init();
   },
 };

@@ -275,6 +275,9 @@ export const RoutinesView: React.FC<RoutinesViewProps> = ({
       ...editingRoutine,
       title: editingRoutine.title.trim(),
       exercises: allExercisesFlat,
+      // מסמנים שהמשתמש נגע ידנית בתוכנית שנבנתה אוטומטית - כדי שמנוע ההתקדמות לא ידרוס
+      // את העריכה הזו בעדכון נפח שבועי או ב-rollover למחזור הבא (ראו programGenerator.ts).
+      manuallyEditedAt: editingRoutine.isGenerated ? Date.now() : editingRoutine.manuallyEditedAt,
     };
 
     onSaveRoutine(finalRoutine);

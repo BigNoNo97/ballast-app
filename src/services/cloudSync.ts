@@ -13,31 +13,42 @@ export function getCloudUser(): string | null {
 }
 
 // מחליף את כל השורות של המשתמש בטבלה נתונה ברשימה החדשה (upsert מלא, לא הפרשי דלתא).
-// מספיק פשוט וזול ביחס לגודל הנתונים של אפליקציית כושר אישית.
+// כותבים קודם (upsert) ורק אז מוחקים את מה שכבר לא קיים - לא ההפך - כדי שאם הפעולה
+// נקטעת באמצע (קריסה/אובדן רשת) לא יהיה רגע שבו הענן ריק לגמרי; במקרה הגרוע יישארו
+// כמה שורות "יתומות" ישנות שינוקו בסנכרון הבא, לא אובדן נתונים.
 export async function syncListToCloud(table: string, list: { id: string }[]): Promise<void> {
   const userId = currentUserId;
   if (!userId) return;
   try {
-    await supabase.from(table).delete().eq('user_id', userId);
     if (list.length > 0) {
       const rows = list.map((item) => ({ id: item.id, user_id: userId, data: item }));
       for (let i = 0; i < rows.length; i += 200) {
-        const { error } = await supabase.from(table).insert(rows.slice(i, i + 200));
+        const { error } = await supabase.from(table).upsert(rows.slice(i, i + 200), { onConflict: 'user_id,id' });
         if (error) throw error;
       }
+    }
+    const { data: existing, error: fetchError } = await supabase.from(table).select('id').eq('user_id', userId);
+    if (fetchError) throw fetchError;
+    const currentIds = new Set(list.map((item) => item.id));
+    const staleIds = (existing || []).map((r) => r.id as string).filter((id) => !currentIds.has(id));
+    if (staleIds.length > 0) {
+      const { error: deleteError } = await supabase.from(table).delete().eq('user_id', userId).in('id', staleIds);
+      if (deleteError) throw deleteError;
     }
   } catch (e) {
     console.error(`[cloudSync] failed to sync list "${table}"`, e);
   }
 }
 
+// זורק בשגיאה במקום להחזיר [] - כדי שהקורא (hydrateFromCloud) יוכל להבדיל בין "ריק באמת"
+// לבין "השליפה נכשלה" ולא ידרוס נתונים מקומיים תקינים במערך ריק בטעות.
 export async function pullListFromCloud<T>(table: string): Promise<T[]> {
   const userId = currentUserId;
   if (!userId) return [];
   const { data, error } = await supabase.from(table).select('data').eq('user_id', userId);
   if (error) {
     console.error(`[cloudSync] failed to pull list "${table}"`, error);
-    return [];
+    throw error;
   }
   return (data || []).map((row: { data: T }) => row.data);
 }

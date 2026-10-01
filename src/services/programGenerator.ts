@@ -219,7 +219,13 @@ function buildDayExercises(
 ): RoutineDayExercise[] {
   const picks = new Map<MuscleGroup, Exercise[]>();
   day.muscles.forEach((muscle) => {
-    const compound = pickOneExercise(muscle, library, equipment, true, usedIds);
+    let compound = pickOneExercise(muscle, library, equipment, true, usedIds);
+    // אין תרגיל תואם לציוד שנבחר עבור השריר הזה (קורה עם ציוד נדיר/מוגבל, למשל רק "סמית'"
+    // או רק "אחר") - עדיף להציע תרגיל שדורש ציוד שונה מאשר להשמיט את השריר לגמרי ולהשאיר
+    // את היום (ולפעמים את כל היום, אם זה קורה לכל שרירי היום) עם 0 תרגילים.
+    if (!compound && equipment) {
+      compound = pickOneExercise(muscle, library, null, true, usedIds);
+    }
     if (compound) picks.set(muscle, [compound]);
   });
 
@@ -336,7 +342,9 @@ export function buildRoutine(settings: UserSettings, library: Exercise[]): Gener
 // (הבחירה משתנה רק ב-rollover למחזור חדש, לא באמצע מחזור). דורש את מאגר התרגילים כדי
 // לשחזר איזה שריר כל exerciseId מייצג (לא נשמר ישירות על RoutineDayExercise).
 export function applyWeeklyVolume(routine: RoutineTemplate, week: number, library: Exercise[]): RoutineTemplate {
-  if (!routine.mesocycle) return routine;
+  // המשתמש ערך ידנית את התוכנית הזו (למשל שינה כמות סטים בעצמו) - לא דורסים את הבחירה
+  // שלו בעדכון האוטומטי השבועי.
+  if (!routine.mesocycle || routine.manuallyEditedAt) return routine;
   const { cycleNumber } = routine.mesocycle;
   const muscleById = new Map<string, MuscleGroup>();
   const warmupIds = new Set(library.filter((e) => e.isWarmup).map((e) => e.id));
@@ -382,14 +390,32 @@ export function applyWeeklyVolume(routine: RoutineTemplate, week: number, librar
 // כולל cycleBonus). state של תרגילים שנשארים ממשיך כרגיל; תרגילים חדשים מקבלים state התחלתי.
 export function regenerateForNewCycle(routine: RoutineTemplate, settings: UserSettings, library: Exercise[]): GeneratedProgram {
   const level: ExperienceLevel = settings.experienceLevel || 'beginner';
+  const lengthWeeks = routine.mesocycle?.lengthWeeks || MESOCYCLE_LENGTH_BY_LEVEL[level];
+  const nextCycleNumber = (routine.mesocycle?.cycleNumber || 1) + 1;
+
+  // המשתמש ערך ידנית את הימים/התרגילים של התוכנית הזו (הוסיף יום, החליף תרגיל וכו') -
+  // לא דורסים את זה ב-rollover אוטומטי בין מחזורים. עדיין מגלגלים מחזור/שבוע כרגיל
+  // (כדי שההתקדמות במשקל/חזרות תמשיך לרוץ כרגיל), רק בלי לבנות מחדש את בחירת התרגילים.
+  if (routine.manuallyEditedAt) {
+    const newRoutine: RoutineTemplate = {
+      ...routine,
+      mesocycle: {
+        lengthWeeks,
+        currentWeek: 1,
+        cycleNumber: nextCycleNumber,
+        deloadWeekIndex: lengthWeeks,
+        sessionsCompletedThisWeek: 0,
+      },
+    };
+    return { routine: newRoutine, progressStates: [] };
+  }
+
   const daysPerWeek = Math.min(6, Math.max(2, settings.trainingDaysPerWeek || 3));
   const equipment = equipmentSetFromSettings(settings);
   const split = routine.splitType || chooseSplit(daysPerWeek, level);
   const maxExercisesPerDay = computeMaxExercisesPerDay(settings.sessionDurationMinutes, settings.includeWarmup);
   const dayTemplates = tileDays(split, daysPerWeek).map((t) => ({ ...t, muscles: trimMusclesToBudget(t.muscles, maxExercisesPerDay) }));
   const freq = muscleFrequency(dayTemplates);
-  const lengthWeeks = routine.mesocycle?.lengthWeeks || MESOCYCLE_LENGTH_BY_LEVEL[level];
-  const nextCycleNumber = (routine.mesocycle?.cycleNumber || 1) + 1;
   const repRange = pickRepRange(settings.goals);
   const existingIds = new Set(routine.days.flatMap((d) => d.exercises.map((e) => e.exerciseId)));
   const usedIds = new Set(existingIds); // מעדיף תרגילים אחרים מהמחזור הקודם, לגיוון

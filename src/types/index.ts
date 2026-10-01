@@ -146,6 +146,9 @@ export interface RoutineTemplate {
   createdAt?: number;
   requireLogToAdvance?: boolean; // אל תתקדם ליום הבא אם לא תועד אף סט באימון
   isGenerated?: boolean; // true = נבנתה אוטומטית ע"י מנוע התוכניות, לא ע"י המשתמש
+  // מוגדר כשמשתמש עורך ידנית תוכנית שנבנתה אוטומטית (isGenerated) - מונע מהמנוע לדרוס את
+  // העריכה שלו ב-rollover למחזור הבא או בעדכון נפח שבועי (ראו applyWeeklyVolume/regenerateForNewCycle).
+  manuallyEditedAt?: number;
   splitType?: SplitType;
   mesocycle?: MesocyclePlan;
 }

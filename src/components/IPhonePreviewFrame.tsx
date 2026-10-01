@@ -20,7 +20,7 @@ export const IPhonePreviewFrame: React.FC<IPhonePreviewFrameProps> = ({
   // שנשמרה למשתמש (שברירת המחדל שלה היא true, ומיועדת רק לדפדפן).
   if (!showFrameOnDesktop || Capacitor.isNativePlatform()) {
     return (
-      <div style={{ minHeight: '100dvh', width: '100%', maxWidth: '768px', margin: '0 auto', position: 'relative' }}>
+      <div style={{ height: '100dvh', width: '100%', maxWidth: '768px', margin: '0 auto', position: 'relative' }}>
         {children}
       </div>
     );

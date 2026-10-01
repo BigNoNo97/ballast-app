@@ -10,6 +10,8 @@ const isNativeIOS = (): boolean => Capacitor.getPlatform() === 'ios';
 const STRENGTH_TRAINING_MET = 5;
 const FALLBACK_BODY_WEIGHT_KG = 75;
 
+const SAVE_TIMEOUT_MS = 20_000;
+
 const WORKOUT_PERMISSION_HELP =
   'אין ל-Ballast הרשאה לשמור אימונים ב-Apple Health. כדי להפעיל: אפליקציית "בריאות" › תמונת הפרופיל › אפליקציות › Ballast › הפעל "אימונים" (ומומלץ גם "אנרגיה פעילה" ו"משקל").';
 
@@ -56,22 +58,34 @@ export const AppleHealthService = {
     }
   },
 
-  /** מסנכרן אימון שהושלם ל-Apple Health. מחזיר הודעת שגיאה למשתמש כשהשמירה נכשלה (לא כשהסנכרון כבוי). */
-  async syncWorkout(session: WorkoutSession): Promise<{ ok: true } | { ok: false; error: string }> {
-    if (!this.isEnabled() || !session.endTime) return { ok: true };
+  /**
+   * מסנכרן אימון שהושלם ל-Apple Health. 'skipped' = הסנכרון כבוי / לא iOS (לא מציגים כלום),
+   * 'saved' / 'failed' מוצגים למשתמש במסך הסיום כדי שתקלה לא תעבור בשקט.
+   */
+  async syncWorkout(
+    session: WorkoutSession
+  ): Promise<{ status: 'skipped' } | { status: 'saved' } | { status: 'failed'; error: string }> {
+    if (!this.isEnabled() || !session.endTime) return { status: 'skipped' };
     try {
-      await AppleHealth.saveWorkout({
+      const save = AppleHealth.saveWorkout({
         startMs: session.startTime,
         endMs: session.endTime,
         activeEnergyKcal: estimateWorkoutCalories(session),
         title: session.title,
         pauses: session.pauses,
       });
-      return { ok: true };
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject({ code: 'TIMEOUT' }), SAVE_TIMEOUT_MS)
+      );
+      await Promise.race([save, timeout]);
+      return { status: 'saved' };
     } catch (e: any) {
+      if (e?.code === 'TIMEOUT') {
+        return { status: 'failed', error: 'לא התקבלה תשובה מ-Apple Health תוך 20 שניות - ייתכן שהאימון לא נשמר.' };
+      }
       console.warn('[AppleHealth] סנכרון אימון נכשל:', e);
-      if (e?.code === 'WORKOUT_NOT_AUTHORIZED') return { ok: false, error: WORKOUT_PERMISSION_HELP };
-      return { ok: false, error: 'האימון לא נשמר ב-Apple Health: ' + (e?.message || 'שגיאה לא ידועה') };
+      if (e?.code === 'WORKOUT_NOT_AUTHORIZED') return { status: 'failed', error: WORKOUT_PERMISSION_HELP };
+      return { status: 'failed', error: 'האימון לא נשמר ב-Apple Health: ' + (e?.message || 'שגיאה לא ידועה') };
     }
   },
 

@@ -178,7 +178,7 @@ export const App: React.FC = () => {
   const [previewingDay, setPreviewingDay] = useState<RoutineDay | null>(null);
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
   const [coachNote, setCoachNote] = useState<string | null>(null);
-  const [healthSyncError, setHealthSyncError] = useState<string | null>(null);
+  const [healthSync, setHealthSync] = useState<{ ok: boolean; message: string } | null>(null);
   const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
   const [showAddExerciseToActiveModal, setShowAddExerciseToActiveModal] = useState(false);
   const [showRoutinesManagerModal, setShowRoutinesManagerModal] = useState(false);
@@ -298,9 +298,10 @@ export const App: React.FC = () => {
   // Finish Workout
   const handleFinishWorkout = (finishedSession: WorkoutSession) => {
     StorageService.saveWorkout(finishedSession);
-    setHealthSyncError(null);
+    setHealthSync(null);
     AppleHealthService.syncWorkout(finishedSession).then((result) => {
-      if (!result.ok) setHealthSyncError(result.error);
+      if (result.status === 'saved') setHealthSync({ ok: true, message: 'האימון נשמר ב-Apple Health' });
+      if (result.status === 'failed') setHealthSync({ ok: false, message: result.error });
     });
     setHistory(StorageService.getWorkoutHistory());
     setActiveWorkout(null);
@@ -447,7 +448,7 @@ export const App: React.FC = () => {
   const handleSaveRetroactiveWorkout = (session: WorkoutSession) => {
     StorageService.saveWorkout(session);
     AppleHealthService.syncWorkout(session).then((result) => {
-      if (!result.ok) alert(result.error);
+      if (result.status === 'failed') alert(result.error);
     });
     setHistory(StorageService.getWorkoutHistory());
   };
@@ -846,11 +847,11 @@ export const App: React.FC = () => {
             isOpen={true}
             onClose={() => {
               setSummarySession(null);
-              setHealthSyncError(null);
+              setHealthSync(null);
             }}
             soundEnabled={settings.soundEnabled}
             coachNote={coachNote || undefined}
-            healthSyncError={healthSyncError || undefined}
+            healthSync={healthSync || undefined}
           />
         )}
 

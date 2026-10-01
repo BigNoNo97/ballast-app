@@ -742,16 +742,33 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   if (workout.exercises.length === 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 6px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: 'calc(var(--safe-top) + 8px) 6px 8px 6px',
+          }}
+        >
           <button
             onClick={onCancelWorkout}
             aria-label="ביטול אימון"
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center' }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-main)',
+              cursor: 'pointer',
+              width: 44,
+              height: 44,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
             <X size={24} />
           </button>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{workout.title}</h2>
-          <div style={{ width: 36 }} />
+          <div style={{ width: 44 }} />
         </div>
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
           <p style={{ marginBottom: 14 }}>אין תרגילים באימון זה.</p>

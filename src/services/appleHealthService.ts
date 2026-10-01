@@ -10,6 +10,9 @@ const isNativeIOS = (): boolean => Capacitor.getPlatform() === 'ios';
 const STRENGTH_TRAINING_MET = 5;
 const FALLBACK_BODY_WEIGHT_KG = 75;
 
+const WORKOUT_PERMISSION_HELP =
+  'אין ל-Ballast הרשאה לשמור אימונים ב-Apple Health. כדי להפעיל: אפליקציית "בריאות" › תמונת הפרופיל › אפליקציות › Ballast › הפעל "אימונים" (ומומלץ גם "אנרגיה פעילה" ו"משקל").';
+
 function estimateWorkoutCalories(session: WorkoutSession): number | undefined {
   if (!session.endTime) return undefined;
   // durationSec כבר לא כולל זמן השהיה של שעון האימון, בניגוד ל-endTime-startTime
@@ -43,25 +46,32 @@ export const AppleHealthService = {
       if (!available) {
         return { success: false, error: 'Health לא זמין במכשיר הזה' };
       }
-      const { granted } = await AppleHealth.requestAuthorization();
-      return granted ? { success: true } : { success: false, error: 'ההרשאה לא אושרה' };
+      await AppleHealth.requestAuthorization();
+      // granted רק אומר שהדיאלוג הוצג, לא מה המשתמש בחר בו - אז בודקים בפועל
+      // אם מותר לכתוב אימונים (זה הדבר העיקרי שהסנכרון עושה).
+      const { status } = await AppleHealth.getAuthorizationStatus();
+      return status === 'authorized' ? { success: true } : { success: false, error: WORKOUT_PERMISSION_HELP };
     } catch (e: any) {
       return { success: false, error: e?.message || 'שגיאה לא ידועה בחיבור ל-Health' };
     }
   },
 
-  /** מסנכרן אימון שהושלם ל-Apple Health (נכשל בשקט אם הסנכרון כבוי / לא iOS / אין הרשאה) */
-  async syncWorkout(session: WorkoutSession): Promise<void> {
-    if (!this.isEnabled() || !session.endTime) return;
+  /** מסנכרן אימון שהושלם ל-Apple Health. מחזיר הודעת שגיאה למשתמש כשהשמירה נכשלה (לא כשהסנכרון כבוי). */
+  async syncWorkout(session: WorkoutSession): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (!this.isEnabled() || !session.endTime) return { ok: true };
     try {
       await AppleHealth.saveWorkout({
         startMs: session.startTime,
         endMs: session.endTime,
         activeEnergyKcal: estimateWorkoutCalories(session),
         title: session.title,
+        pauses: session.pauses,
       });
-    } catch (e) {
+      return { ok: true };
+    } catch (e: any) {
       console.warn('[AppleHealth] סנכרון אימון נכשל:', e);
+      if (e?.code === 'WORKOUT_NOT_AUTHORIZED') return { ok: false, error: WORKOUT_PERMISSION_HELP };
+      return { ok: false, error: 'האימון לא נשמר ב-Apple Health: ' + (e?.message || 'שגיאה לא ידועה') };
     }
   },
 

@@ -178,6 +178,7 @@ export const App: React.FC = () => {
   const [previewingDay, setPreviewingDay] = useState<RoutineDay | null>(null);
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
   const [coachNote, setCoachNote] = useState<string | null>(null);
+  const [healthSyncError, setHealthSyncError] = useState<string | null>(null);
   const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
   const [showAddExerciseToActiveModal, setShowAddExerciseToActiveModal] = useState(false);
   const [showRoutinesManagerModal, setShowRoutinesManagerModal] = useState(false);
@@ -297,7 +298,10 @@ export const App: React.FC = () => {
   // Finish Workout
   const handleFinishWorkout = (finishedSession: WorkoutSession) => {
     StorageService.saveWorkout(finishedSession);
-    AppleHealthService.syncWorkout(finishedSession);
+    setHealthSyncError(null);
+    AppleHealthService.syncWorkout(finishedSession).then((result) => {
+      if (!result.ok) setHealthSyncError(result.error);
+    });
     setHistory(StorageService.getWorkoutHistory());
     setActiveWorkout(null);
     setSummarySession(finishedSession);
@@ -442,7 +446,9 @@ export const App: React.FC = () => {
   // Save a workout logged retroactively (does not touch the active routine/day rotation)
   const handleSaveRetroactiveWorkout = (session: WorkoutSession) => {
     StorageService.saveWorkout(session);
-    AppleHealthService.syncWorkout(session);
+    AppleHealthService.syncWorkout(session).then((result) => {
+      if (!result.ok) alert(result.error);
+    });
     setHistory(StorageService.getWorkoutHistory());
   };
 
@@ -838,9 +844,13 @@ export const App: React.FC = () => {
           <WorkoutSummaryModal
             session={summarySession}
             isOpen={true}
-            onClose={() => setSummarySession(null)}
+            onClose={() => {
+              setSummarySession(null);
+              setHealthSyncError(null);
+            }}
             soundEnabled={settings.soundEnabled}
             coachNote={coachNote || undefined}
+            healthSyncError={healthSyncError || undefined}
           />
         )}
 

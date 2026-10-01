@@ -171,6 +171,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
         ...workout,
         pausedAt: undefined,
         pausedTotalMs: (workout.pausedTotalMs || 0) + (now - workout.pausedAt),
+        pauses: [...(workout.pauses || []), { startMs: workout.pausedAt, endMs: now }],
       });
     } else {
       onUpdateWorkout({ ...workout, pausedAt: now, durationSec: computeElapsedSec(workout, now) });
@@ -725,9 +726,16 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
       }
     });
 
+    const endTime = Date.now();
     const finishedSession: WorkoutSession = {
       ...workout,
-      endTime: Date.now(),
+      endTime,
+      // סיום אימון בזמן שהשעון מושהה - סוגרים את ההפסקה הפתוחה בזמן הסיום
+      pausedAt: undefined,
+      pauses:
+        workout.pausedAt != null
+          ? [...(workout.pauses || []), { startMs: workout.pausedAt, endMs: endTime }]
+          : workout.pauses,
       durationSec: elapsedSec,
       isCompleted: true,
       totalVolumeKg: totalVolume,

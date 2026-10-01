@@ -91,15 +91,43 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    private func millis(_ value: JSValue?) -> Double? {
+        if let n = value as? NSNumber { return n.doubleValue }
+        if let d = value as? Double { return d }
+        if let i = value as? Int { return Double(i) }
+        return nil
+    }
+
     @objc func saveWorkout(_ call: CAPPluginCall) {
         guard let startMs = call.getDouble("startMs"), let endMs = call.getDouble("endMs") else {
             call.reject("חסרים פרמטרים 'startMs'/'endMs'")
             return
         }
 
+        // requestAuthorization מחזיר הצלחה גם כשהמשתמש השאיר את "אימונים" כבוי בדיאלוג,
+        // אז בודקים כאן במפורש ומחזירים קוד שה-JS יודע להסביר למשתמש.
+        guard healthStore.authorizationStatus(for: workoutType) == .sharingAuthorized else {
+            call.reject("אין הרשאה לשמור אימונים ב-Health", "WORKOUT_NOT_AUTHORIZED")
+            return
+        }
+
         let start = Date(timeIntervalSince1970: startMs / 1000)
         let end = Date(timeIntervalSince1970: endMs / 1000)
         let kcal = call.getDouble("activeEnergyKcal")
+        let canWriteEnergy = healthStore.authorizationStatus(for: activeEnergyType) == .sharingAuthorized
+
+        // הפסקות בשעון האימון -> אירועי pause/resume, כך ש-Health מחשב משך אימון בלי זמן ההשהיה
+        var pauseEvents: [HKWorkoutEvent] = []
+        for pause in call.getArray("pauses", JSObject.self) ?? [] {
+            guard let ps = millis(pause["startMs"]), let pe = millis(pause["endMs"]) else { continue }
+            let pauseStart = max(start, Date(timeIntervalSince1970: ps / 1000))
+            let pauseEnd = min(end, Date(timeIntervalSince1970: pe / 1000))
+            guard pauseStart < end, pauseStart <= pauseEnd else { continue }
+            pauseEvents.append(HKWorkoutEvent(type: .pause, dateInterval: DateInterval(start: pauseStart, duration: 0), metadata: nil))
+            if pauseEnd < end {
+                pauseEvents.append(HKWorkoutEvent(type: .resume, dateInterval: DateInterval(start: pauseEnd, duration: 0), metadata: nil))
+            }
+        }
 
         let config = HKWorkoutConfiguration()
         config.activityType = .traditionalStrengthTraining
@@ -127,32 +155,33 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                             if let error = error {
                                 call.reject(error.localizedDescription)
                             } else {
-                                call.resolve(["success": true, "workoutId": workout?.uuid.uuidString ?? ""])
+                                call.resolve([
+                                    "success": true,
+                                    "workoutId": workout?.uuid.uuidString ?? "",
+                                    "energySaved": canWriteEnergy && (kcal ?? 0) > 0,
+                                ])
                             }
                         }
                     }
                 }
             }
 
-            if let kcal = kcal, kcal > 0 {
-                let energyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: kcal)
+            // קלוריות ואירועי השהיה הם תוספות - כשל באחד מהם לא אמור להפיל את שמירת האימון עצמו
+            let addPausesThenFinish: () -> Void = {
+                guard !pauseEvents.isEmpty else { finishUp(); return }
+                builder.addWorkoutEvents(pauseEvents) { _, _ in finishUp() }
+            }
+
+            if let kcal = kcal, kcal > 0, canWriteEnergy {
                 let energySample = HKQuantitySample(
                     type: self.activeEnergyType,
-                    quantity: energyQuantity,
+                    quantity: HKQuantity(unit: .kilocalorie(), doubleValue: kcal),
                     start: start,
                     end: end
                 )
-                builder.add([energySample]) { added, error in
-                    guard added else {
-                        DispatchQueue.main.async {
-                            call.reject(error?.localizedDescription ?? "כשל בהוספת קלוריות לאימון")
-                        }
-                        return
-                    }
-                    finishUp()
-                }
+                builder.add([energySample]) { _, _ in addPausesThenFinish() }
             } else {
-                finishUp()
+                addPausesThenFinish()
             }
         }
     }

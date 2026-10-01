@@ -78,6 +78,8 @@ export interface WorkoutSession {
   // pausedTotalMs = סך כל זמן ההשהיות הקודמות, שמנוכה מזמן האימון.
   pausedAt?: number;
   pausedTotalMs?: number;
+  // רשימת ההפסקות שהסתיימו - נשלחת ל-Apple Health כאירועי pause/resume
+  pauses?: { startMs: number; endMs: number }[];
   exercises: WorkoutExercise[];
   notes?: string;
   isCompleted: boolean;

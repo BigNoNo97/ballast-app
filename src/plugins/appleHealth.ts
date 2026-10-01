@@ -26,7 +26,8 @@ export interface AppleHealthPlugin {
     endMs: number;
     activeEnergyKcal?: number;
     title?: string;
-  }): Promise<{ success: boolean; workoutId: string }>;
+    pauses?: { startMs: number; endMs: number }[];
+  }): Promise<{ success: boolean; workoutId: string; energySaved: boolean }>;
 
   /** קורא את מדידת הדופק האחרונה שנשמרה ב-Health (למשל מהשעון) */
   getLatestHeartRate(): Promise<{ bpm: number | null; date: number | null }>;

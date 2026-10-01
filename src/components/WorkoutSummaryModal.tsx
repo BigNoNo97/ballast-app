@@ -30,6 +30,7 @@ interface WorkoutSummaryModalProps {
   onClose: () => void;
   soundEnabled?: boolean;
   coachNote?: string; // הודעה קצרה ממנוע ההתקדמות (למשל גלגול מחזור, או תרגיל שנתקע) - לא חוסמת
+  healthSyncError?: string;
 }
 
 export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
@@ -38,6 +39,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   onClose,
   soundEnabled = true,
   coachNote,
+  healthSyncError,
 }) => {
   useEffect(() => {
     if (isOpen) {
@@ -106,9 +108,27 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
         <h2 style={{ fontSize: '1.45rem', fontWeight: 800, marginBottom: 4 }}>
           אימון מעולה! כל הכבוד 💪
         </h2>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: coachNote ? 12 : 20 }}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: coachNote || healthSyncError ? 12 : 20 }}>
           {session.title} נשמר בהצלחה ביומן האימונים
         </p>
+
+        {healthSyncError && (
+          <div
+            style={{
+              background: 'var(--color-orange-bg)',
+              border: '1px solid var(--color-orange)',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 14px',
+              marginBottom: 12,
+              fontSize: '0.82rem',
+              color: 'var(--text-main)',
+              textAlign: 'start',
+              lineHeight: 1.5,
+            }}
+          >
+            ⚠️ {healthSyncError}
+          </div>
+        )}
 
         {coachNote && (
           <div

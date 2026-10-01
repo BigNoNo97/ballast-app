@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dumbbell, Mail, Lock, User, Loader2, Sparkles, Check } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { App as CapacitorApp } from '@capacitor/app';
+
+// ב-iOS/Android, ספקי OAuth (בעיקר Google) חוסמים התחברות בתוך WebView מוטמע -
+// חייבים לפתוח דפדפן חיצוני אמיתי ולחזור לאפליקציה דרך URL scheme מותאם-אישית
+// (נתפס ב-App.tsx's appUrlOpen listener), ולא לסמוך על ניווט-חזרה רגיל בדף.
+const NATIVE_OAUTH_REDIRECT = 'co.brainslead.ballast://auth-callback';
 
 const GoogleIcon: React.FC = () => (
   <svg width="18" height="18" viewBox="0 0 24 24">
@@ -32,6 +40,18 @@ export const AuthView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [signupDone, setSignupDone] = useState(false);
 
+  // אם המשתמש חוזר לאפליקציה מהדפדפן החיצוני בלי להשלים התחברות (ביטל/חזר עם כפתור
+  // "חזרה") - מאפסים את מצב הטעינה, אחרת הכפתור נשאר תקוע עם ספינר לצמיתות.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listenerPromise = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) setOauthLoading(null);
+    });
+    return () => {
+      listenerPromise.then((l) => l.remove());
+    };
+  }, []);
+
   const handleDemoLogin = async () => {
     setError(null);
     setDemoLoading(true);
@@ -49,15 +69,24 @@ export const AuthView: React.FC = () => {
   const handleOAuth = async (provider: 'google' | 'apple') => {
     setError(null);
     setOauthLoading(provider);
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+    const isNative = Capacitor.isNativePlatform();
+    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: isNative ? NATIVE_OAUTH_REDIRECT : window.location.origin,
+        skipBrowserRedirect: isNative,
+      },
     });
     if (oauthError) {
       setError(oauthError.message);
       setOauthLoading(null);
+      return;
     }
-    // בהצלחה - הדפדפן עובר לספק ואז חוזר לכאן אוטומטית, אין צורך בטיפול נוסף
+    if (isNative && data.url) {
+      await Browser.open({ url: data.url });
+    }
+    // בהצלחה - הדפדפן עובר לספק ואז חוזר לכאן אוטומטית (באינטרנט ישירות, באפליקציה
+    // דרך appUrlOpen ב-App.tsx), אין צורך בטיפול נוסף כאן
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -392,6 +421,8 @@ const oauthButtonStyle: React.CSSProperties = {
 
 // עיצוב "התחבר עם Apple" הוא קבוע (שחור עם טקסט לבן) בכל ערכת נושא -
 // זו אחת מסגנונות הכפתור הרשמיים שאפל מחייבת, לא צבע מהמערכת שלנו.
+// הגבול קבוע (לא var(--border-subtle)) כי ברקע הכהה שלנו הוא כמעט שחור בעצמו -
+// גבול תלוי-ערכת-נושא שם היה נבלע לגמרי והכפתור נראה "נעלם".
 const appleButtonStyle: React.CSSProperties = {
   width: '100%',
   display: 'flex',
@@ -400,7 +431,7 @@ const appleButtonStyle: React.CSSProperties = {
   gap: 10,
   background: '#000',
   color: '#fff',
-  border: '1px solid var(--border-subtle)',
+  border: '1px solid rgba(255, 255, 255, 0.35)',
   borderRadius: 'var(--radius-md)',
   padding: '12px 14px',
   fontSize: '0.9rem',

@@ -44,6 +44,9 @@ import { NoRoutineWorkoutView } from './components/NoRoutineWorkoutView';
 import { ProgramGeneratingLoader } from './components/ProgramGeneratingLoader';
 import { supabase } from './services/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 
 type NavigationTab = 'workout' | 'analysis' | 'community' | 'nutrition' | 'profile';
 
@@ -64,6 +67,21 @@ export const App: React.FC = () => {
       setSession(newSession);
     });
     return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // התחברות עם Google/Apple באפליקציה הטבעית נפתחת בדפדפן חיצוני (Browser.open) כי
+  // WebView מוטמע נחסם/לא מהימן אצל ספקי OAuth - אפל מחזירה אותנו לכאן דרך ה-URL
+  // scheme המותאם-אישית, לא דרך ניווט רגיל בדף, אז צריך להאזין לזה ולהשלים את ההתחברות ידנית.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listenerPromise = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
+      if (!url.includes('auth-callback')) return;
+      await Browser.close().catch(() => {});
+      await supabase.auth.exchangeCodeForSession(url);
+    });
+    return () => {
+      listenerPromise.then((l) => l.remove());
+    };
   }, []);
 
   // מוריד/מעלה את הנתונים מהענן בכל כניסה/יציאה אמיתית של משתמש (לא ברענון טוקן רגיל)

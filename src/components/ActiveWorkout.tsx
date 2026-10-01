@@ -18,6 +18,8 @@ import {
   Link2,
   Unlink2,
   FileText,
+  Pause,
+  Play,
 } from 'lucide-react';
 import {
   WorkoutSession,
@@ -39,6 +41,26 @@ import { triggerHaptic } from '../services/sound';
 // גודל (בפיקסלים) של כפתור המחיקה שנחשף בסלייד על שורת תרגיל, וסף הגרירה להשארתו פתוח
 const SWIPE_DELETE_WIDTH = 84;
 const SWIPE_OPEN_THRESHOLD = 40;
+
+const computeElapsedSec = (w: WorkoutSession, now: number = Date.now()): number => {
+  const start = w.startTime || now;
+  const end = w.pausedAt ?? now;
+  return Math.max(0, Math.floor((end - start - (w.pausedTotalMs || 0)) / 1000));
+};
+
+// התווית "קודם: X" יושבת בתוך התיבה (absolute) כדי שהופעתה לא תשנה את גובה השורה.
+// הריפוד העליון המוגדל קבוע לכל התיבות, כך שהמספר לא קופץ כשהתווית מופיעה/נעלמת.
+const setInputStyle: React.CSSProperties = { paddingTop: 12, paddingBottom: 4 };
+const setInputHintStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: 3,
+  insetInline: 0,
+  fontSize: '0.55rem',
+  lineHeight: 1,
+  color: 'var(--text-dim)',
+  textAlign: 'center',
+  pointerEvents: 'none',
+};
 
 interface ActiveWorkoutProps {
   workout: WorkoutSession;
@@ -65,7 +87,8 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   onDisableAutoTimer,
   onOpenExerciseProfile,
 }) => {
-  const [elapsedSec, setElapsedSec] = useState(workout.durationSec || 0);
+  const [elapsedSec, setElapsedSec] = useState(() => computeElapsedSec(workout));
+  const isTimerPaused = workout.pausedAt != null;
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [showOverviewSheet, setShowOverviewSheet] = useState(false);
   const [isReorderingMidWorkout, setIsReorderingMidWorkout] = useState(false);
@@ -123,14 +146,27 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
   // Elapsed workout timer
   useEffect(() => {
-    const startMs = workout.startTime || Date.now();
-    const interval = setInterval(() => {
-      const current = Math.floor((Date.now() - startMs) / 1000);
-      setElapsedSec(current);
-    }, 1000);
-
+    const tick = () => setElapsedSec(computeElapsedSec(workout));
+    tick();
+    if (workout.pausedAt != null) return;
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [workout.startTime]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workout.startTime, workout.pausedAt, workout.pausedTotalMs]);
+
+  const handleToggleTimerPause = () => {
+    const now = Date.now();
+    if (workout.pausedAt != null) {
+      onUpdateWorkout({
+        ...workout,
+        pausedAt: undefined,
+        pausedTotalMs: (workout.pausedTotalMs || 0) + (now - workout.pausedAt),
+      });
+    } else {
+      onUpdateWorkout({ ...workout, pausedAt: now, durationSec: computeElapsedSec(workout, now) });
+    }
+    triggerHaptic(30);
+  };
 
   // Format Elapsed Time (hh:mm:ss or mm:ss)
   const formatTime = (secs: number) => {
@@ -165,7 +201,10 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
       }
       if (isCascadeField && !s.completed && s[field] !== value) {
         const prevKey = field === 'weightKg' ? 'autoFilledFromWeight' : 'autoFilledFromReps';
-        return { ...s, [field]: value, [prevKey]: s[field] };
+        // שומרים את הערך שהיה לפני תחילת העריכה, לא את זה של ההקשה הקודמת -
+        // אחרת הקלדת "12" משאירה "קודם: 1". ואם חזרנו בדיוק לערך המקורי, אין מה להציג.
+        const original = s[prevKey] ?? s[field];
+        return { ...s, [field]: value, [prevKey]: original === value ? undefined : original };
       }
       return s;
     });
@@ -807,9 +846,37 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
             }}
           >
             <Clock size={13} color="var(--text-muted)" />
-            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.85rem' }}>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                fontSize: '0.85rem',
+                color: isTimerPaused ? 'var(--color-orange)' : undefined,
+              }}
+            >
               {formatTime(elapsedSec)}
             </span>
+            <button
+              onClick={handleToggleTimerPause}
+              title={isTimerPaused ? 'המשך שעון' : 'השהה שעון'}
+              aria-label={isTimerPaused ? 'המשך שעון' : 'השהה שעון'}
+              style={{
+                width: 24,
+                height: 24,
+                marginInlineStart: 2,
+                borderRadius: '50%',
+                border: 'none',
+                background: isTimerPaused ? 'var(--color-blue)' : 'var(--bg-surface-3)',
+                color: isTimerPaused ? '#fff' : 'var(--text-main)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              {isTimerPaused ? <Play size={12} fill="currentColor" /> : <Pause size={12} fill="currentColor" />}
+            </button>
           </div>
         </div>
       </div>
@@ -1106,11 +1173,9 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                   <div className="set-number-badge">{s.setNumber}</div>
 
                   {/* Weight Input */}
-                  <div>
-                    {s.autoFilledFromWeight != null && (
-                      <div style={{ fontSize: '0.62rem', color: 'var(--text-dim)', textAlign: 'center', marginBottom: 2 }}>
-                        משקל קודם: {s.autoFilledFromWeight}
-                      </div>
+                  <div style={{ position: 'relative' }}>
+                    {!!s.autoFilledFromWeight && (
+                      <div style={setInputHintStyle}>קודם: {s.autoFilledFromWeight}</div>
                     )}
                     <input
                       type="number"
@@ -1119,6 +1184,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                       max="500"
                       inputMode="decimal"
                       className="gym-input-box"
+                      style={setInputStyle}
                       value={s.weightKg === 0 ? '' : s.weightKg}
                       placeholder={s.previousWeight ? `${s.previousWeight}` : '0'}
                       onChange={(e) =>
@@ -1133,11 +1199,9 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                   </div>
 
                   {/* Reps Input */}
-                  <div>
-                    {s.autoFilledFromReps != null && (
-                      <div style={{ fontSize: '0.62rem', color: 'var(--text-dim)', textAlign: 'center', marginBottom: 2 }}>
-                        כמות חזרות קודמת: {s.autoFilledFromReps}
-                      </div>
+                  <div style={{ position: 'relative' }}>
+                    {!!s.autoFilledFromReps && (
+                      <div style={setInputHintStyle}>קודם: {s.autoFilledFromReps}</div>
                     )}
                     <input
                       type="number"
@@ -1145,6 +1209,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                       max="999"
                       inputMode="numeric"
                       className="gym-input-box"
+                      style={setInputStyle}
                       value={s.reps === 0 ? '' : s.reps}
                       placeholder={s.previousReps ? `${s.previousReps}` : '0'}
                       onChange={(e) =>

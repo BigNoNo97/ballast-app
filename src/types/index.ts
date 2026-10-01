@@ -74,6 +74,10 @@ export interface WorkoutSession {
   startTime: number;
   endTime?: number;
   durationSec: number;
+  // השהיית שעון האימון: pausedAt = מתי הושהה (undefined כשהשעון רץ),
+  // pausedTotalMs = סך כל זמן ההשהיות הקודמות, שמנוכה מזמן האימון.
+  pausedAt?: number;
+  pausedTotalMs?: number;
   exercises: WorkoutExercise[];
   notes?: string;
   isCompleted: boolean;

@@ -12,7 +12,8 @@ const FALLBACK_BODY_WEIGHT_KG = 75;
 
 function estimateWorkoutCalories(session: WorkoutSession): number | undefined {
   if (!session.endTime) return undefined;
-  const hours = (session.endTime - session.startTime) / 3_600_000;
+  // durationSec כבר לא כולל זמן השהיה של שעון האימון, בניגוד ל-endTime-startTime
+  const hours = (session.durationSec || (session.endTime - session.startTime) / 1000) / 3600;
   if (hours <= 0) return undefined;
 
   const log = StorageService.getBodyWeightLog();

@@ -4,6 +4,26 @@ import { Trophy, Clock, Dumbbell, Flame, CheckCircle, Share2 } from 'lucide-reac
 import { WorkoutSession } from '../types';
 import { playWorkoutCompleteSound } from '../services/sound';
 
+const prHeaderCell: React.CSSProperties = {
+  fontSize: '0.7rem',
+  fontWeight: 700,
+  color: 'var(--text-muted)',
+  paddingBottom: 6,
+  borderBottom: '1px solid rgba(255, 214, 10, 0.25)',
+};
+const prBodyCell: React.CSSProperties = {
+  padding: '8px 0',
+  borderBottom: '1px solid rgba(255, 214, 10, 0.12)',
+  lineHeight: 1.35,
+};
+const prNumberCell: React.CSSProperties = {
+  color: 'var(--color-yellow)',
+  fontWeight: 800,
+  textAlign: 'center',
+  whiteSpace: 'nowrap',
+  fontVariantNumeric: 'tabular-nums',
+};
+
 interface WorkoutSummaryModalProps {
   session: WorkoutSession;
   isOpen: boolean;
@@ -192,31 +212,34 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
               textAlign: 'right',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-yellow)', marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-yellow)', marginBottom: 10 }}>
               <Trophy size={16} />
               <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>שיאים אישיים חדשים (PR)! 🏆</span>
             </div>
-            {session.newPRs.map((pr, idx) => (
-              <div
-                key={idx}
-                style={{
-                  fontSize: '0.84rem',
-                  color: 'var(--text-main)',
-                  marginTop: 6,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  • <strong>{pr.exerciseNameHe}</strong>:
-                </div>
-                <div style={{ color: 'var(--color-yellow)', fontWeight: 700 }}>
-                  {pr.totalExerciseWeight ? `${pr.totalExerciseWeight} ק״ג סה״כ` : `${pr.maxWeight} ק״ג`} (
-                  {pr.totalExerciseReps ? `${pr.totalExerciseReps} חזרות סה״כ` : `${pr.repsAtMaxWeight} חזרות`})
-                </div>
-              </div>
-            ))}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr auto auto',
+                columnGap: 14,
+                alignItems: 'center',
+                fontSize: '0.84rem',
+              }}
+            >
+              <div style={prHeaderCell}>תרגיל</div>
+              <div style={{ ...prHeaderCell, textAlign: 'center' }}>משקל כולל</div>
+              <div style={{ ...prHeaderCell, textAlign: 'center' }}>חזרות</div>
+              {session.newPRs.map((pr, idx) => (
+                <React.Fragment key={idx}>
+                  <div style={{ ...prBodyCell, fontWeight: 700, color: 'var(--text-main)' }}>{pr.exerciseNameHe}</div>
+                  <div style={{ ...prBodyCell, ...prNumberCell }}>
+                    {pr.totalExerciseWeight || pr.maxWeight} ק״ג
+                  </div>
+                  <div style={{ ...prBodyCell, ...prNumberCell }}>
+                    {pr.totalExerciseReps || pr.repsAtMaxWeight}
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
           </div>
         )}
 

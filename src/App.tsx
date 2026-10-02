@@ -179,6 +179,7 @@ export const App: React.FC = () => {
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
   const [coachNote, setCoachNote] = useState<string | null>(null);
   const [healthSync, setHealthSync] = useState<{ ok: boolean; message: string } | null>(null);
+  const [pendingDeleteWorkout, setPendingDeleteWorkout] = useState<WorkoutSession | null>(null);
   const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
   const [showAddExerciseToActiveModal, setShowAddExerciseToActiveModal] = useState(false);
   const [showRoutinesManagerModal, setShowRoutinesManagerModal] = useState(false);
@@ -444,6 +445,35 @@ export const App: React.FC = () => {
     StorageService.saveSettings(newSettings);
   };
 
+  const deleteWorkoutLocally = (id: string) => {
+    StorageService.deleteWorkout(id);
+    setHistory(StorageService.getWorkoutHistory());
+  };
+
+  // באייפון שואלים אם למחוק גם מ-Apple Health; בדפדפן אין Health, אז מוחקים מיד כמו קודם
+  const handleDeleteWorkout = (id: string) => {
+    const workout = history.find((w) => w.id === id);
+    if (workout && workout.endTime && AppleHealthService.isSupported()) {
+      setPendingDeleteWorkout(workout);
+      return;
+    }
+    deleteWorkoutLocally(id);
+  };
+
+  const confirmDeleteWorkout = async (alsoFromHealth: boolean) => {
+    const workout = pendingDeleteWorkout;
+    if (!workout) return;
+    setPendingDeleteWorkout(null);
+    deleteWorkoutLocally(workout.id);
+    if (!alsoFromHealth) return;
+    const result = await AppleHealthService.deleteWorkout(workout);
+    if (result.status === 'failed') {
+      alert(result.error);
+    } else if (result.count === 0) {
+      alert('האימון נמחק מהאפליקציה. ב-Apple Health לא נמצא אימון של Ballast בשעה הזו - ייתכן שהוא לא סונכרן לשם, או שכבר נמחק.');
+    }
+  };
+
   // Save a workout logged retroactively (does not touch the active routine/day rotation)
   const handleSaveRetroactiveWorkout = (session: WorkoutSession) => {
     StorageService.saveWorkout(session);
@@ -650,10 +680,7 @@ export const App: React.FC = () => {
                   history={history}
                   allExercises={exercises}
                   onRepeatWorkout={handleRepeatWorkout}
-                  onDeleteWorkout={(id) => {
-                    StorageService.deleteWorkout(id);
-                    setHistory(StorageService.getWorkoutHistory());
-                  }}
+                  onDeleteWorkout={handleDeleteWorkout}
                 />
               )}
 
@@ -671,10 +698,7 @@ export const App: React.FC = () => {
                     StorageService.saveExercise(newEx);
                     setExercises(StorageService.getExercises());
                   }}
-                  onDeleteWorkout={(id) => {
-                    StorageService.deleteWorkout(id);
-                    setHistory(StorageService.getWorkoutHistory());
-                  }}
+                  onDeleteWorkout={handleDeleteWorkout}
                   user={session.user}
                   onDeleteAccount={handleDeleteAccount}
                 />
@@ -836,6 +860,38 @@ export const App: React.FC = () => {
                 onSelectExerciseForWorkout={handleAddExerciseToActive}
                 onOpenExerciseProfile={setViewingExerciseId}
               />
+            </div>
+          </div>
+        )}
+
+        {pendingDeleteWorkout && (
+          <div className="modal-overlay" onClick={() => setPendingDeleteWorkout(null)}>
+            <div className="action-sheet" onClick={(e) => e.stopPropagation()}>
+              <div className="sheet-handle" />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, textAlign: 'center', marginBottom: 6 }}>למחוק את האימון?</h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 18 }}>
+                {pendingDeleteWorkout.title} ·{' '}
+                {new Date(pendingDeleteWorkout.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  className="btn-primary"
+                  style={{ background: 'var(--color-red)', boxShadow: 'none' }}
+                  onClick={() => confirmDeleteWorkout(true)}
+                >
+                  מחק מהאפליקציה ומ-Apple Health
+                </button>
+                <button className="btn-secondary" style={{ padding: '12px' }} onClick={() => confirmDeleteWorkout(false)}>
+                  מחק רק מהאפליקציה
+                </button>
+                <button
+                  className="btn-secondary"
+                  style={{ padding: '12px', background: 'transparent', border: 'none' }}
+                  onClick={() => setPendingDeleteWorkout(null)}
+                >
+                  ביטול
+                </button>
+              </div>
             </div>
           </div>
         )}

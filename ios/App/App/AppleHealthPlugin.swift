@@ -17,6 +17,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getAuthorizationStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveBodyWeight", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveWorkout", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deleteWorkout", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getLatestHeartRate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getStepsToday", returnType: CAPPluginReturnPromise)
     ]
@@ -183,6 +184,48 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             } else {
                 addPausesThenFinish()
             }
+        }
+    }
+
+    @objc func deleteWorkout(_ call: CAPPluginCall) {
+        guard let startMs = call.getDouble("startMs") else {
+            call.reject("חסר פרמטר 'startMs'")
+            return
+        }
+        guard healthStore.authorizationStatus(for: workoutType) == .sharingAuthorized else {
+            call.reject("אין הרשאה למחוק אימונים מ-Health", "WORKOUT_NOT_AUTHORIZED")
+            return
+        }
+
+        // מזהים את האימון לפי שעת ההתחלה (±2 שניות), ורק מתוך מה ש-Ballast עצמה שמרה -
+        // אימונים מאפליקציות אחרות באותן שעות לא נוגעים בהם.
+        let start = Date(timeIntervalSince1970: startMs / 1000)
+        let timePredicate = HKQuery.predicateForSamples(
+            withStart: start.addingTimeInterval(-2),
+            end: start.addingTimeInterval(2),
+            options: .strictStartDate
+        )
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            timePredicate,
+            HKQuery.predicateForObjects(from: HKSource.default()),
+        ])
+
+        healthStore.deleteObjects(of: workoutType, predicate: predicate) { success, deletedCount, error in
+            guard success else {
+                DispatchQueue.main.async {
+                    call.reject(error?.localizedDescription ?? "כשל במחיקת האימון מ-Health")
+                }
+                return
+            }
+            let resolve = {
+                DispatchQueue.main.async { call.resolve(["deletedWorkouts": deletedCount]) }
+            }
+            // הקלוריות נשמרו כדגימה נפרדת שמתחילה באותו רגע - מוחקים גם אותה
+            guard self.healthStore.authorizationStatus(for: self.activeEnergyType) == .sharingAuthorized else {
+                resolve()
+                return
+            }
+            self.healthStore.deleteObjects(of: self.activeEnergyType, predicate: predicate) { _, _, _ in resolve() }
         }
     }
 

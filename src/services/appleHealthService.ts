@@ -89,6 +89,20 @@ export const AppleHealthService = {
     }
   },
 
+  /** מוחק מ-Health את האימון ש-Ballast שמרה עבור האימון הזה (בלי תלות במתג הסנכרון - ייתכן שסונכרן בעבר) */
+  async deleteWorkout(
+    session: WorkoutSession
+  ): Promise<{ status: 'deleted'; count: number } | { status: 'failed'; error: string }> {
+    if (!isNativeIOS()) return { status: 'deleted', count: 0 };
+    try {
+      const { deletedWorkouts } = await AppleHealth.deleteWorkout({ startMs: session.startTime });
+      return { status: 'deleted', count: deletedWorkouts };
+    } catch (e: any) {
+      if (e?.code === 'WORKOUT_NOT_AUTHORIZED') return { status: 'failed', error: WORKOUT_PERMISSION_HELP };
+      return { status: 'failed', error: 'המחיקה מ-Apple Health נכשלה: ' + (e?.message || 'שגיאה לא ידועה') };
+    }
+  },
+
   /** מסנכרן מדידת משקל גוף ל-Apple Health */
   async syncBodyWeight(weightKg: number, dateMs: number = Date.now()): Promise<void> {
     if (!this.isEnabled()) return;

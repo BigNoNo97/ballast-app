@@ -37,6 +37,7 @@ import { ExerciseSwapModal } from './ExerciseSwapModal';
 import { RestTimerModal } from './RestTimerModal';
 import { ExerciseThumbnail } from './ExerciseThumbnail';
 import { triggerHaptic } from '../services/sound';
+import { applySetFieldEdit, toggleWorkoutPause } from '../services/workoutEdits';
 
 // גודל (בפיקסלים) של כפתור המחיקה שנחשף בסלייד על שורת תרגיל, וסף הגרירה להשארתו פתוח
 const SWIPE_DELETE_WIDTH = 84;
@@ -166,16 +167,8 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
   const handleToggleTimerPause = () => {
     const now = Date.now();
-    if (workout.pausedAt != null) {
-      onUpdateWorkout({
-        ...workout,
-        pausedAt: undefined,
-        pausedTotalMs: (workout.pausedTotalMs || 0) + (now - workout.pausedAt),
-        pauses: [...(workout.pauses || []), { startMs: workout.pausedAt, endMs: now }],
-      });
-    } else {
-      onUpdateWorkout({ ...workout, pausedAt: now, durationSec: computeElapsedSec(workout, now) });
-    }
+    const toggled = toggleWorkoutPause(workout, now);
+    onUpdateWorkout(toggled.pausedAt != null ? { ...toggled, durationSec: computeElapsedSec(workout, now) } : toggled);
     triggerHaptic(30);
   };
 
@@ -199,27 +192,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   ) => {
     const updatedExercises = [...workout.exercises];
     const exercise = updatedExercises[exerciseIndex];
-    // עדכון מהיר: שינוי משקל/חזרות בסט אחד מחיל את אותו ערך על הסטים *שאחריו* באותו תרגיל
-    // שעדיין לא הושלמו - אף פעם לא על סטים קודמים, בלי לסמן אותם ✓, ובלי לגעת בסטים שכבר אושרו.
-    const isCascadeField = field === 'weightKg' || field === 'reps';
-    const updatedSets = exercise.sets.map((s, idx) => {
-      if (idx === setIndex) {
-        // עריכה ישירה של המשתמש על השדה הזה - מבטלת את תזכורת "עודכן אוטומטית" שלו,
-        // כי מעכשיו זה הערך שהמשתמש עצמו בחר, לא הצעה של המערכת.
-        if (field === 'weightKg') return { ...s, weightKg: value, autoFilledFromWeight: undefined };
-        if (field === 'reps') return { ...s, reps: value, autoFilledFromReps: undefined };
-        return { ...s, [field]: value };
-      }
-      if (isCascadeField && idx > setIndex && !s.completed && s[field] !== value) {
-        const prevKey = field === 'weightKg' ? 'autoFilledFromWeight' : 'autoFilledFromReps';
-        // שומרים את הערך שהיה לפני תחילת העריכה, לא את זה של ההקשה הקודמת -
-        // אחרת הקלדת "12" משאירה "קודם: 1". ואם חזרנו בדיוק לערך המקורי, אין מה להציג.
-        const original = s[prevKey] ?? s[field];
-        return { ...s, [field]: value, [prevKey]: original === value ? undefined : original };
-      }
-      return s;
-    });
-    updatedExercises[exerciseIndex] = { ...exercise, sets: updatedSets };
+    updatedExercises[exerciseIndex] = { ...exercise, sets: applySetFieldEdit(exercise.sets, setIndex, field, value) };
 
     const updated = {
       ...workout,

@@ -19,6 +19,7 @@
 		7A4E2BE8EFD748C19B2E9A04 /* AppleHealthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CB63499EE0445792BDC3D6 /* AppleHealthPlugin.swift */; };
 		7F9D23F674CC4512B28D32C5 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC14FEB029FD4FD8B1477C4F /* MainViewController.swift */; };
 		BA11A570000000000000000E /* BallastWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = BA11A5700000000000000001 /* BallastWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BA11A57000000000000000F2 /* WatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA11A57000000000000000F1 /* WatchBridge.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -62,6 +63,7 @@
 		C3DB90F721A14BCCB860F293 /* App.entitlements */ = {isa = PBXFileReference; name = "App.entitlements"; path = App.entitlements; sourceTree = "<group>"; lastKnownFileType = text.plist.entitlements; includeInIndex = 0; };
 		BA11A5700000000000000001 /* BallastWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BallastWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BA11A5700000000000000003 /* BallastWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BallastWatch.entitlements; sourceTree = "<group>"; };
+		BA11A57000000000000000F1 /* WatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchBridge.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -125,6 +127,7 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 				E5CB63499EE0445792BDC3D6 /* AppleHealthPlugin.swift */,
 				AC14FEB029FD4FD8B1477C4F /* MainViewController.swift */,
+				BA11A57000000000000000F1 /* WatchBridge.swift */,
 				C3DB90F721A14BCCB860F293 /* App.entitlements */,
 			);
 			path = App;
@@ -250,6 +253,7 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				7A4E2BE8EFD748C19B2E9A04 /* AppleHealthPlugin.swift in Sources */,
 				7F9D23F674CC4512B28D32C5 /* MainViewController.swift in Sources */,
+				BA11A57000000000000000F2 /* WatchBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

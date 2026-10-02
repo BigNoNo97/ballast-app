@@ -47,6 +47,15 @@ import type { Session } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
+import { WatchBridge } from './plugins/watchBridge';
+import {
+  applyWatchCommand,
+  buildWatchState,
+  getWatchAck,
+  isWatchSyncSupported,
+  parseWatchCommands,
+  setWatchAck,
+} from './services/watchSync';
 
 type NavigationTab = 'workout' | 'analysis' | 'community' | 'nutrition' | 'profile';
 
@@ -215,6 +224,62 @@ export const App: React.FC = () => {
     setActiveWorkout(updated);
     StorageService.saveActiveWorkout(updated);
   };
+
+  // שלט לאימון בשעון: כל שינוי באימון נשלח לשעון, ופקודות מהשעון מיושמות כאן. ה-refs
+  // נחוצים כי פקודות מגיעות מאירוע נייטיבי, מחוץ למחזור הרינדור הרגיל.
+  const activeWorkoutRef = useRef(activeWorkout);
+  activeWorkoutRef.current = activeWorkout;
+  const exercisesRef = useRef(exercises);
+  exercisesRef.current = exercises;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
+  const sendStateToWatch = () => {
+    if (!isWatchSyncSupported()) return;
+    const state = buildWatchState(activeWorkoutRef.current, exercisesRef.current, settingsRef.current);
+    WatchBridge.sendState({ state: JSON.stringify(state) }).catch(() => {});
+  };
+
+  useEffect(() => {
+    sendStateToWatch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWorkout, exercises, settings.defaultRestSeconds, settings.autoRestTimerEnabled]);
+
+  useEffect(() => {
+    if (!isWatchSyncSupported()) return;
+    const drainWatchCommands = async () => {
+      let raw: string[] = [];
+      try {
+        raw = (await WatchBridge.takePendingCommands()).commands;
+      } catch {
+        return;
+      }
+      let workout = activeWorkoutRef.current;
+      const commands = parseWatchCommands(raw);
+      if (!workout || commands.length === 0) return;
+
+      let ack = getWatchAck(workout.id);
+      for (const cmd of commands) {
+        if (cmd.workoutId !== workout.id || cmd.seq <= ack) continue;
+        workout = applyWatchCommand(workout, cmd);
+        ack = cmd.seq;
+      }
+      setWatchAck(workout.id, ack);
+      activeWorkoutRef.current = workout;
+      handleUpdateActiveWorkout(workout);
+      sendStateToWatch();
+    };
+
+    drainWatchCommands();
+    const listeners = [
+      WatchBridge.addListener('commandsAvailable', drainWatchCommands),
+      CapacitorApp.addListener('resume', drainWatchCommands),
+    ];
+    return () => {
+      listeners.forEach((p) => p.then((l) => l.remove()));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Step 1 -> Step 2: Clicking "Start Workout" on Screen 1 opens Screen 2 (Preview / Reorder)
   const handleOpenWorkoutDetail = (routine: RoutineTemplate, day: RoutineDay) => {

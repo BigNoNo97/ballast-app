@@ -29,6 +29,9 @@ export interface AppleHealthPlugin {
     pauses?: { startMs: number; endMs: number }[];
   }): Promise<{ success: boolean; workoutId: string; energySaved: boolean }>;
 
+  /** מפעיל את אפליקציית השעון עם סשן אימון כוח (HKHealthStore.startWatchApp) */
+  startWatchApp(): Promise<{ started: boolean }>;
+
   /** מוחק מ-Health אימון ש-Ballast שמרה, לפי שעת ההתחלה שלו (לא נוגע באימונים של אפליקציות אחרות) */
   deleteWorkout(options: { startMs: number }): Promise<{ deletedWorkouts: number }>;
 

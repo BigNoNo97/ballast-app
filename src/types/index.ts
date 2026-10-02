@@ -80,6 +80,9 @@ export interface WorkoutSession {
   pausedTotalMs?: number;
   // רשימת ההפסקות שהסתיימו - נשלחת ל-Apple Health כאירועי pause/resume
   pauses?: { startMs: number; endMs: number }[];
+  // השעון מריץ סשן אימון של Apple על האימון הזה ושומר אותו ב-Health בעצמו (עם דופק וקלוריות
+  // אמיתיים) - אז האייפון לא שומר עותק נוסף בסיום.
+  healthRecordedByWatch?: boolean;
   exercises: WorkoutExercise[];
   notes?: string;
   isCompleted: boolean;

@@ -18,6 +18,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "saveBodyWeight", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveWorkout", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "deleteWorkout", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startWatchApp", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getLatestHeartRate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getStepsToday", returnType: CAPPluginReturnPromise)
     ]
@@ -187,6 +188,21 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    @objc func startWatchApp(_ call: CAPPluginCall) {
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = .traditionalStrengthTraining
+        configuration.locationType = .indoor
+        healthStore.startWatchApp(with: configuration) { success, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    call.reject(error.localizedDescription)
+                } else {
+                    call.resolve(["started": success])
+                }
+            }
+        }
+    }
+
     @objc func deleteWorkout(_ call: CAPPluginCall) {
         guard let startMs = call.getDouble("startMs") else {
             call.reject("חסר פרמטר 'startMs'")
@@ -198,18 +214,29 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         // מזהים את האימון לפי שעת ההתחלה (±2 שניות), ורק מתוך מה ש-Ballast עצמה שמרה -
-        // אימונים מאפליקציות אחרות באותן שעות לא נוגעים בהם.
+        // מהאייפון או מאפליקציית השעון שלה. אימונים מאפליקציות אחרות באותן שעות לא נוגעים בהם.
         let start = Date(timeIntervalSince1970: startMs / 1000)
         let timePredicate = HKQuery.predicateForSamples(
             withStart: start.addingTimeInterval(-2),
             end: start.addingTimeInterval(2),
             options: .strictStartDate
         )
-        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-            timePredicate,
-            HKQuery.predicateForObjects(from: HKSource.default()),
-        ])
 
+        let sourceQuery = HKSourceQuery(sampleType: workoutType, samplePredicate: timePredicate) { _, sources, _ in
+            var ours: Set<HKSource> = [HKSource.default()]
+            for source in sources ?? [] where source.bundleIdentifier.hasPrefix("co.brainslead.ballast") {
+                ours.insert(source)
+            }
+            let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                timePredicate,
+                HKQuery.predicateForObjects(from: ours),
+            ])
+            self.deleteMatching(predicate: predicate, call: call)
+        }
+        healthStore.execute(sourceQuery)
+    }
+
+    private func deleteMatching(predicate: NSPredicate, call: CAPPluginCall) {
         healthStore.deleteObjects(of: workoutType, predicate: predicate) { success, deletedCount, error in
             guard success else {
                 DispatchQueue.main.async {

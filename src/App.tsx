@@ -54,6 +54,7 @@ import {
   getWatchAck,
   isWatchSyncSupported,
   parseWatchCommands,
+  setLastEndedWorkout,
   setWatchAck,
 } from './services/watchSync';
 
@@ -243,7 +244,17 @@ export const App: React.FC = () => {
   useEffect(() => {
     sendStateToWatch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeWorkout, exercises, settings.defaultRestSeconds, settings.autoRestTimerEnabled]);
+  }, [activeWorkout, exercises, settings.defaultRestSeconds, settings.autoRestTimerEnabled, settings.appleHealthSyncEnabled]);
+
+  // אימון חדש מתחיל -> פותחים את אפליקציית השעון עם סשן אימון (דופק/קלוריות). רק כשסנכרון
+  // Health פעיל, כי הסשן עצמו נשמר ב-Health. פעם אחת לכל אימון.
+  const watchLaunchedForWorkout = useRef<string | null>(null);
+  useEffect(() => {
+    const id = activeWorkout?.id;
+    if (!id || watchLaunchedForWorkout.current === id || !isWatchSyncSupported()) return;
+    watchLaunchedForWorkout.current = id;
+    if (!activeWorkout?.healthRecordedByWatch) AppleHealthService.startWatchWorkout();
+  }, [activeWorkout?.id, activeWorkout?.healthRecordedByWatch]);
 
   useEffect(() => {
     if (!isWatchSyncSupported()) return;
@@ -365,10 +376,23 @@ export const App: React.FC = () => {
   const handleFinishWorkout = (finishedSession: WorkoutSession) => {
     StorageService.saveWorkout(finishedSession);
     setHealthSync(null);
-    AppleHealthService.syncWorkout(finishedSession).then((result) => {
-      if (result.status === 'saved') setHealthSync({ ok: true, message: 'האימון נשמר ב-Apple Health' });
-      if (result.status === 'failed') setHealthSync({ ok: false, message: result.error });
+    // אם השעון הריץ סשן אימון של Apple, הוא שומר את האימון ב-Health בעצמו (עם דופק וקלוריות
+    // אמיתיים) כשהוא מקבל את הסיום - האייפון לא שומר עותק נוסף. אחרת שומרים מהאייפון כרגיל.
+    const watchSaves = Boolean(finishedSession.healthRecordedByWatch) && AppleHealthService.isEnabled();
+    setLastEndedWorkout({
+      workoutId: finishedSession.id,
+      endTime: finishedSession.endTime || Date.now(),
+      outcome: 'finished',
+      phoneSaved: !watchSaves && AppleHealthService.isEnabled(),
     });
+    if (watchSaves) {
+      setHealthSync({ ok: true, message: 'האימון נשמר ב-Apple Health דרך השעון, עם הדופק והקלוריות שהוא מדד' });
+    } else {
+      AppleHealthService.syncWorkout(finishedSession).then((result) => {
+        if (result.status === 'saved') setHealthSync({ ok: true, message: 'האימון נשמר ב-Apple Health' });
+        if (result.status === 'failed') setHealthSync({ ok: false, message: result.error });
+      });
+    }
     setHistory(StorageService.getWorkoutHistory());
     setActiveWorkout(null);
     setSummarySession(finishedSession);
@@ -427,6 +451,9 @@ export const App: React.FC = () => {
 
   // Cancel Workout
   const handleCancelWorkout = () => {
+    if (activeWorkout) {
+      setLastEndedWorkout({ workoutId: activeWorkout.id, endTime: Date.now(), outcome: 'cancelled', phoneSaved: false });
+    }
     StorageService.clearActiveWorkout();
     setActiveWorkout(null);
   };

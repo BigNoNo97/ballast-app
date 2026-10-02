@@ -12,6 +12,7 @@ enum EditField { case weight, reps }
 struct WorkoutView: View {
     @EnvironmentObject private var connector: WatchConnector
     @EnvironmentObject private var restTimer: RestTimer
+    @EnvironmentObject private var sessionManager: WorkoutSessionManager
     let state: WorkoutState
 
     @State private var selection = 0
@@ -39,6 +40,7 @@ struct WorkoutView: View {
                         shownReps: shownValue(exercise: index, field: .reps).map { Int($0.rounded()) },
                         hasNext: nextOpenExercise(after: index) != nil,
                         syncing: !connector.pending.isEmpty,
+                        heartRate: sessionManager.heartRate,
                         onSelectField: selectField,
                         onComplete: { complete(exerciseIndex: index) },
                         onUndo: { undo(exerciseIndex: index) },
@@ -206,6 +208,7 @@ private struct ExercisePage: View {
     let shownReps: Int?
     let hasNext: Bool
     let syncing: Bool
+    let heartRate: Int?
     let onSelectField: (EditField) -> Void
     let onComplete: () -> Void
     let onUndo: () -> Void
@@ -231,6 +234,10 @@ private struct ExercisePage: View {
                 }
 
                 Spacer(minLength: 0)
+
+                if let heartRate {
+                    HeartRateLabel(bpm: heartRate)
+                }
 
                 if syncing {
                     Image(systemName: "arrow.triangle.2.circlepath")
@@ -341,17 +348,38 @@ private struct ValueTile: View {
     }
 }
 
+private struct HeartRateLabel: View {
+    let bpm: Int
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "heart.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(.red)
+            Text("\(bpm)")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+        }
+    }
+}
+
 // MARK: - מסך מנוחה
 
 private struct RestOverlay: View {
     @EnvironmentObject private var restTimer: RestTimer
+    @EnvironmentObject private var sessionManager: WorkoutSessionManager
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             VStack(spacing: 6) {
-                Text("מנוחה")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Text("מנוחה")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                    if let bpm = sessionManager.heartRate {
+                        HeartRateLabel(bpm: bpm)
+                    }
+                }
 
                 Text(WorkoutLogic.formatClock(remaining(at: context.date)))
                     .font(.system(size: 46, weight: .bold, design: .rounded))

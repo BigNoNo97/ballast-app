@@ -11,7 +11,7 @@ import { applySetFieldEdit, toggleWorkoutPause } from './workoutEdits';
 export interface WatchCommand {
   seq: number;
   workoutId: string;
-  type: 'completeSet' | 'uncompleteSet' | 'updateSet' | 'pause' | 'resume';
+  type: 'completeSet' | 'uncompleteSet' | 'updateSet' | 'pause' | 'resume' | 'watchSessionStarted';
   exerciseIndex?: number;
   exerciseId?: string;
   setIndex?: number;
@@ -21,6 +21,35 @@ export interface WatchCommand {
 }
 
 const ACK_KEY = 'ballast_watch_ack_v1';
+const LAST_ENDED_KEY = 'ballast_watch_last_ended_v1';
+
+/**
+ * איך הסתיים האימון האחרון - נשלח לשעון כדי שיסגור את סשן האימון של Apple בשעת הסיום
+ * האמיתית: 'finished' = לשמור ב-Health (אלא אם האייפון כבר שמר בעצמו), 'cancelled' = לזרוק.
+ */
+export interface LastEndedWorkout {
+  workoutId: string;
+  endTime: number;
+  outcome: 'finished' | 'cancelled';
+  phoneSaved: boolean;
+}
+
+export function setLastEndedWorkout(ended: LastEndedWorkout): void {
+  try {
+    localStorage.setItem(LAST_ENDED_KEY, JSON.stringify(ended));
+  } catch {
+    // אחסון חסום - השעון פשוט לא יקבל את הסיום עד העדכון הבא
+  }
+}
+
+function getLastEndedWorkout(): LastEndedWorkout | null {
+  try {
+    const raw = localStorage.getItem(LAST_ENDED_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 export const isWatchSyncSupported = (): boolean => Capacitor.getPlatform() === 'ios';
 
@@ -43,11 +72,13 @@ export function setWatchAck(workoutId: string, seq: number): void {
 }
 
 export function buildWatchState(workout: WorkoutSession | null, exercises: Exercise[], settings: UserSettings) {
-  if (!workout) return { v: 1, active: false };
+  const healthSync = Boolean(settings.appleHealthSyncEnabled);
+  if (!workout) return { v: 1, active: false, healthSync, lastEnded: getLastEndedWorkout() };
   const byId = new Map(exercises.map((e) => [e.id, e]));
   return {
     v: 1,
     active: true,
+    healthSync,
     workoutId: workout.id,
     title: workout.title,
     startTime: workout.startTime,
@@ -72,6 +103,9 @@ export function buildWatchState(workout: WorkoutSession | null, exercises: Exerc
 export function applyWatchCommand(workout: WorkoutSession, cmd: WatchCommand): WorkoutSession {
   if (cmd.type === 'pause') return workout.pausedAt != null ? workout : { ...workout, pausedAt: cmd.at };
   if (cmd.type === 'resume') return workout.pausedAt == null ? workout : toggleWorkoutPause(workout, cmd.at);
+  if (cmd.type === 'watchSessionStarted') {
+    return workout.healthRecordedByWatch ? workout : { ...workout, healthRecordedByWatch: true };
+  }
 
   const exIdx = cmd.exerciseIndex;
   const ex = exIdx != null ? workout.exercises[exIdx] : undefined;

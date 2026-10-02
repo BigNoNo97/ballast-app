@@ -459,6 +459,7 @@
 				CURRENT_PROJECT_VERSION = 9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "BallastWatch-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Ballast;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ballast קוראת מ-Health את הדופק במהלך האימון.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ballast שומרת ב-Health את האימונים שהשלמת בשעון.";
@@ -491,6 +492,7 @@
 				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = T8TZD6S99Z;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "BallastWatch-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Ballast;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ballast קוראת מ-Health את הדופק במהלך האימון.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ballast שומרת ב-Health את האימונים שהשלמת בשעון.";

@@ -89,6 +89,16 @@ export const AppleHealthService = {
     }
   },
 
+  /** פותח את אפליקציית השעון עם סשן אימון פעיל (דופק/קלוריות). נכשל בשקט אם אין שעון מצומד. */
+  async startWatchWorkout(): Promise<void> {
+    if (!this.isEnabled()) return;
+    try {
+      await AppleHealth.startWatchApp();
+    } catch (e) {
+      console.warn('[AppleHealth] פתיחת אפליקציית השעון נכשלה:', e);
+    }
+  },
+
   /** מוחק מ-Health את האימון ש-Ballast שמרה עבור האימון הזה (בלי תלות במתג הסנכרון - ייתכן שסונכרן בעבר) */
   async deleteWorkout(
     session: WorkoutSession

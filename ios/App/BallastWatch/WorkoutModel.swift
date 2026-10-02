@@ -18,8 +18,18 @@ struct WatchExercise: Codable, Equatable {
     var isDone: Bool { !sets.isEmpty && sets.allSatisfy(\.completed) }
 }
 
+/// איך הסתיים האימון האחרון באייפון - כדי לסגור את סשן האימון של Apple בהתאם
+struct LastEndedWorkout: Codable, Equatable {
+    var workoutId: String
+    var endTime: Double
+    var outcome: String
+    var phoneSaved: Bool?
+}
+
 struct WorkoutState: Codable, Equatable {
     var active: Bool
+    var healthSync: Bool?
+    var lastEnded: LastEndedWorkout?
     var workoutId: String?
     var title: String?
     var startTime: Double?

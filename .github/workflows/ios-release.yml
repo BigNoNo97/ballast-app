@@ -37,6 +37,11 @@ name: iOS Release
 
 on:
   workflow_dispatch:
+    inputs:
+      upload:
+        description: 'להעלות ל-App Store Connect (TestFlight)? כבוי = רק בדיקת חתימה וייצוא'
+        type: boolean
+        default: true
 
 jobs:
   release:
@@ -147,6 +152,7 @@ jobs:
             -exportPath $RUNNER_TEMP/export
 
       - name: Upload to App Store Connect
+        if: ${{ inputs.upload }}
         env:
           APPLE_ID_EMAIL: ${{ secrets.APPLE_ID_EMAIL }}
           APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}

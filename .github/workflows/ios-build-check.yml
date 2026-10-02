@@ -48,10 +48,11 @@ jobs:
       - name: Build for iOS Simulator (no code signing needed)
         working-directory: ios/App
         run: |
+          # בלי -sdk: הוא היה כופה SDK של אייפון גם על אפליקציית השעון המוטמעת.
+          # ה-destination לבדו נותן ל-Xcode לבחור watchsimulator לשעון ו-iphonesimulator לאייפון.
           xcodebuild \
             -project App.xcodeproj \
             -scheme App \
-            -sdk iphonesimulator \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \

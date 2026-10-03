@@ -59,9 +59,9 @@ export function buildWatchCatalog(
         return {
           exerciseId: ex.exerciseId,
           name: data?.nameHe || 'תרגיל',
-          restSec: data?.defaultRestSec || settings.defaultRestSeconds,
+          restSec: toWholeNumber(data?.defaultRestSec || settings.defaultRestSeconds, 90),
           weightStep: data ? getWeightIncrement(data.muscle) : 2.5,
-          sets: ex.sets.map((s) => ({ weightKg: s.weightKg, reps: s.reps })),
+          sets: ex.sets.map((s) => ({ weightKg: toNumber(s.weightKg), reps: toWholeNumber(s.reps, 0) })),
         };
       }),
     })),
@@ -138,6 +138,13 @@ export function saveOrphanCommands(commands: WatchCommand[]): void {
 }
 
 const ACK_KEY = 'ballast_watch_ack_v1';
+
+// השעון מצפה למספרים "נקיים" (חזרות שלמות, בלי null/NaN) - ערך אחד חריג היה מפיל את כל ההודעה שם
+const toNumber = (v: unknown, fallback = 0): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+};
+const toWholeNumber = (v: unknown, fallback: number): number => Math.round(toNumber(v, fallback));
 const LAST_ENDED_KEY = 'ballast_watch_last_ended_v1';
 
 /**
@@ -197,9 +204,15 @@ export function buildWatchState(
   const healthSync = Boolean(settings.appleHealthSyncEnabled);
   // התוכנית נשלחת רק כשאין אימון פעיל - רק אז השעון מציג "התחל אימון", והוא שומר את האחרונה שקיבל
   if (!workout) {
-    const catalog = catalogSource
-      ? buildWatchCatalog(catalogSource.routine, catalogSource.nextDayNumber, exercises, settings)
-      : null;
+    // תקלה בבניית התוכנית אסור שתמנע את שליחת המצב עצמו לשעון
+    let catalog = null;
+    try {
+      catalog = catalogSource
+        ? buildWatchCatalog(catalogSource.routine, catalogSource.nextDayNumber, exercises, settings)
+        : null;
+    } catch (e) {
+      console.warn('[watchSync] building the program catalog failed:', e);
+    }
     return {
       v: 1,
       active: false,
@@ -226,9 +239,9 @@ export function buildWatchState(
       return {
         exerciseId: ex.exerciseId,
         name: data?.nameHe || 'תרגיל',
-        restSec: data?.defaultRestSec || settings.defaultRestSeconds,
+        restSec: toWholeNumber(data?.defaultRestSec || settings.defaultRestSeconds, 90),
         weightStep: data ? getWeightIncrement(data.muscle) : 2.5,
-        sets: ex.sets.map((s) => ({ weightKg: s.weightKg, reps: s.reps, completed: s.completed })),
+        sets: ex.sets.map((s) => ({ weightKg: toNumber(s.weightKg), reps: toWholeNumber(s.reps, 0), completed: Boolean(s.completed) })),
       };
     }),
   };

@@ -19,6 +19,9 @@ final class WatchConnector: NSObject, ObservableObject {
     @Published private(set) var finishedSummary: FinishedSummary?
     /// התוכנית האחרונה שהגיעה מהאייפון (נשמרת, כדי שאפשר יהיה להתחיל אימון גם כשהאייפון לא בסביבה)
     @Published private(set) var catalog: WorkoutCatalog?
+    /// מתי הגיע העדכון האחרון מהאייפון, ומה השתבש אם משהו השתבש - מוצג במסך הבית לאבחון
+    @Published private(set) var lastSync: Date?
+    @Published private(set) var syncError: String?
 
     private var lastActiveState: WorkoutState?
 
@@ -133,9 +136,38 @@ final class WatchConnector: NSObject, ObservableObject {
         }
     }
 
+    /// מבקש מהאייפון את המצב העדכני. האייפון עונה מהעותק השמור שלו, גם אם האפליקציה שם סגורה.
+    func requestState() {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated else { return }
+        guard session.isReachable else {
+            if lastSync == nil { syncError = "האייפון לא בטווח - התוכנית תגיע כשהוא יהיה זמין" }
+            return
+        }
+        session.sendMessage(["requestState": true], replyHandler: { reply in
+            let json = reply["state"] as? String
+            Task { @MainActor in self.receive(stateJSON: json) }
+        }, errorHandler: { error in
+            let message = error.localizedDescription
+            Task { @MainActor in self.syncError = "אין קשר לאייפון: \(message)" }
+        })
+    }
+
     fileprivate func receive(stateJSON: String?) {
-        guard let stateJSON, let data = stateJSON.data(using: .utf8),
-              let decoded = try? JSONDecoder().decode(WorkoutState.self, from: data) else { return }
+        guard let stateJSON, !stateJSON.isEmpty, let data = stateJSON.data(using: .utf8) else {
+            if lastSync == nil { syncError = "האייפון עוד לא שלח נתונים - פתח את Ballast באייפון" }
+            return
+        }
+        let decoded: WorkoutState
+        do {
+            decoded = try JSONDecoder().decode(WorkoutState.self, from: data)
+        } catch {
+            syncError = "לא הצלחתי לקרוא את הנתונים מהאייפון: \(error.localizedDescription)"
+            return
+        }
+        lastSync = Date()
+        syncError = nil
 
         if let newCatalog = decoded.catalog {
             catalog = newCatalog
@@ -194,7 +226,15 @@ final class WatchConnector: NSObject, ObservableObject {
 extension WatchConnector: WCSessionDelegate {
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         let json = session.receivedApplicationContext["state"] as? String
-        Task { @MainActor in self.receive(stateJSON: json) }
+        Task { @MainActor in
+            if json != nil { self.receive(stateJSON: json) }
+            self.requestState()
+        }
+    }
+
+    nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+        guard session.isReachable else { return }
+        Task { @MainActor in self.requestState() }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {

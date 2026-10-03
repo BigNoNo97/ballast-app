@@ -165,3 +165,78 @@ enum WorkoutLogic {
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
     }
 }
+
+// MARK: - פענוח סלחני
+// ערך חסר או בפורמט לא צפוי (למשל חזרות כמספר עשרוני) מקבל ברירת מחדל, ולא מפיל את כל
+// ההודעה מהאייפון - אחרת השעון פשוט מתעלם מהעדכון בלי שום סימן.
+
+extension KeyedDecodingContainer {
+    func flexibleDouble(_ key: Key, default fallback: Double = 0) -> Double {
+        if let d = try? decode(Double.self, forKey: key) { return d }
+        if let s = try? decode(String.self, forKey: key), let d = Double(s) { return d }
+        return fallback
+    }
+
+    func flexibleInt(_ key: Key, default fallback: Int = 0) -> Int {
+        if let i = try? decode(Int.self, forKey: key) { return i }
+        return Int(flexibleDouble(key, default: Double(fallback)).rounded())
+    }
+}
+
+extension WatchSet {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        weightKg = c.flexibleDouble(.weightKg)
+        reps = c.flexibleInt(.reps)
+        completed = (try? c.decode(Bool.self, forKey: .completed)) ?? false
+    }
+}
+
+extension CatalogSet {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        weightKg = c.flexibleDouble(.weightKg)
+        reps = c.flexibleInt(.reps)
+    }
+}
+
+extension WatchExercise {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        exerciseId = try c.decode(String.self, forKey: .exerciseId)
+        name = (try? c.decode(String.self, forKey: .name)) ?? "תרגיל"
+        restSec = c.flexibleInt(.restSec, default: 90)
+        weightStep = c.flexibleDouble(.weightStep, default: 2.5)
+        sets = (try? c.decode([WatchSet].self, forKey: .sets)) ?? []
+    }
+}
+
+extension CatalogExercise {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        exerciseId = try c.decode(String.self, forKey: .exerciseId)
+        name = (try? c.decode(String.self, forKey: .name)) ?? "תרגיל"
+        restSec = c.flexibleInt(.restSec, default: 90)
+        weightStep = c.flexibleDouble(.weightStep, default: 2.5)
+        sets = (try? c.decode([CatalogSet].self, forKey: .sets)) ?? []
+    }
+}
+
+extension WorkoutState {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        active = (try? c.decode(Bool.self, forKey: .active)) ?? false
+        healthSync = try? c.decodeIfPresent(Bool.self, forKey: .healthSync)
+        lastEnded = try? c.decodeIfPresent(LastEndedWorkout.self, forKey: .lastEnded)
+        // תוכנית שלא מצליחים לקרוא לא מפילה את מצב האימון עצמו
+        catalog = try? c.decodeIfPresent(WorkoutCatalog.self, forKey: .catalog)
+        workoutId = try? c.decodeIfPresent(String.self, forKey: .workoutId)
+        title = try? c.decodeIfPresent(String.self, forKey: .title)
+        startTime = try? c.decodeIfPresent(Double.self, forKey: .startTime)
+        pausedAt = try? c.decodeIfPresent(Double.self, forKey: .pausedAt)
+        pausedTotalMs = try? c.decodeIfPresent(Double.self, forKey: .pausedTotalMs)
+        autoRest = try? c.decodeIfPresent(Bool.self, forKey: .autoRest)
+        ackSeq = try? c.decodeIfPresent(Int.self, forKey: .ackSeq)
+        exercises = try? c.decodeIfPresent([WatchExercise].self, forKey: .exercises)
+    }
+}

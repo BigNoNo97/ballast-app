@@ -7,6 +7,7 @@ struct BallastWatchApp: App {
     @StateObject private var connector = WatchConnector()
     @StateObject private var restTimer = RestTimer()
     @StateObject private var sessionManager = WorkoutSessionManager.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
@@ -25,6 +26,9 @@ struct BallastWatchApp: App {
                 }
                 .onChange(of: connector.state) { _, newState in
                     sessionManager.sync(with: newState)
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { connector.requestState() }
                 }
         }
     }

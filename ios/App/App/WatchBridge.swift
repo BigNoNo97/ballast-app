@@ -13,6 +13,7 @@ final class WatchSessionCoordinator: NSObject, WCSessionDelegate {
     static let shared = WatchSessionCoordinator()
 
     private let pendingKey = "ballast.watch.pendingCommands"
+    private let lastStateKey = "ballast.watch.lastSentState"
     private let lock = NSLock()
 
     func activate() {
@@ -21,9 +22,22 @@ final class WatchSessionCoordinator: NSObject, WCSessionDelegate {
         WCSession.default.activate()
     }
 
-    /// state = JSON של מצב האימון. applicationContext מגיע גם אם אפליקציית השעון סגורה
-    /// (תמיד רק הגרסה האחרונה), sendMessage מוסיף עדכון מיידי כשהשעון פתוח.
+    /// state = JSON של מצב האימון. נשמר תמיד, ונשלח שוב בכל פעם שהקשר מוכן (סיום הפעלה,
+    /// השעון התחבר/הותקן, או בקשה מהשעון) - כדי שעדכון שנשלח לפני שהקשר היה מוכן לא ילך לאיבוד.
     func send(state: String) {
+        UserDefaults.standard.set(state, forKey: lastStateKey)
+        push(state)
+    }
+
+    private var lastState: String? { UserDefaults.standard.string(forKey: lastStateKey) }
+
+    private func pushLastState() {
+        if let lastState { push(lastState) }
+    }
+
+    /// applicationContext מגיע גם אם אפליקציית השעון סגורה (תמיד רק הגרסה האחרונה),
+    /// sendMessage מוסיף עדכון מיידי כשהשעון פתוח.
+    private func push(_ state: String) {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
         guard session.activationState == .activated, session.isPaired, session.isWatchAppInstalled else { return }
@@ -55,15 +69,31 @@ final class WatchSessionCoordinator: NSObject, WCSessionDelegate {
 
     // MARK: - WCSessionDelegate
 
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
+    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        if activationState == .activated { pushLastState() }
+    }
     func sessionDidBecomeInactive(_ session: WCSession) {}
     func sessionDidDeactivate(_ session: WCSession) { session.activate() }
+    func sessionWatchStateDidChange(_ session: WCSession) { pushLastState() }
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        if session.isReachable { pushLastState() }
+    }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        if message["requestState"] != nil {
+            pushLastState()
+            return
+        }
         enqueue(message)
     }
 
+    /// השעון מבקש את המצב (בכל פתיחה) - עונים מהעותק השמור, בלי לחכות ל-JS: זה עובד גם
+    /// כשאפליקציית האייפון סגורה והשעון העיר אותה ברקע רק בשביל הבקשה הזו.
     func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+        if message["requestState"] != nil {
+            replyHandler(["state": lastState ?? ""])
+            return
+        }
         enqueue(message)
         replyHandler(["ok": true])
     }

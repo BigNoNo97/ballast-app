@@ -28,6 +28,7 @@ private struct IdleView: View {
     let hint: String
 
     var body: some View {
+        ScrollView {
         VStack(spacing: S(8)) {
             Image(systemName: "dumbbell.fill")
                 .font(.system(size: S(34)))
@@ -39,8 +40,36 @@ private struct IdleView: View {
                 .font(.system(size: S(14)))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+            SyncStatusView()
         }
         .padding()
+        }
+    }
+}
+
+/// מתי הגיע העדכון האחרון מהאייפון (או מה השתבש), וכפתור לבקש עדכון עכשיו
+private struct SyncStatusView: View {
+    @EnvironmentObject private var connector: WatchConnector
+
+    var body: some View {
+        VStack(spacing: S(4)) {
+            if let error = connector.syncError {
+                Text(error)
+                    .foregroundStyle(.orange)
+            } else if let lastSync = connector.lastSync {
+                Text("עודכן מהאייפון ב-\(lastSync.formatted(date: .omitted, time: .shortened))")
+                    .foregroundStyle(.secondary)
+            }
+            Button {
+                connector.requestState()
+            } label: {
+                Label("רענן", systemImage: "arrow.clockwise")
+            }
+            .tint(.ballast)
+        }
+        .font(.system(size: S(12)))
+        .multilineTextAlignment(.center)
+        .padding(.top, S(4))
     }
 }
 
@@ -59,6 +88,12 @@ private struct StartView: View {
                     .font(.system(size: S(12)))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+
+                if let lastSync = connector.lastSync {
+                    Text("עודכן ב-\(lastSync.formatted(date: .omitted, time: .shortened))")
+                        .font(.system(size: S(10)))
+                        .foregroundStyle(.secondary)
+                }
 
                 ForEach(catalog.orderedDays, id: \.dayNumber) { day in
                     let isNext = day.dayNumber == catalog.nextDayNumber

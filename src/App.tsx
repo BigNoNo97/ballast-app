@@ -355,7 +355,11 @@ export const App: React.FC = () => {
     drainWatchCommands();
     const listeners = [
       WatchBridge.addListener('commandsAvailable', drainWatchCommands),
-      CapacitorApp.addListener('resume', drainWatchCommands),
+      CapacitorApp.addListener('resume', () => {
+        // גם כשאין פקודות - לשלוח מצב עדכני, למקרה שעדכון קודם לא הגיע לשעון
+        drainWatchCommands();
+        sendStateToWatch();
+      }),
     ];
     return () => {
       listeners.forEach((p) => p.then((l) => l.remove()));

@@ -92,7 +92,7 @@ struct WorkoutView: View {
             setIndex: open,
             field: field,
             current: field == .weight ? set.weightKg : Double(set.reps),
-            step: field == .weight ? max(0.25, exercise.weightStep) : 1
+            step: field == .weight ? 0.5 : 1
         )
     }
 
@@ -187,7 +187,7 @@ private struct ValuePickerSheet: View {
         _value = State(initialValue: request.current)
     }
 
-    /// כפולות של הקפיצה (2.5/1.25 ק"ג או חזרה אחת), ותמיד גם הערך הנוכחי - גם אם הוא לא כפולה
+    /// כפולות של הקפיצה (0.5 ק"ג או חזרה אחת), ותמיד גם הערך הנוכחי - גם אם הוא לא כפולה
     private var options: [Double] {
         let maxValue = request.field == .weight ? max(300, request.current + 50) : max(100, request.current + 20)
         let count = Int((maxValue / request.step).rounded(.down))
@@ -303,10 +303,8 @@ private struct HeartRateButton: View {
         Button {
             if sessionManager.heartRate == nil { showingStatus = true }
         } label: {
-            HStack(spacing: S(2)) {
-                Image(systemName: "heart.fill")
-                    .font(.system(size: S(11)))
-                    .foregroundStyle(sessionManager.heartRate == nil ? Color.gray : Color.red)
+            HStack(spacing: S(3)) {
+                BeatingHeart(bpm: sessionManager.heartRate, size: S(12))
                 Text(sessionManager.heartRate.map(String.init) ?? "--")
                     .font(.system(size: S(16), weight: .semibold, design: .rounded))
                     .monospacedDigit()
@@ -318,6 +316,29 @@ private struct HeartRateButton: View {
             Button("סגור", role: .cancel) {}
         } message: {
             Text(sessionManager.statusMessage ?? "מתחבר לחיישן הדופק…")
+        }
+    }
+}
+
+/// לב שפועם בקצב הדופק שנמדד: פעימה אחת כל 60/bpm שניות - כיווץ מהיר והרפיה איטית יותר,
+/// כמו פעימה אמיתית. בלי דופק: לב אפור וסטטי.
+struct BeatingHeart: View {
+    let bpm: Int?
+    let size: CGFloat
+
+    var body: some View {
+        let icon = Image(systemName: "heart.fill").font(.system(size: size))
+        if let bpm, bpm > 0 {
+            let beat = 60.0 / Double(min(max(bpm, 30), 220))
+            icon
+                .foregroundStyle(.red)
+                .phaseAnimator([false, true]) { content, expanded in
+                    content.scaleEffect(expanded ? 1.3 : 1.0)
+                } animation: { expanded in
+                    expanded ? .easeOut(duration: beat * 0.3) : .easeIn(duration: beat * 0.7)
+                }
+        } else {
+            icon.foregroundStyle(.gray)
         }
     }
 }
@@ -372,8 +393,8 @@ private struct ExercisePage: View {
 
                 Button(action: onComplete) {
                     Label("בוצע", systemImage: "checkmark")
-                        .font(.system(size: S(18), weight: .bold))
-                        .frame(maxWidth: .infinity, minHeight: S(40))
+                        .font(.system(size: S(16), weight: .bold))
+                        .frame(maxWidth: .infinity, minHeight: S(32))
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.ballast)
@@ -390,8 +411,8 @@ private struct ExercisePage: View {
 
                 Button(action: onNext) {
                     Label(nextLabel, systemImage: "chevron.left")
-                        .font(.system(size: S(17), weight: .semibold))
-                        .frame(maxWidth: .infinity, minHeight: S(40))
+                        .font(.system(size: S(15), weight: .semibold))
+                        .frame(maxWidth: .infinity, minHeight: S(32))
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.ballast)
@@ -470,8 +491,10 @@ private struct FinishPage: View {
 
             HStack(spacing: S(12)) {
                 if let bpm = sessionManager.heartRate {
-                    Label("\(bpm)", systemImage: "heart.fill")
-                        .foregroundStyle(.red)
+                    HStack(spacing: S(3)) {
+                        BeatingHeart(bpm: bpm, size: S(13))
+                        Text("\(bpm)").monospacedDigit()
+                    }
                 }
                 if sessionManager.activeCalories > 0 {
                     Label("\(Int(sessionManager.activeCalories.rounded()))", systemImage: "flame.fill")
@@ -516,9 +539,12 @@ private struct RestOverlay: View {
                         .font(.system(size: S(15)))
                         .foregroundStyle(.secondary)
                     if let bpm = sessionManager.heartRate {
-                        Label("\(bpm)", systemImage: "heart.fill")
-                            .font(.system(size: S(15), weight: .semibold, design: .rounded))
-                            .foregroundStyle(.red)
+                        HStack(spacing: S(3)) {
+                            BeatingHeart(bpm: bpm, size: S(14))
+                            Text("\(bpm)")
+                                .font(.system(size: S(15), weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                        }
                     }
                 }
 

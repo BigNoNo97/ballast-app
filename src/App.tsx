@@ -57,6 +57,7 @@ import {
   setLastEndedWorkout,
   setWatchAck,
 } from './services/watchSync';
+import { buildFinishedSession } from './services/workoutEdits';
 
 type NavigationTab = 'workout' | 'analysis' | 'community' | 'nutrition' | 'profile';
 
@@ -234,6 +235,9 @@ export const App: React.FC = () => {
   exercisesRef.current = exercises;
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  // handleFinishWorkout תלוי בתוכניות/הגדרות עדכניות, ופקודות מהשעון מעובדות מתוך effect
+  // שנרשם פעם אחת - לכן קוראים לגרסה האחרונה דרך ref (מתעדכן אחרי שהפונקציה מוגדרת למטה).
+  const finishWorkoutRef = useRef<((session: WorkoutSession) => void) | null>(null);
 
   const sendStateToWatch = () => {
     if (!isWatchSyncSupported()) return;
@@ -270,12 +274,26 @@ export const App: React.FC = () => {
       if (!workout || commands.length === 0) return;
 
       let ack = getWatchAck(workout.id);
+      let finishedAt: number | null = null;
       for (const cmd of commands) {
         if (cmd.workoutId !== workout.id || cmd.seq <= ack) continue;
-        workout = applyWatchCommand(workout, cmd);
         ack = cmd.seq;
+        if (cmd.type === 'finishWorkout') {
+          finishedAt = cmd.at;
+          break;
+        }
+        workout = applyWatchCommand(workout, cmd);
       }
       setWatchAck(workout.id, ack);
+
+      if (finishedAt != null) {
+        // סיום מהשעון עובר בדיוק באותו מסלול כמו "סיים אימון" באייפון (שיאים, היסטוריה,
+        // Health, מסך סיכום) - עם שעת הסיום מהשעון, גם אם האייפון עיבד את זה רק אחר כך.
+        activeWorkoutRef.current = null;
+        finishWorkoutRef.current?.(buildFinishedSession(workout, exercisesRef.current, finishedAt));
+        return;
+      }
+
       activeWorkoutRef.current = workout;
       handleUpdateActiveWorkout(workout);
       sendStateToWatch();
@@ -448,6 +466,8 @@ export const App: React.FC = () => {
     setSelectedDayNumber(nextDay);
     StorageService.saveSelectedDayNumber(targetRoutineId, nextDay);
   };
+
+  finishWorkoutRef.current = handleFinishWorkout;
 
   // Cancel Workout
   const handleCancelWorkout = () => {

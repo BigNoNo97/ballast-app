@@ -1,9 +1,16 @@
 import Foundation
 import HealthKit
 
+/// סיכום הנתונים שהשעון מדד באימון שהסתיים - למסך הסיום בשעון
+struct MeasuredStats: Equatable {
+    var workoutId: String?
+    var calories: Int
+    var averageHeartRate: Int?
+}
+
 /// סשן אימון של Apple בשעון: דופק בזמן אמת, קלוריות שנמדדו, והאפליקציה נשארת פעילה גם
-/// כשהיד למטה. בסוף האימון השעון שומר אותו ב-Health בעצמו - עם הנתונים האמיתיים - ובלבד
-/// שהאייפון לא שמר כבר עותק (ואז הסשן נזרק כדי שלא יהיה אימון כפול).
+/// כשהיד למטה. הסשן רץ בכל אימון פעיל (בשביל הדופק); הוא נשמר ב-Health רק כשהסנכרון
+/// פעיל באייפון ורק אם האייפון לא שמר כבר עותק - אחרת הוא נזרק בסוף.
 @MainActor
 final class WorkoutSessionManager: NSObject, ObservableObject {
     static let shared = WorkoutSessionManager()
@@ -11,6 +18,9 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
     @Published private(set) var heartRate: Int?
     @Published private(set) var activeCalories: Double = 0
     @Published private(set) var boundWorkoutId: String?
+    /// הסבר כשאין דופק (אין הרשאה / שגיאה / לא מתקבלים נתונים). nil כשהכל תקין.
+    @Published private(set) var statusMessage: String?
+    @Published private(set) var lastStats: MeasuredStats?
 
     weak var connector: WatchConnector?
 
@@ -18,28 +28,40 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
     private var starting = false
+    private var noDataCheck: Task<Void, Never>?
     private let boundKey = "ballast.watch.sessionWorkoutId"
 
     private var heartRateType: HKQuantityType { HKQuantityType(.heartRate) }
     private var energyType: HKQuantityType { HKQuantityType(.activeEnergyBurned) }
 
+    var isRunning: Bool { session != nil }
+
     private func requestAuthorization() async -> Bool {
-        guard HKHealthStore.isHealthDataAvailable() else { return false }
+        guard HKHealthStore.isHealthDataAvailable() else {
+            statusMessage = "Health לא זמין בשעון הזה"
+            return false
+        }
         let share: Set<HKSampleType> = [HKObjectType.workoutType(), energyType]
         let read: Set<HKObjectType> = [heartRateType, energyType, HKObjectType.workoutType()]
         do {
             try await healthStore.requestAuthorization(toShare: share, read: read)
             return true
         } catch {
+            statusMessage = "לא ניתן לבקש הרשאה מ-Health: \(error.localizedDescription)"
             return false
         }
     }
 
-    /// מתחיל סשן (כשמגיע מצב אימון פעיל, או כשהאייפון פתח את השעון עם אימון)
+    private var canSaveWorkouts: Bool {
+        healthStore.authorizationStatus(for: HKObjectType.workoutType()) == .sharingAuthorized
+    }
+
+    /// מתחיל סשן (כשמגיע מצב אימון פעיל, כשהאייפון פתח את השעון עם אימון, או בלחיצה על הלב)
     func start(startDate: Date) async {
         guard session == nil, !starting else { return }
         starting = true
         defer { starting = false }
+        statusMessage = "מתחבר לחיישן הדופק…"
         guard await requestAuthorization() else { return }
 
         let configuration = HKWorkoutConfiguration()
@@ -55,8 +77,32 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
             self.builder = builder
             session.startActivity(with: startDate)
             try await builder.beginCollection(at: startDate)
+            scheduleNoDataCheck()
         } catch {
             reset()
+            statusMessage = "לא ניתן להתחיל מדידת דופק: \(error.localizedDescription)"
+        }
+    }
+
+    /// לחיצה על הלב כשאין דופק: מנסה שוב להתחיל מדידה ולקשר אותה לאימון הנוכחי
+    func retry(with state: WorkoutState?) {
+        guard session == nil else {
+            scheduleNoDataCheck()
+            return
+        }
+        Task {
+            await start(startDate: Date())
+            sync(with: state)
+        }
+    }
+
+    /// אם תוך 30 שניות לא הגיע אף דופק - כנראה אין הרשאת קריאת דופק
+    private func scheduleNoDataCheck() {
+        noDataCheck?.cancel()
+        noDataCheck = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(30))
+            guard !Task.isCancelled, session != nil, heartRate == nil else { return }
+            statusMessage = "לא מתקבל דופק. ודא שהשעון צמוד ליד, ושיש הרשאה: באייפון > Health > תמונת הפרופיל > אפליקציות > Ballast > דופק"
         }
     }
 
@@ -81,18 +127,18 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
 
         if state.active, let workoutId = state.workoutId {
             if session == nil {
-                guard state.healthSync == true, !starting else { return }
+                guard !starting else { return }
                 let phoneStart = state.startTime.map { Date(timeIntervalSince1970: $0 / 1000) } ?? Date()
                 // אימון שהתחיל מזמן (למשל נשכח פתוח) - מודדים מעכשיו ולא מתחילת היום
                 let startDate = Date().timeIntervalSince(phoneStart) < 6 * 3600 ? phoneStart : Date()
                 Task {
                     await start(startDate: startDate)
-                    if session != nil { bind(to: workoutId) }
+                    if session != nil { bind(to: workoutId, healthSync: state.healthSync == true) }
                 }
                 return
             }
             if boundWorkoutId == nil {
-                bind(to: workoutId)
+                bind(to: workoutId, healthSync: state.healthSync == true)
             } else if boundWorkoutId != workoutId {
                 // אימון אחר התחיל בלי שקיבלנו את סיום הקודם - זורקים את הישן; החדש יתחיל בעדכון הבא
                 discard()
@@ -103,10 +149,10 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
         }
 
         if let ended = state.lastEnded, let bound = boundWorkoutId, ended.workoutId == bound {
-            if ended.outcome == "finished" && ended.phoneSaved != true {
-                finish(at: Date(timeIntervalSince1970: ended.endTime / 1000))
+            if ended.outcome == "finished", ended.phoneSaved != true, state.healthSync == true, canSaveWorkouts {
+                finish(at: Date(timeIntervalSince1970: ended.endTime / 1000), workoutId: bound)
             } else {
-                discard()
+                discard(workoutId: bound)
             }
             return
         }
@@ -120,11 +166,14 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
         }
     }
 
-    private func bind(to workoutId: String) {
+    /// מקשר את הסשן לאימון. האייפון מדלג על שמירה משלו רק אם השעון באמת ישמור (סנכרון פעיל + הרשאה)
+    private func bind(to workoutId: String, healthSync: Bool) {
         guard boundWorkoutId != workoutId else { return }
         boundWorkoutId = workoutId
         UserDefaults.standard.set(workoutId, forKey: boundKey)
-        connector?.send("watchSessionStarted")
+        if healthSync, canSaveWorkouts {
+            connector?.send("watchSessionStarted")
+        }
     }
 
     private func mirrorPause(paused: Bool) {
@@ -133,8 +182,20 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
         if !paused, session.state == .paused { session.resume() }
     }
 
-    private func finish(at endDate: Date) {
+    private func captureStats(workoutId: String?) {
+        let avg = builder?.statistics(for: heartRateType)?
+            .averageQuantity()?
+            .doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+        lastStats = MeasuredStats(
+            workoutId: workoutId,
+            calories: Int(activeCalories.rounded()),
+            averageHeartRate: avg.map { Int($0.rounded()) }
+        )
+    }
+
+    private func finish(at endDate: Date, workoutId: String) {
         guard let session, let builder else { return }
+        captureStats(workoutId: workoutId)
         session.end()
         Task {
             let end = max(endDate, builder.startDate ?? endDate)
@@ -144,19 +205,22 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
         }
     }
 
-    private func discard() {
+    private func discard(workoutId: String? = nil) {
         guard let session, let builder else { return }
+        captureStats(workoutId: workoutId)
         session.end()
         builder.discardWorkout()
         reset()
     }
 
     private func reset() {
+        noDataCheck?.cancel()
         session = nil
         builder = nil
         boundWorkoutId = nil
         heartRate = nil
         activeCalories = 0
+        statusMessage = nil
         UserDefaults.standard.removeObject(forKey: boundKey)
     }
 }
@@ -169,7 +233,10 @@ extension WorkoutSessionManager: HKWorkoutSessionDelegate {
         date: Date
     ) {}
 
-    nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {}
+    nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
+        let message = error.localizedDescription
+        Task { @MainActor in self.statusMessage = "מדידת הדופק נעצרה: \(message)" }
+    }
 }
 
 extension WorkoutSessionManager: HKLiveWorkoutBuilderDelegate {
@@ -189,7 +256,10 @@ extension WorkoutSessionManager: HKLiveWorkoutBuilderDelegate {
             kcal = workoutBuilder.statistics(for: energyType)?.sumQuantity()?.doubleValue(for: .kilocalorie())
         }
         Task { @MainActor in
-            if let bpm { self.heartRate = Int(bpm.rounded()) }
+            if let bpm {
+                self.heartRate = Int(bpm.rounded())
+                self.statusMessage = nil
+            }
             if let kcal { self.activeCalories = kcal }
         }
     }

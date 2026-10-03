@@ -5,10 +5,21 @@ extension Color {
     static let ballast = Color(red: 0.43, green: 0.49, blue: 0.96)
 }
 
+/// גדלים יחסיים למסך: 1.0 על שעון 41 מ"מ, גדול יותר על 45 מ"מ ועל Ultra (49 מ"מ)
+enum WatchScale {
+    static let factor: CGFloat = {
+        let width = WKInterfaceDevice.current().screenBounds.width
+        return min(1.25, max(0.9, width / 176))
+    }()
+}
+
+/// גודל (פונט/מרווח) מותאם למסך השעון הנוכחי
+func S(_ size: CGFloat) -> CGFloat { (size * WatchScale.factor).rounded() }
+
 enum EditField { case weight, reps }
 
-/// שלט לאימון: עמוד לכל תרגיל (החלקה ימינה/שמאלה), הכתר הדיגיטלי משנה משקל/חזרות
-/// של הסט הפתוח, וכפתור "בוצע" מסמן אותו ומפעיל טיימר מנוחה.
+/// שלט לאימון: עמוד לכל תרגיל (החלקה ימינה/שמאלה) ועמוד סיום בסוף. הכתר הדיגיטלי
+/// משנה משקל/חזרות של הסט הפתוח, וכפתור "בוצע" מסמן אותו ומפעיל טיימר מנוחה.
 struct WorkoutView: View {
     @EnvironmentObject private var connector: WatchConnector
     @EnvironmentObject private var restTimer: RestTimer
@@ -25,6 +36,7 @@ struct WorkoutView: View {
     @FocusState private var crownFocused: Bool
 
     private var exercises: [WatchExercise] { state.exercises ?? [] }
+    private var finishPageTag: Int { exercises.count }
 
     var body: some View {
         ZStack {
@@ -38,9 +50,8 @@ struct WorkoutView: View {
                         field: field,
                         shownWeight: shownValue(exercise: index, field: .weight),
                         shownReps: shownValue(exercise: index, field: .reps).map { Int($0.rounded()) },
-                        hasNext: nextOpenExercise(after: index) != nil,
+                        nextLabel: nextOpenExercise(after: index) != nil ? "לתרגיל הבא" : "לסיום האימון",
                         syncing: !connector.pending.isEmpty,
-                        heartRate: sessionManager.heartRate,
                         onSelectField: selectField,
                         onComplete: { complete(exerciseIndex: index) },
                         onUndo: { undo(exerciseIndex: index) },
@@ -49,6 +60,9 @@ struct WorkoutView: View {
                     )
                     .tag(index)
                 }
+
+                FinishPage(state: state, onFinish: finishWorkout)
+                    .tag(finishPageTag)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .focusable(true)
@@ -68,7 +82,7 @@ struct WorkoutView: View {
             }
         }
         .onAppear {
-            selection = firstOpenExercise() ?? 0
+            selection = firstOpenExercise() ?? finishPageTag
             crownFocused = true
         }
         .onChange(of: selection) { _, _ in commitDraft() }
@@ -145,25 +159,23 @@ struct WorkoutView: View {
         let exerciseNowDone = nextSetInExercise == nil
         let nextExercise = nextOpenExercise(after: exerciseIndex)
 
-        if state.autoRest ?? true {
+        if state.autoRest ?? true, nextSetInExercise != nil || nextExercise != nil {
             let nextUp: String
             if let k = nextSetInExercise {
                 let s = exercise.sets[k]
                 nextUp = "הבא: סט \(k + 1) · \(WorkoutLogic.formatWeight(s.weightKg)) ק״ג × \(s.reps)"
-            } else if let n = nextExercise {
-                nextUp = "הבא: \(exercises[n].name)"
             } else {
-                nextUp = "סיימת את כל הסטים 💪"
+                nextUp = "הבא: \(exercises[nextExercise!].name)"
             }
-            if nextSetInExercise != nil || nextExercise != nil {
-                restTimer.start(seconds: exercise.restSec, nextUp: nextUp)
-            }
+            restTimer.start(seconds: exercise.restSec, nextUp: nextUp)
         }
 
-        if exerciseNowDone, let n = nextExercise {
+        if exerciseNowDone {
+            // תרגיל נגמר -> לתרגיל הבא שעוד לא הושלם, ואם אין כזה - לעמוד הסיום
+            let target = nextExercise ?? finishPageTag
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(600))
-                withAnimation { selection = n }
+                withAnimation { selection = target }
             }
         }
     }
@@ -181,9 +193,15 @@ struct WorkoutView: View {
         WKInterfaceDevice.current().play(.click)
     }
 
+    private func finishWorkout() {
+        commitDraft()
+        restTimer.skip()
+        connector.send("finishWorkout")
+        WKInterfaceDevice.current().play(.success)
+    }
+
     private func goToNextOpen(after index: Int) {
-        guard let n = nextOpenExercise(after: index) else { return }
-        withAnimation { selection = n }
+        withAnimation { selection = nextOpenExercise(after: index) ?? finishPageTag }
     }
 
     private func firstOpenExercise() -> Int? {
@@ -193,6 +211,92 @@ struct WorkoutView: View {
     private func nextOpenExercise(after index: Int) -> Int? {
         let order = Array(exercises.indices.dropFirst(index + 1)) + Array(exercises.indices.prefix(index))
         return order.first { exercises[$0].openSetIndex != nil }
+    }
+}
+
+// MARK: - שורה עליונה: השהיה, שעון אימון, דופק
+
+private struct WorkoutHeader: View {
+    @EnvironmentObject private var sessionManager: WorkoutSessionManager
+    let state: WorkoutState
+    let syncing: Bool
+    let showUndo: Bool
+    let onTogglePause: () -> Void
+    let onUndo: () -> Void
+
+    var body: some View {
+        HStack(spacing: S(5)) {
+            CircleButton(systemImage: state.isPaused ? "play.fill" : "pause.fill",
+                         highlighted: state.isPaused, action: onTogglePause)
+
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(WorkoutLogic.formatClock(state.elapsedSeconds(at: context.date)))
+                    .font(.system(size: S(17), weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(state.isPaused ? Color.orange : Color.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+
+            Spacer(minLength: 0)
+
+            HeartRateButton(state: state)
+
+            if syncing {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: S(10)))
+                    .foregroundStyle(.secondary)
+            }
+
+            if showUndo {
+                CircleButton(systemImage: "arrow.uturn.backward", highlighted: false, action: onUndo)
+            }
+        }
+    }
+}
+
+private struct CircleButton: View {
+    let systemImage: String
+    let highlighted: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: S(12), weight: .bold))
+                .frame(width: S(28), height: S(28))
+                .background(Circle().fill(highlighted ? Color.ballast : Color.white.opacity(0.15)))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// דופק תמיד מוצג: לב אדום עם הקצב, או לב אפור עם "--". לחיצה כשאין דופק מסבירה למה ומנסה שוב.
+private struct HeartRateButton: View {
+    @EnvironmentObject private var sessionManager: WorkoutSessionManager
+    let state: WorkoutState
+    @State private var showingStatus = false
+
+    var body: some View {
+        Button {
+            if sessionManager.heartRate == nil { showingStatus = true }
+        } label: {
+            HStack(spacing: S(2)) {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: S(11)))
+                    .foregroundStyle(sessionManager.heartRate == nil ? Color.gray : Color.red)
+                Text(sessionManager.heartRate.map(String.init) ?? "--")
+                    .font(.system(size: S(16), weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+            }
+        }
+        .buttonStyle(.plain)
+        .alert("דופק", isPresented: $showingStatus) {
+            Button("נסה שוב") { sessionManager.retry(with: state) }
+            Button("סגור", role: .cancel) {}
+        } message: {
+            Text(sessionManager.statusMessage ?? "מתחבר לחיישן הדופק…")
+        }
     }
 }
 
@@ -206,9 +310,8 @@ private struct ExercisePage: View {
     let field: EditField
     let shownWeight: Double?
     let shownReps: Int?
-    let hasNext: Bool
+    let nextLabel: String
     let syncing: Bool
-    let heartRate: Int?
     let onSelectField: (EditField) -> Void
     let onComplete: () -> Void
     let onUndo: () -> Void
@@ -216,59 +319,30 @@ private struct ExercisePage: View {
     let onTogglePause: () -> Void
 
     var body: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 6) {
-                Button(action: onTogglePause) {
-                    Image(systemName: state.isPaused ? "play.fill" : "pause.fill")
-                        .font(.system(size: 11, weight: .bold))
-                        .frame(width: 26, height: 26)
-                        .background(Circle().fill(state.isPaused ? Color.ballast : Color.white.opacity(0.15)))
-                }
-                .buttonStyle(.plain)
-
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text(WorkoutLogic.formatClock(state.elapsedSeconds(at: context.date)))
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(state.isPaused ? Color.orange : Color.primary)
-                }
-
-                Spacer(minLength: 0)
-
-                if let heartRate {
-                    HeartRateLabel(bpm: heartRate)
-                }
-
-                if syncing {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                }
-
-                if exercise.sets.contains(where: \.completed) {
-                    Button(action: onUndo) {
-                        Image(systemName: "arrow.uturn.backward")
-                            .font(.system(size: 11, weight: .bold))
-                            .frame(width: 26, height: 26)
-                            .background(Circle().fill(Color.white.opacity(0.15)))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+        VStack(spacing: S(4)) {
+            WorkoutHeader(
+                state: state,
+                syncing: syncing,
+                showUndo: exercise.sets.contains(where: \.completed),
+                onTogglePause: onTogglePause,
+                onUndo: onUndo
+            )
 
             Text(exercise.name)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: S(17), weight: .semibold))
                 .lineLimit(2)
-                .minimumScaleFactor(0.75)
+                .minimumScaleFactor(0.7)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
 
             Text(statusLine)
-                .font(.system(size: 11))
+                .font(.system(size: S(12)))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
 
             if exercise.openSetIndex != nil {
-                HStack(spacing: 6) {
+                HStack(spacing: S(6)) {
                     ValueTile(
                         value: shownWeight.map(WorkoutLogic.formatWeight) ?? "–",
                         label: "ק״ג",
@@ -283,32 +357,36 @@ private struct ExercisePage: View {
                     )
                     .onTapGesture { onSelectField(.reps) }
                 }
+                .frame(maxHeight: .infinity)
 
                 Button(action: onComplete) {
                     Label("בוצע", systemImage: "checkmark")
-                        .font(.system(size: 15, weight: .bold))
-                        .frame(maxWidth: .infinity)
+                        .font(.system(size: S(18), weight: .bold))
+                        .frame(maxWidth: .infinity, minHeight: S(40))
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.ballast)
             } else {
-                Text("\(exercise.sets.count) סטים הושלמו")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .frame(maxHeight: .infinity)
-
-                if hasNext {
-                    Button(action: onNext) {
-                        Label("לתרגיל הבא", systemImage: "chevron.left")
-                            .font(.system(size: 14, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.ballast)
+                VStack(spacing: S(4)) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: S(34)))
+                        .foregroundStyle(.green)
+                    Text("\(exercise.sets.count) סטים הושלמו")
+                        .font(.system(size: S(15)))
+                        .foregroundStyle(.secondary)
                 }
+                .frame(maxHeight: .infinity)
+
+                Button(action: onNext) {
+                    Label(nextLabel, systemImage: "chevron.left")
+                        .font(.system(size: S(17), weight: .semibold))
+                        .frame(maxWidth: .infinity, minHeight: S(40))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.ballast)
             }
         }
-        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var statusLine: String {
@@ -325,40 +403,88 @@ private struct ValueTile: View {
     let selected: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            Text(value)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .minimumScaleFactor(0.6)
-                .lineLimit(1)
-            Text(label)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
+        GeometryReader { geo in
+            VStack(spacing: 0) {
+                Text(value)
+                    .font(.system(size: min(geo.size.height * 0.55, geo.size.width * 0.42), weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                Text(label)
+                    .font(.system(size: S(12)))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, minHeight: 44)
+        .frame(minHeight: S(48))
         .background(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: S(12))
                 .fill(selected ? Color.ballast.opacity(0.25) : Color.white.opacity(0.08))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(selected ? Color.ballast : Color.clear, lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: S(12))
+                .stroke(selected ? Color.ballast : Color.clear, lineWidth: 2)
         )
         .contentShape(Rectangle())
     }
 }
 
-private struct HeartRateLabel: View {
-    let bpm: Int
+// MARK: - עמוד סיום
+
+private struct FinishPage: View {
+    @EnvironmentObject private var sessionManager: WorkoutSessionManager
+    let state: WorkoutState
+    let onFinish: () -> Void
+    @State private var confirming = false
+
+    private var sets: [WatchSet] { (state.exercises ?? []).flatMap(\.sets) }
+    private var remaining: Int { sets.filter { !$0.completed }.count }
 
     var body: some View {
-        HStack(spacing: 2) {
-            Image(systemName: "heart.fill")
-                .font(.system(size: 9))
-                .foregroundStyle(.red)
-            Text("\(bpm)")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .monospacedDigit()
+        VStack(spacing: S(6)) {
+            Text("סיום אימון")
+                .font(.system(size: S(18), weight: .bold))
+
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(WorkoutLogic.formatClock(state.elapsedSeconds(at: context.date)))
+                    .font(.system(size: S(32), weight: .bold, design: .rounded))
+                    .monospacedDigit()
+            }
+
+            Text("\(sets.count - remaining) מתוך \(sets.count) סטים")
+                .font(.system(size: S(14)))
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: S(12)) {
+                if let bpm = sessionManager.heartRate {
+                    Label("\(bpm)", systemImage: "heart.fill")
+                        .foregroundStyle(.red)
+                }
+                if sessionManager.activeCalories > 0 {
+                    Label("\(Int(sessionManager.activeCalories.rounded()))", systemImage: "flame.fill")
+                        .foregroundStyle(.orange)
+                }
+            }
+            .font(.system(size: S(14), weight: .semibold, design: .rounded))
+
+            Spacer(minLength: 0)
+
+            Button { confirming = true } label: {
+                Label("סיים אימון", systemImage: "flag.checkered")
+                    .font(.system(size: S(18), weight: .bold))
+                    .frame(maxWidth: .infinity, minHeight: S(40))
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.green)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .confirmationDialog(
+            remaining > 0 ? "נשארו \(remaining) סטים שלא סומנו. לסיים בכל זאת?" : "לסיים את האימון?",
+            isPresented: $confirming,
+            titleVisibility: .visible
+        ) {
+            Button("סיים אימון") { onFinish() }
+            Button("ביטול", role: .cancel) {}
         }
     }
 }
@@ -371,30 +497,38 @@ private struct RestOverlay: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            VStack(spacing: 6) {
-                HStack(spacing: 8) {
+            VStack(spacing: S(6)) {
+                HStack(spacing: S(10)) {
                     Text("מנוחה")
-                        .font(.system(size: 13))
+                        .font(.system(size: S(15)))
                         .foregroundStyle(.secondary)
                     if let bpm = sessionManager.heartRate {
-                        HeartRateLabel(bpm: bpm)
+                        Label("\(bpm)", systemImage: "heart.fill")
+                            .font(.system(size: S(15), weight: .semibold, design: .rounded))
+                            .foregroundStyle(.red)
                     }
                 }
 
                 Text(WorkoutLogic.formatClock(remaining(at: context.date)))
-                    .font(.system(size: 46, weight: .bold, design: .rounded))
+                    .font(.system(size: S(54), weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(Color.ballast)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
 
                 Text(restTimer.nextUp)
-                    .font(.system(size: 11))
+                    .font(.system(size: S(13)))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
 
-                HStack(spacing: 8) {
+                Spacer(minLength: 0)
+
+                HStack(spacing: S(8)) {
                     Button("+15") { restTimer.addTime(15) }
+                        .font(.system(size: S(17), weight: .semibold))
                     Button("דלג") { restTimer.skip() }
+                        .font(.system(size: S(17), weight: .semibold))
                         .tint(.ballast)
                 }
             }

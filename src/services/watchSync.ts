@@ -11,7 +11,7 @@ import { applySetFieldEdit, toggleWorkoutPause } from './workoutEdits';
 export interface WatchCommand {
   seq: number;
   workoutId: string;
-  type: 'completeSet' | 'uncompleteSet' | 'updateSet' | 'pause' | 'resume' | 'watchSessionStarted';
+  type: 'completeSet' | 'uncompleteSet' | 'updateSet' | 'pause' | 'resume' | 'watchSessionStarted' | 'finishWorkout';
   exerciseIndex?: number;
   exerciseId?: string;
   setIndex?: number;

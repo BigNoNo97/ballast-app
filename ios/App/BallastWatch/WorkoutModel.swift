@@ -66,6 +66,10 @@ enum WorkoutLogic {
     static func apply(_ command: WatchCommand, to state: WorkoutState) -> WorkoutState {
         var state = state
         switch command.type {
+        case "finishWorkout":
+            guard state.active, let workoutId = state.workoutId else { return state }
+            state.active = false
+            state.lastEnded = LastEndedWorkout(workoutId: workoutId, endTime: command.at, outcome: "finished", phoneSaved: false)
         case "pause":
             if state.pausedAt == nil { state.pausedAt = command.at }
         case "resume":

@@ -27,27 +27,20 @@ import {
   WorkoutSet,
   Exercise,
   SetType,
-  PersonalRecord,
 } from '../types';
 import { EQUIPMENT_LABELS, MUSCLE_GROUP_LABELS } from '../data/exercises';
-import { StorageService, calculateEstimated1RM } from '../services/storage';
+import { StorageService } from '../services/storage';
 import { getExerciseState } from '../services/progressionEngine';
 import { getWeightIncrement } from '../data/exerciseClassification';
 import { ExerciseSwapModal } from './ExerciseSwapModal';
 import { RestTimerModal } from './RestTimerModal';
 import { ExerciseThumbnail } from './ExerciseThumbnail';
 import { triggerHaptic } from '../services/sound';
-import { applySetFieldEdit, toggleWorkoutPause } from '../services/workoutEdits';
+import { applySetFieldEdit, buildFinishedSession, computeElapsedSec, toggleWorkoutPause } from '../services/workoutEdits';
 
 // גודל (בפיקסלים) של כפתור המחיקה שנחשף בסלייד על שורת תרגיל, וסף הגרירה להשארתו פתוח
 const SWIPE_DELETE_WIDTH = 84;
 const SWIPE_OPEN_THRESHOLD = 40;
-
-const computeElapsedSec = (w: WorkoutSession, now: number = Date.now()): number => {
-  const start = w.startTime || now;
-  const end = w.pausedAt ?? now;
-  return Math.max(0, Math.floor((end - start - (w.pausedTotalMs || 0)) / 1000));
-};
 
 // התווית "קודם: X" יושבת בתוך התיבה (absolute) כדי שהופעתה לא תשנה את גובה השורה.
 // הריפוד העליון המוגדל קבוע לכל התיבות, כך שהמספר לא קופץ כשהתווית מופיעה/נעלמת.
@@ -640,83 +633,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
   // Finish and compute workout summary
   const handleFinish = () => {
-    let totalVolume = 0;
-    let completedSets = 0;
-    const newPRs: PersonalRecord[] = [];
-
-    const existingPRs = StorageService.getPersonalRecords();
-
-    workout.exercises.forEach((ex) => {
-      const exData = exerciseMap.get(ex.exerciseId);
-      const exName = exData?.nameHe || 'תרגיל';
-
-      // מספר הסטים שהמשתמש בפועל סימן כהושלמו - כולל סטים במשקל גוף (0 ק"ג), לא רק סטים שתורמים לנפח/שיא
-      completedSets += ex.sets.filter((s) => s.completed).length;
-
-      const completedSetsInEx = ex.sets.filter((s) => s.completed && s.weightKg > 0 && s.reps > 0);
-
-      if (completedSetsInEx.length > 0) {
-        let exerciseVolume = 0;
-        let exerciseTotalWeight = 0;
-        let exerciseTotalReps = 0;
-        let exerciseMaxWeight = 0;
-        let exerciseRepsAtMax = 0;
-        let exerciseBest1RM = 0;
-
-        completedSetsInEx.forEach((s) => {
-          exerciseVolume += s.weightKg * s.reps;
-          exerciseTotalWeight += s.weightKg;
-          exerciseTotalReps += s.reps;
-
-          const e1rm = calculateEstimated1RM(s.weightKg, s.reps);
-          if (s.weightKg > exerciseMaxWeight) {
-            exerciseMaxWeight = s.weightKg;
-            exerciseRepsAtMax = s.reps;
-          }
-          if (e1rm > exerciseBest1RM) {
-            exerciseBest1RM = e1rm;
-          }
-        });
-
-        totalVolume += exerciseVolume;
-
-        const currentPr = existingPRs[ex.exerciseId];
-        if (!currentPr || exerciseMaxWeight > currentPr.maxWeight || exerciseBest1RM > currentPr.estimated1RM) {
-          newPRs.push({
-            exerciseId: ex.exerciseId,
-            exerciseNameHe: exName,
-            maxWeight: exerciseMaxWeight,
-            repsAtMaxWeight: exerciseRepsAtMax,
-            totalExerciseWeight: exerciseTotalWeight,
-            totalExerciseReps: exerciseTotalReps,
-            totalSetsCount: completedSetsInEx.length,
-            estimated1RM: exerciseBest1RM,
-            date: Date.now(),
-            workoutId: workout.id,
-            isNew: true,
-          });
-        }
-      }
-    });
-
-    const endTime = Date.now();
-    const finishedSession: WorkoutSession = {
-      ...workout,
-      endTime,
-      // סיום אימון בזמן שהשעון מושהה - סוגרים את ההפסקה הפתוחה בזמן הסיום
-      pausedAt: undefined,
-      pauses:
-        workout.pausedAt != null
-          ? [...(workout.pauses || []), { startMs: workout.pausedAt, endMs: endTime }]
-          : workout.pauses,
-      durationSec: elapsedSec,
-      isCompleted: true,
-      totalVolumeKg: totalVolume,
-      completedSetsCount: completedSets,
-      newPRs,
-    };
-
-    onFinishWorkout(finishedSession);
+    onFinishWorkout(buildFinishedSession(workout, allExercises, Date.now()));
   };
 
   // Guard if no exercises

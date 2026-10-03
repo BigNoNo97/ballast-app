@@ -1,12 +1,24 @@
 import Foundation
 import WatchConnectivity
 
+/// סיכום אימון שהסתיים, למסך "כל הכבוד" בשעון
+struct FinishedSummary: Equatable {
+    var workoutId: String
+    var title: String
+    var durationSec: Int
+    var setsDone: Int
+    var setsTotal: Int
+}
+
 /// הקשר עם האייפון. האייפון הוא מקור האמת; השעון מציג את המצב האחרון שקיבל, ועליו
 /// מיישם מראש את הפקודות שנשלחו ועוד לא אושרו (pending), כך שכל לחיצה מתעדכנת מיד.
 @MainActor
 final class WatchConnector: NSObject, ObservableObject {
     @Published private(set) var serverState: WorkoutState?
     @Published private(set) var pending: [WatchCommand] = []
+    @Published private(set) var finishedSummary: FinishedSummary?
+
+    private var lastActiveState: WorkoutState?
 
     private let stateKey = "ballast.watch.lastState"
 
@@ -20,6 +32,7 @@ final class WatchConnector: NSObject, ObservableObject {
         if let data = UserDefaults.standard.data(forKey: stateKey),
            let saved = try? JSONDecoder().decode(WorkoutState.self, from: data) {
             serverState = saved
+            if saved.active { lastActiveState = saved }
         }
         guard WCSession.isSupported() else { return }
         WCSession.default.delegate = self
@@ -48,6 +61,7 @@ final class WatchConnector: NSObject, ObservableObject {
             field: field, value: value, at: Date().timeIntervalSince1970 * 1000
         )
         pending.append(command)
+        updateSummary()
 
         guard let data = try? JSONEncoder().encode(command), let json = String(data: data, encoding: .utf8) else { return }
         let payload: [String: Any] = ["command": json]
@@ -68,6 +82,31 @@ final class WatchConnector: NSObject, ObservableObject {
         UserDefaults.standard.set(data, forKey: stateKey)
         let ack = decoded.ackSeq ?? 0
         pending.removeAll { $0.workoutId != decoded.workoutId || $0.seq <= ack }
+        updateSummary()
+    }
+
+    func dismissSummary() {
+        finishedSummary = nil
+    }
+
+    /// כשהאימון עובר מפעיל לגמור (מהשעון או מהאייפון) - בונים סיכום מהמצב הפעיל האחרון
+    private func updateSummary() {
+        guard let current = state else { return }
+        if current.active {
+            lastActiveState = current
+            return
+        }
+        guard let ended = current.lastEnded, ended.outcome == "finished",
+              let previous = lastActiveState, previous.workoutId == ended.workoutId,
+              finishedSummary?.workoutId != ended.workoutId else { return }
+        let sets = (previous.exercises ?? []).flatMap(\.sets)
+        finishedSummary = FinishedSummary(
+            workoutId: ended.workoutId,
+            title: previous.title ?? "",
+            durationSec: previous.elapsedSeconds(at: Date(timeIntervalSince1970: ended.endTime / 1000)),
+            setsDone: sets.filter(\.completed).count,
+            setsTotal: sets.count
+        )
     }
 }
 

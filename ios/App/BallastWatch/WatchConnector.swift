@@ -17,10 +17,17 @@ final class WatchConnector: NSObject, ObservableObject {
     @Published private(set) var serverState: WorkoutState?
     @Published private(set) var pending: [WatchCommand] = []
     @Published private(set) var finishedSummary: FinishedSummary?
+    /// התוכנית האחרונה שהגיעה מהאייפון (נשמרת, כדי שאפשר יהיה להתחיל אימון גם כשהאייפון לא בסביבה)
+    @Published private(set) var catalog: WorkoutCatalog?
 
     private var lastActiveState: WorkoutState?
 
     private let stateKey = "ballast.watch.lastState"
+    private let catalogKey = "ballast.watch.catalog"
+    private let defaultsKey = "ballast.watch.defaults"
+    /// הגדרות האייפון האחרונות (סנכרון Health, טיימר מנוחה אוטומטי) - לאימון שמתחיל בשעון
+    private var lastHealthSync: Bool?
+    private var lastAutoRest: Bool?
 
     var state: WorkoutState? {
         guard let serverState else { return nil }
@@ -34,12 +41,63 @@ final class WatchConnector: NSObject, ObservableObject {
             serverState = saved
             if saved.active { lastActiveState = saved }
         }
+        if let data = UserDefaults.standard.data(forKey: catalogKey),
+           let saved = try? JSONDecoder().decode(WorkoutCatalog.self, from: data) {
+            catalog = saved
+        }
+        if let defaults = UserDefaults.standard.dictionary(forKey: defaultsKey) {
+            lastHealthSync = defaults["healthSync"] as? Bool
+            lastAutoRest = defaults["autoRest"] as? Bool
+        }
         guard WCSession.isSupported() else { return }
         WCSession.default.delegate = self
         WCSession.default.activate()
     }
 
-    func send(_ type: String, exerciseIndex: Int? = nil, setIndex: Int? = nil, field: String? = nil, value: Double? = nil) {
+    /// מתחיל אימון בשעון בלבד, מיום בתוכנית. האייפון יאמץ אותו כאימון פעיל כשיקבל את הפקודה -
+    /// מיד אם הוא בטווח, ואם לא, בפעם הבאה שהם יתחברו (כולל כל מה שנעשה בינתיים, עד הסיום).
+    func startLocalWorkout(day: CatalogDay) {
+        guard let catalog else { return }
+        let now = Date().timeIntervalSince1970 * 1000
+        let workoutId = "watch-\(Int(now))"
+        let title = "\(catalog.routineTitle) - יום \(day.dayNumber)"
+
+        var local = WorkoutState(active: true)
+        local.workoutId = workoutId
+        local.title = title
+        local.startTime = now
+        local.pausedTotalMs = 0
+        local.healthSync = lastHealthSync
+        local.autoRest = lastAutoRest ?? true
+        local.ackSeq = 0
+        local.exercises = day.exercises.map { ex in
+            WatchExercise(
+                exerciseId: ex.exerciseId,
+                name: ex.name,
+                restSec: ex.restSec,
+                weightStep: ex.weightStep,
+                sets: ex.sets.map { WatchSet(weightKg: $0.weightKg, reps: $0.reps, completed: false) }
+            )
+        }
+
+        pending = []
+        finishedSummary = nil
+        serverState = local
+        if let data = try? JSONEncoder().encode(local) {
+            UserDefaults.standard.set(data, forKey: stateKey)
+        }
+        lastActiveState = local
+
+        let start = StartPayload(
+            routineId: catalog.routineId,
+            dayNumber: day.dayNumber,
+            title: title,
+            exercises: day.exercises.map { StartExercise(exerciseId: $0.exerciseId, sets: $0.sets) }
+        )
+        send("startWorkout", start: start)
+    }
+
+    func send(_ type: String, exerciseIndex: Int? = nil, setIndex: Int? = nil, field: String? = nil, value: Double? = nil, start: StartPayload? = nil) {
         guard let current = state, current.active, let workoutId = current.workoutId else { return }
 
         let seqKey = "ballast.watch.seq.\(workoutId)"
@@ -58,7 +116,7 @@ final class WatchConnector: NSObject, ObservableObject {
         let command = WatchCommand(
             seq: seq, workoutId: workoutId, type: type,
             exerciseIndex: exerciseIndex, exerciseId: exerciseId, setIndex: setIndex,
-            field: field, value: value, at: Date().timeIntervalSince1970 * 1000
+            field: field, value: value, at: Date().timeIntervalSince1970 * 1000, start: start
         )
         pending.append(command)
         updateSummary()
@@ -78,6 +136,29 @@ final class WatchConnector: NSObject, ObservableObject {
     fileprivate func receive(stateJSON: String?) {
         guard let stateJSON, let data = stateJSON.data(using: .utf8),
               let decoded = try? JSONDecoder().decode(WorkoutState.self, from: data) else { return }
+
+        if let newCatalog = decoded.catalog {
+            catalog = newCatalog
+            if let catalogData = try? JSONEncoder().encode(newCatalog) {
+                UserDefaults.standard.set(catalogData, forKey: catalogKey)
+            }
+        }
+        if decoded.healthSync != nil || decoded.autoRest != nil {
+            lastHealthSync = decoded.healthSync ?? lastHealthSync
+            lastAutoRest = decoded.autoRest ?? lastAutoRest
+            var defaults: [String: Any] = [:]
+            if let lastHealthSync { defaults["healthSync"] = lastHealthSync }
+            if let lastAutoRest { defaults["autoRest"] = lastAutoRest }
+            UserDefaults.standard.set(defaults, forKey: defaultsKey)
+        }
+
+        // אימון שהתחיל בשעון ועוד לא נקלט באייפון: לא נותנים למצב ישן מהאייפון (שעוד לא יודע
+        // עליו) להעלים אותו - עד שהאייפון מאמץ אותו (אותו מזהה) או מדווח שסיים אותו.
+        if let local = serverState, local.active, let localId = local.workoutId, localId.hasPrefix("watch-"),
+           decoded.workoutId != localId, decoded.lastEnded?.workoutId != localId {
+            return
+        }
+
         serverState = decoded
         UserDefaults.standard.set(data, forKey: stateKey)
         let ack = decoded.ackSeq ?? 0

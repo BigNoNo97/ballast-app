@@ -53,11 +53,17 @@ import {
   buildWatchState,
   getWatchAck,
   isWatchSyncSupported,
+  loadOrphanCommands,
+  orderWatchCommands,
   parseWatchCommands,
+  saveOrphanCommands,
+  sessionFromWatchStart,
   setLastEndedWorkout,
   setWatchAck,
+  type WatchCommand,
 } from './services/watchSync';
 import { buildFinishedSession } from './services/workoutEdits';
+import { buildWorkoutExercisesForDay } from './services/workoutBuilder';
 
 type NavigationTab = 'workout' | 'analysis' | 'community' | 'nutrition' | 'profile';
 
@@ -235,20 +241,39 @@ export const App: React.FC = () => {
   exercisesRef.current = exercises;
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const routinesRef = useRef(routines);
+  routinesRef.current = routines;
+  const activeRoutineRef = useRef(activeRoutine);
+  activeRoutineRef.current = activeRoutine;
+  const selectedDayRef = useRef(selectedDayNumber);
+  selectedDayRef.current = selectedDayNumber;
+  const drainWatchCommandsRef = useRef<(() => void) | null>(null);
   // handleFinishWorkout תלוי בתוכניות/הגדרות עדכניות, ופקודות מהשעון מעובדות מתוך effect
   // שנרשם פעם אחת - לכן קוראים לגרסה האחרונה דרך ref (מתעדכן אחרי שהפונקציה מוגדרת למטה).
   const finishWorkoutRef = useRef<((session: WorkoutSession) => void) | null>(null);
 
   const sendStateToWatch = () => {
     if (!isWatchSyncSupported()) return;
-    const state = buildWatchState(activeWorkoutRef.current, exercisesRef.current, settingsRef.current);
+    const state = buildWatchState(activeWorkoutRef.current, exercisesRef.current, settingsRef.current, {
+      routine: activeRoutineRef.current,
+      nextDayNumber: selectedDayRef.current,
+    });
     WatchBridge.sendState({ state: JSON.stringify(state) }).catch(() => {});
   };
 
   useEffect(() => {
     sendStateToWatch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeWorkout, exercises, settings.defaultRestSeconds, settings.autoRestTimerEnabled, settings.appleHealthSyncEnabled]);
+  }, [
+    activeWorkout,
+    exercises,
+    routines,
+    activeRoutine,
+    selectedDayNumber,
+    settings.defaultRestSeconds,
+    settings.autoRestTimerEnabled,
+    settings.appleHealthSyncEnabled,
+  ]);
 
   // אימון חדש מתחיל -> פותחים את אפליקציית השעון עם סשן אימון (דופק/קלוריות). רק כשסנכרון
   // Health פעיל, כי הסשן עצמו נשמר ב-Health. פעם אחת לכל אימון.
@@ -257,8 +282,8 @@ export const App: React.FC = () => {
     const id = activeWorkout?.id;
     if (!id || watchLaunchedForWorkout.current === id || !isWatchSyncSupported()) return;
     watchLaunchedForWorkout.current = id;
-    if (!activeWorkout?.healthRecordedByWatch) AppleHealthService.startWatchWorkout();
-  }, [activeWorkout?.id, activeWorkout?.healthRecordedByWatch]);
+    if (!activeWorkout?.healthRecordedByWatch && !activeWorkout?.startedOnWatch) AppleHealthService.startWatchWorkout();
+  }, [activeWorkout?.id, activeWorkout?.healthRecordedByWatch, activeWorkout?.startedOnWatch]);
 
   useEffect(() => {
     if (!isWatchSyncSupported()) return;
@@ -269,35 +294,63 @@ export const App: React.FC = () => {
       } catch {
         return;
       }
+      const commands = orderWatchCommands([...loadOrphanCommands(), ...parseWatchCommands(raw)]);
+      if (commands.length === 0) return;
+
+      const finishedIds = new Set(StorageService.getWorkoutHistory().map((w) => w.id));
       let workout = activeWorkoutRef.current;
-      const commands = parseWatchCommands(raw);
-      if (!workout || commands.length === 0) return;
+      let changed = false;
+      const orphans: WatchCommand[] = [];
 
-      let ack = getWatchAck(workout.id);
-      let finishedAt: number | null = null;
       for (const cmd of commands) {
-        if (cmd.workoutId !== workout.id || cmd.seq <= ack) continue;
-        ack = cmd.seq;
-        if (cmd.type === 'finishWorkout') {
-          finishedAt = cmd.at;
-          break;
+        // פקודות של אימון שכבר הסתיים ונשמר (למשל הגיעו פעמיים) - לא מחיים אותו מחדש
+        if (finishedIds.has(cmd.workoutId)) continue;
+
+        if (cmd.type === 'startWorkout') {
+          if (workout?.id === cmd.workoutId) continue;
+          if (workout) {
+            // האייפון באמצע אימון אחר - שומרים, ויקלט כשהאימון הנוכחי יסתיים
+            orphans.push(cmd);
+            continue;
+          }
+          const adopted = sessionFromWatchStart(cmd, routinesRef.current);
+          if (!adopted) continue;
+          workout = adopted;
+          changed = true;
+          setWatchAck(adopted.id, Math.max(getWatchAck(adopted.id), cmd.seq));
+          continue;
         }
+
+        if (!workout || cmd.workoutId !== workout.id) {
+          orphans.push(cmd);
+          continue;
+        }
+        if (cmd.seq <= getWatchAck(workout.id)) continue;
+        setWatchAck(workout.id, cmd.seq);
+
+        if (cmd.type === 'finishWorkout') {
+          // סיום מהשעון עובר בדיוק באותו מסלול כמו "סיים אימון" באייפון (שיאים, היסטוריה,
+          // Health, מסך סיכום) - עם שעת הסיום מהשעון, גם אם האייפון עיבד את זה רק אחר כך.
+          activeWorkoutRef.current = null;
+          finishWorkoutRef.current?.(buildFinishedSession(workout, exercisesRef.current, cmd.at));
+          finishedIds.add(workout.id);
+          workout = null;
+          changed = false;
+          continue;
+        }
+
         workout = applyWatchCommand(workout, cmd);
-      }
-      setWatchAck(workout.id, ack);
-
-      if (finishedAt != null) {
-        // סיום מהשעון עובר בדיוק באותו מסלול כמו "סיים אימון" באייפון (שיאים, היסטוריה,
-        // Health, מסך סיכום) - עם שעת הסיום מהשעון, גם אם האייפון עיבד את זה רק אחר כך.
-        activeWorkoutRef.current = null;
-        finishWorkoutRef.current?.(buildFinishedSession(workout, exercisesRef.current, finishedAt));
-        return;
+        changed = true;
       }
 
-      activeWorkoutRef.current = workout;
-      handleUpdateActiveWorkout(workout);
+      saveOrphanCommands(orphans);
+      if (changed && workout) {
+        activeWorkoutRef.current = workout;
+        handleUpdateActiveWorkout(workout);
+      }
       sendStateToWatch();
     };
+    drainWatchCommandsRef.current = drainWatchCommands;
 
     drainWatchCommands();
     const listeners = [
@@ -322,36 +375,7 @@ export const App: React.FC = () => {
   // Step 2 -> Step 3: Clicking "Get Started" on Screen 2 begins Live Active Workout
   const handleGetStartedFromPreview = (configuredExercises: RoutineDayExercise[]) => {
     if (!activeRoutine) return; // לא אמור לקרות - המסך הזה נגיש רק כשיש תוכנית פעילה
-    const newWorkoutExercises: WorkoutExercise[] = configuredExercises.map((item) => {
-      const lastPerf = StorageService.getLastExercisePerformance(item.exerciseId);
-
-      const targetSetsCount =
-        lastPerf && lastPerf.sets && lastPerf.sets.length > 0
-          ? lastPerf.sets.length
-          : item.targetSets || 3;
-
-      // item.suggestedWeight / item.targetReps כבר עברו חישוב התקדמות (ראו WorkoutDetailPreview)
-      const sets: WorkoutSet[] = Array.from({ length: targetSetsCount }).map((_, idx) => {
-        const lastSet = lastPerf?.sets[idx] || lastPerf?.sets[0];
-        return {
-          id: `set-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
-          setNumber: idx + 1,
-          type: 'normal',
-          weightKg: item.suggestedWeight ?? lastSet?.weightKg ?? 0,
-          reps: item.targetReps ?? lastSet?.reps ?? 10,
-          completed: false,
-          previousWeight: lastSet?.weightKg,
-          previousReps: lastSet?.reps,
-        };
-      });
-
-      return {
-        exerciseId: item.exerciseId,
-        sets,
-        supersetGroupId: item.supersetGroupId,
-        notes: StorageService.getNoteForExercise(item.exerciseId),
-      };
-    });
+    const newWorkoutExercises = buildWorkoutExercisesForDay(configuredExercises);
 
     const newSession: WorkoutSession = {
       id: `workout-${Date.now()}`,
@@ -392,6 +416,8 @@ export const App: React.FC = () => {
 
   // Finish Workout
   const handleFinishWorkout = (finishedSession: WorkoutSession) => {
+    // אימון שהתחיל בשעון בזמן שהאייפון היה באמצע אימון אחר מחכה בתור - נקלט עכשיו
+    setTimeout(() => drainWatchCommandsRef.current?.(), 0);
     StorageService.saveWorkout(finishedSession);
     setHealthSync(null);
     // אם השעון הריץ סשן אימון של Apple, הוא שומר את האימון ב-Health בעצמו (עם דופק וקלוריות

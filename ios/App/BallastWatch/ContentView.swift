@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 struct ContentView: View {
     @EnvironmentObject private var connector: WatchConnector
@@ -12,8 +13,10 @@ struct ContentView: View {
                     .id(state.workoutId)
             } else if let state = connector.state, state.active {
                 IdleView(title: "האימון פעיל באייפון", hint: "הוסף תרגיל באייפון והוא יופיע כאן")
+            } else if let catalog = connector.catalog, !catalog.days.isEmpty {
+                StartView(catalog: catalog)
             } else {
-                IdleView(title: "אין אימון פעיל", hint: "התחל אימון באייפון והוא יופיע כאן")
+                IdleView(title: "אין אימון פעיל", hint: "פתח את Ballast באייפון כדי להעביר את התוכנית לשעון")
             }
         }
         .environment(\.layoutDirection, .rightToLeft)
@@ -38,6 +41,63 @@ private struct IdleView: View {
                 .multilineTextAlignment(.center)
         }
         .padding()
+    }
+}
+
+/// התחלת אימון מהשעון: ימי התוכנית הפעילה, היום הבא בתור ראשון
+private struct StartView: View {
+    @EnvironmentObject private var connector: WatchConnector
+    let catalog: WorkoutCatalog
+    @State private var pendingDay: CatalogDay?
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: S(6)) {
+                Text("התחל אימון")
+                    .font(.system(size: S(18), weight: .bold))
+                Text(catalog.routineTitle)
+                    .font(.system(size: S(12)))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                ForEach(catalog.orderedDays, id: \.dayNumber) { day in
+                    let isNext = day.dayNumber == catalog.nextDayNumber
+                    Button { pendingDay = day } label: {
+                        VStack(alignment: .leading, spacing: S(2)) {
+                            if isNext {
+                                Text("הבא בתור")
+                                    .font(.system(size: S(11), weight: .bold))
+                                    .foregroundStyle(Color.white.opacity(0.85))
+                            }
+                            Text(day.title)
+                                .font(.system(size: S(15), weight: .semibold))
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                            Text("\(day.exercises.count) תרגילים" + ((day.subtitle ?? "").isEmpty ? "" : " · \(day.subtitle!)"))
+                                .font(.system(size: S(11)))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, S(4))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(isNext ? .ballast : Color.white.opacity(0.12))
+                }
+            }
+        }
+        .confirmationDialog(
+            pendingDay.map { "להתחיל את \($0.title)?" } ?? "",
+            isPresented: Binding(get: { pendingDay != nil }, set: { if !$0 { pendingDay = nil } }),
+            titleVisibility: .visible,
+            presenting: pendingDay
+        ) { day in
+            Button("התחל אימון") {
+                connector.startLocalWorkout(day: day)
+                WKInterfaceDevice.current().play(.start)
+            }
+            Button("ביטול", role: .cancel) {}
+        }
     }
 }
 

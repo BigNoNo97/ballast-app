@@ -83,6 +83,8 @@ export interface WorkoutSession {
   // השעון מריץ סשן אימון של Apple על האימון הזה ושומר אותו ב-Health בעצמו (עם דופק וקלוריות
   // אמיתיים) - אז האייפון לא שומר עותק נוסף בסיום.
   healthRecordedByWatch?: boolean;
+  // האימון התחיל בשעון (ונקלט באייפון בדיעבד) - לא פותחים את אפליקציית השעון שוב
+  startedOnWatch?: boolean;
   exercises: WorkoutExercise[];
   notes?: string;
   isCompleted: boolean;

@@ -18,6 +18,53 @@ struct WatchExercise: Codable, Equatable {
     var isDone: Bool { !sets.isEmpty && sets.allSatisfy(\.completed) }
 }
 
+/// התוכנית הפעילה מהאייפון, כדי שאפשר יהיה להתחיל אימון מהשעון בלבד (ראה buildWatchCatalog)
+struct CatalogSet: Codable, Equatable {
+    var weightKg: Double
+    var reps: Int
+}
+
+struct CatalogExercise: Codable, Equatable {
+    var exerciseId: String
+    var name: String
+    var restSec: Int
+    var weightStep: Double
+    var sets: [CatalogSet]
+}
+
+struct CatalogDay: Codable, Equatable {
+    var dayNumber: Int
+    var title: String
+    var subtitle: String?
+    var exercises: [CatalogExercise]
+}
+
+struct WorkoutCatalog: Codable, Equatable {
+    var routineId: String
+    var routineTitle: String
+    var nextDayNumber: Int?
+    var days: [CatalogDay]
+
+    /// היום הבא בתור ראשון, ואחריו שאר הימים לפי הסדר
+    var orderedDays: [CatalogDay] {
+        guard let next = nextDayNumber, let i = days.firstIndex(where: { $0.dayNumber == next }) else { return days }
+        return Array(days[i...]) + Array(days[..<i])
+    }
+}
+
+/// מה שהשעון שולח לאייפון כשאימון מתחיל בשעון - מספיק כדי לבנות שם WorkoutSession אמיתי
+struct StartExercise: Codable, Equatable {
+    var exerciseId: String
+    var sets: [CatalogSet]
+}
+
+struct StartPayload: Codable, Equatable {
+    var routineId: String?
+    var dayNumber: Int?
+    var title: String
+    var exercises: [StartExercise]
+}
+
 /// איך הסתיים האימון האחרון באייפון - כדי לסגור את סשן האימון של Apple בהתאם
 struct LastEndedWorkout: Codable, Equatable {
     var workoutId: String
@@ -30,6 +77,7 @@ struct WorkoutState: Codable, Equatable {
     var active: Bool
     var healthSync: Bool?
     var lastEnded: LastEndedWorkout?
+    var catalog: WorkoutCatalog?
     var workoutId: String?
     var title: String?
     var startTime: Double?
@@ -59,6 +107,7 @@ struct WatchCommand: Codable, Equatable {
     var field: String?
     var value: Double?
     var at: Double
+    var start: StartPayload?
 }
 
 enum WorkoutLogic {

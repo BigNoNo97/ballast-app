@@ -1,7 +1,9 @@
 import { Capacitor } from '@capacitor/core';
-import { Exercise, UserSettings, WorkoutSession } from '../types';
+import { Exercise, RoutineTemplate, UserSettings, WorkoutSession } from '../types';
 import { getWeightIncrement } from '../data/exerciseClassification';
 import { applySetFieldEdit, toggleWorkoutPause } from './workoutEdits';
+import { buildWorkoutExercisesForDay, configureDayExercises } from './workoutBuilder';
+import { StorageService } from './storage';
 
 /**
  * סנכרון "שלט לאימון" עם השעון. האייפון הוא מקור האמת: הוא שולח לשעון את מצב האימון,
@@ -11,13 +13,128 @@ import { applySetFieldEdit, toggleWorkoutPause } from './workoutEdits';
 export interface WatchCommand {
   seq: number;
   workoutId: string;
-  type: 'completeSet' | 'uncompleteSet' | 'updateSet' | 'pause' | 'resume' | 'watchSessionStarted' | 'finishWorkout';
+  type:
+    | 'startWorkout'
+    | 'completeSet'
+    | 'uncompleteSet'
+    | 'updateSet'
+    | 'pause'
+    | 'resume'
+    | 'watchSessionStarted'
+    | 'finishWorkout';
   exerciseIndex?: number;
   exerciseId?: string;
   setIndex?: number;
   field?: 'weightKg' | 'reps';
   value?: number;
   at: number;
+  // רק ב-startWorkout: האימון כפי שהשעון התחיל אותו (מהתוכנית שקיבל מהאייפון)
+  start?: {
+    routineId?: string;
+    dayNumber?: number;
+    title: string;
+    exercises: { exerciseId: string; sets: { weightKg: number; reps: number }[] }[];
+  };
+}
+
+/** התוכנית הפעילה כפי שהשעון צריך אותה כדי להתחיל אימון לבד - כל יום עם הסטים שהאייפון היה מציע */
+export function buildWatchCatalog(
+  routine: RoutineTemplate | null,
+  nextDayNumber: number,
+  exercises: Exercise[],
+  settings: UserSettings
+) {
+  if (!routine || !routine.days?.length) return null;
+  const byId = new Map(exercises.map((e) => [e.id, e]));
+  return {
+    routineId: routine.id,
+    routineTitle: routine.title,
+    nextDayNumber,
+    days: routine.days.map((day) => ({
+      dayNumber: day.dayNumber,
+      title: day.dayTitle || `יום ${day.dayNumber}`,
+      subtitle: day.targetMuscles || '',
+      exercises: buildWorkoutExercisesForDay(configureDayExercises(routine, day)).map((ex) => {
+        const data = byId.get(ex.exerciseId);
+        return {
+          exerciseId: ex.exerciseId,
+          name: data?.nameHe || 'תרגיל',
+          restSec: data?.defaultRestSec || settings.defaultRestSeconds,
+          weightStep: data ? getWeightIncrement(data.muscle) : 2.5,
+          sets: ex.sets.map((s) => ({ weightKg: s.weightKg, reps: s.reps })),
+        };
+      }),
+    })),
+  };
+}
+
+/** אימון שהתחיל בשעון -> WorkoutSession אמיתי באייפון, עם אותו מזהה ושעת התחלה */
+export function sessionFromWatchStart(cmd: WatchCommand, routines: RoutineTemplate[]): WorkoutSession | null {
+  if (cmd.type !== 'startWorkout' || !cmd.start) return null;
+  const routine = cmd.start.routineId ? routines.find((r) => r.id === cmd.start!.routineId) : undefined;
+  const day = routine?.days.find((d) => d.dayNumber === cmd.start!.dayNumber);
+  return {
+    id: cmd.workoutId,
+    title: cmd.start.title,
+    routineId: routine?.id,
+    dayNumber: routine ? cmd.start.dayNumber : undefined,
+    targetMuscles: day?.targetMuscles,
+    startTime: cmd.at,
+    durationSec: 0,
+    isCompleted: false,
+    totalVolumeKg: 0,
+    completedSetsCount: 0,
+    startedOnWatch: true,
+    exercises: cmd.start.exercises.map((ex) => {
+      const lastPerf = StorageService.getLastExercisePerformance(ex.exerciseId);
+      const dayItem = day?.exercises.find((i) => i.exerciseId === ex.exerciseId);
+      return {
+        exerciseId: ex.exerciseId,
+        supersetGroupId: dayItem?.supersetGroupId,
+        notes: StorageService.getNoteForExercise(ex.exerciseId),
+        sets: ex.sets.map((s, idx) => {
+          const lastSet = lastPerf?.sets[idx] || lastPerf?.sets[0];
+          return {
+            id: `set-${cmd.at}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+            setNumber: idx + 1,
+            type: 'normal' as const,
+            weightKg: s.weightKg,
+            reps: s.reps,
+            completed: false,
+            previousWeight: lastSet?.weightKg,
+            previousReps: lastSet?.reps,
+          };
+        }),
+      };
+    }),
+  };
+}
+
+const ORPHANS_KEY = 'ballast_watch_orphan_commands_v1';
+const ORPHAN_MAX_AGE_MS = 3 * 24 * 3600 * 1000;
+
+/**
+ * פקודות של אימון שעוד לא קיים באייפון (למשל ה-startWorkout שלו עוד בדרך, או שהאייפון היה
+ * באמצע אימון אחר) - נשמרות ומעובדות שוב בפעם הבאה, במקום ללכת לאיבוד.
+ */
+export function loadOrphanCommands(): WatchCommand[] {
+  try {
+    const raw = localStorage.getItem(ORPHANS_KEY);
+    const list: WatchCommand[] = raw ? JSON.parse(raw) : [];
+    const cutoff = Date.now() - ORPHAN_MAX_AGE_MS;
+    return list.filter((c) => c.at >= cutoff);
+  } catch {
+    return [];
+  }
+}
+
+export function saveOrphanCommands(commands: WatchCommand[]): void {
+  try {
+    if (commands.length) localStorage.setItem(ORPHANS_KEY, JSON.stringify(commands));
+    else localStorage.removeItem(ORPHANS_KEY);
+  } catch {
+    // אחסון חסום - הפקודות יאבדו, אין מה לעשות
+  }
 }
 
 const ACK_KEY = 'ballast_watch_ack_v1';
@@ -71,9 +188,27 @@ export function setWatchAck(workoutId: string, seq: number): void {
   }
 }
 
-export function buildWatchState(workout: WorkoutSession | null, exercises: Exercise[], settings: UserSettings) {
+export function buildWatchState(
+  workout: WorkoutSession | null,
+  exercises: Exercise[],
+  settings: UserSettings,
+  catalogSource?: { routine: RoutineTemplate | null; nextDayNumber: number }
+) {
   const healthSync = Boolean(settings.appleHealthSyncEnabled);
-  if (!workout) return { v: 1, active: false, healthSync, lastEnded: getLastEndedWorkout() };
+  // התוכנית נשלחת רק כשאין אימון פעיל - רק אז השעון מציג "התחל אימון", והוא שומר את האחרונה שקיבל
+  if (!workout) {
+    const catalog = catalogSource
+      ? buildWatchCatalog(catalogSource.routine, catalogSource.nextDayNumber, exercises, settings)
+      : null;
+    return {
+      v: 1,
+      active: false,
+      healthSync,
+      autoRest: settings.autoRestTimerEnabled,
+      lastEnded: getLastEndedWorkout(),
+      catalog,
+    };
+  }
   const byId = new Map(exercises.map((e) => [e.id, e]));
   return {
     v: 1,
@@ -122,6 +257,24 @@ export function applyWatchCommand(workout: WorkoutSession, cmd: WatchCommand): W
     return workout;
   }
   return { ...workout, exercises: workout.exercises.map((e, i) => (i === exIdx ? { ...e, sets } : e)) };
+}
+
+/**
+ * מסדר פקודות לעיבוד: לפי אימון (האימון שהתחיל קודם - קודם), ובתוך כל אימון לפי seq.
+ * כפילויות (אותה פקודה שהגיעה פעמיים, או נשמרה כיתומה וגם הגיעה שוב) מוסרות.
+ */
+export function orderWatchCommands(commands: WatchCommand[]): WatchCommand[] {
+  const unique = new Map<string, WatchCommand>();
+  commands.forEach((c) => unique.set(`${c.workoutId}#${c.seq}`, c));
+  const list = [...unique.values()];
+  const firstAt = new Map<string, number>();
+  list.forEach((c) => firstAt.set(c.workoutId, Math.min(firstAt.get(c.workoutId) ?? Infinity, c.at)));
+  return list.sort(
+    (a, b) =>
+      firstAt.get(a.workoutId)! - firstAt.get(b.workoutId)! ||
+      a.workoutId.localeCompare(b.workoutId) ||
+      a.seq - b.seq
+  );
 }
 
 export function parseWatchCommands(raw: string[]): WatchCommand[] {

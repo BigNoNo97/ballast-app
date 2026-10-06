@@ -177,6 +177,11 @@ function getLastEndedWorkout(): LastEndedWorkout | null {
 
 export const isWatchSyncSupported = (): boolean => Capacitor.getPlatform() === 'ios';
 
+/** בהתנתקות: מוחקים את מצב הסנכרון עם השעון של המשתמש הקודם (פקודות ממתינות, אישורים, סיום אחרון) */
+export function clearWatchSyncState() {
+  [ORPHANS_KEY, ACK_KEY, LAST_ENDED_KEY].forEach((key) => localStorage.removeItem(key));
+}
+
 export function getWatchAck(workoutId: string): number {
   try {
     const raw = localStorage.getItem(ACK_KEY);
@@ -220,6 +225,9 @@ export function buildWatchState(
       autoRest: settings.autoRestTimerEnabled,
       lastEnded: getLastEndedWorkout(),
       catalog,
+      // אין תוכנית פעילה (או שהמשתמש התנתק) - השעון צריך למחוק את התוכנית ששמר, לא להציג ישנה.
+      // (כשל בבניית התוכנית לא נחשב: אז משאירים בשעון את האחרונה שהגיעה)
+      noCatalog: !catalogSource?.routine,
     };
   }
   const byId = new Map(exercises.map((e) => [e.id, e]));

@@ -26,6 +26,12 @@ import {
   syncSettingsToCloud,
   pullSettingsFromCloud,
   cloudHasAnyData,
+  deleteAllCloudRows,
+  getTableShadow,
+  setTableShadow,
+  clearSyncShadow,
+  mergeCloudWithLocal,
+  countPendingChanges,
 } from './cloudSync';
 import { PhotoStorage } from './photoStorage';
 
@@ -56,6 +62,21 @@ const STORAGE_KEYS = {
   NUTRITION_GOALS: 'gym_tracker_nutrition_goals_v1',
   EXERCISE_PROGRESS: 'gym_tracker_exercise_progress_v1',
 };
+
+// מטא-דאטה של הסנכרון (לא נתוני משתמש, לכן מחוץ ל-STORAGE_KEYS)
+// OWNER - של מי הנתונים שבמכשיר. אם מתחבר משתמש אחר, מנקים קודם, כדי שהנתונים של הקודם
+// לא יעלו לחשבון החדש. SETTINGS_DIRTY - ההגדרות השתנו ועוד לא נשמרו בענן.
+const SYNC_META_KEYS = {
+  OWNER: 'gym_tracker_owner_user_v1',
+  SETTINGS_DIRTY: 'gym_tracker_settings_dirty_v1',
+};
+
+// כל הטבלאות שמסונכרנות כרשימות: איפה הן במכשיר ואיך שולפים את הגרסה המקומית
+type SyncedTable = { table: string; key: string; getLocal: () => { id: string }[] };
+
+// האם כבר ראינו את מה שבענן מאז הכניסה. עד אז לא שולחים הגדרות, כדי שברירות המחדל של
+// מכשיר חדש (או תקלת רשת בכניסה) לא ידרסו את ההגדרות האמיתיות של המשתמש.
+let hydrated = false;
 
 export const DEFAULT_NUTRITION_GOALS: NutritionGoals = {
   calories: 2200,
@@ -213,10 +234,13 @@ export const StorageService = {
   },
 
   // Workout History
+  // תמיד מהחדש לישן: הסדר מהענן שרירותי, ואימון שנרשם בדיעבד נכנס לראש הרשימה - ו"הביצוע
+  // הקודם" של תרגיל (getLastExercisePerformance) מניח שהראשון ברשימה הוא האחרון בזמן
   getWorkoutHistory(): WorkoutSession[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.WORKOUT_HISTORY);
-      return data ? JSON.parse(data) : [];
+      const list: WorkoutSession[] = data ? JSON.parse(data) : [];
+      return list.sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
     } catch {
       return [];
     }
@@ -431,16 +455,9 @@ export const StorageService = {
     PhotoStorage.clearAll().catch(() => {});
     this.init();
     if (getCloudUser()) {
-      syncListToCloud('workouts', []);
-      syncListToCloud('routines', []);
-      syncListToCloud('custom_exercises', []);
-      syncListToCloud('body_weight_entries', []);
-      syncListToCloud('measurement_categories', []);
-      syncListToCloud('measurement_entries', []);
-      syncListToCloud('progress_photos', []);
-      syncListToCloud('food_items', []);
-      syncListToCloud('nutrition_entries', []);
-      syncListToCloud('exercise_progress', []);
+      // מחיקה מפורשת של כל השורות - גם כאלה שנוצרו במכשירים אחרים ולא מוכרות כאן
+      this.syncedTables().forEach(({ table }) => deleteAllCloudRows(table));
+      PhotoStorage.deleteAllInCloud().catch(() => {});
       this.pushSettingsBlob();
     }
   },
@@ -676,6 +693,12 @@ export const StorageService = {
 
   // אוסף את כל ה"הגדרות" מהמפתחות המקומיים השונים לאובייקט אחד ודוחף לענן.
   pushSettingsBlob() {
+    if (!getCloudUser()) return;
+    // מסמנים "לא נשמר" לפני השליחה, ומנקים רק אם השליחה הזו (ולא אחת ישנה יותר) הצליחה -
+    // כך שינוי שנעשה בלי קליטה (למשל מעבר ליום הבא אחרי אימון) לא נדרס בכניסה הבאה
+    const token = String(Date.now()) + Math.random().toString(36).slice(2, 6);
+    localStorage.setItem(SYNC_META_KEYS.SETTINGS_DIRTY, token);
+    if (!hydrated) return;
     const routines = this.getRoutines();
     const selectedDayByRoutine: Record<string, number> = {};
     routines.forEach((r) => {
@@ -689,7 +712,11 @@ export const StorageService = {
       favoriteExerciseIds: this.getFavoriteExerciseIds(),
       selectedDayByRoutine,
     };
-    syncSettingsToCloud(blob);
+    syncSettingsToCloud(blob).then((ok) => {
+      if (ok && localStorage.getItem(SYNC_META_KEYS.SETTINGS_DIRTY) === token) {
+        localStorage.removeItem(SYNC_META_KEYS.SETTINGS_DIRTY);
+      }
+    });
   },
 
   applySettingsBlob(blob: CloudSettingsBlob) {
@@ -707,67 +734,108 @@ export const StorageService = {
     });
   },
 
-  // מריץ פעם אחת בכניסה למערכת: אם למשתמש כבר יש נתונים בענן - מוריד אותם ומחליף
-  // את מה שיש במכשיר. אם זו הכניסה הראשונה שלו אי פעם (אין לו עדיין כלום בענן),
-  // "מעלה" את מה שכבר קיים במכשיר הזה כדי לא לאבד נתונים שהיו כאן לפני ההרשמה.
+  syncedTables(): SyncedTable[] {
+    return [
+      { table: 'workouts', key: STORAGE_KEYS.WORKOUT_HISTORY, getLocal: () => this.getWorkoutHistory() },
+      { table: 'routines', key: STORAGE_KEYS.ROUTINES, getLocal: () => this.getRoutines() },
+      { table: 'custom_exercises', key: STORAGE_KEYS.EXERCISES, getLocal: () => this.getExercises().filter((e) => e.isCustom) },
+      { table: 'body_weight_entries', key: STORAGE_KEYS.BODY_WEIGHT_LOG, getLocal: () => this.getBodyWeightLog() },
+      { table: 'measurement_categories', key: STORAGE_KEYS.MEASUREMENT_CATEGORIES, getLocal: () => this.getMeasurementCategories() },
+      { table: 'measurement_entries', key: STORAGE_KEYS.MEASUREMENT_ENTRIES, getLocal: () => this.getAllMeasurementEntries() },
+      { table: 'progress_photos', key: STORAGE_KEYS.PROGRESS_PHOTOS, getLocal: () => this.getProgressPhotos() },
+      { table: 'food_items', key: STORAGE_KEYS.FOOD_ITEMS, getLocal: () => this.getFoodItems() },
+      { table: 'nutrition_entries', key: STORAGE_KEYS.NUTRITION_ENTRIES, getLocal: () => this.getAllNutritionEntries() },
+      { table: 'exercise_progress', key: STORAGE_KEYS.EXERCISE_PROGRESS, getLocal: () => this.getAllExerciseProgressStates() },
+    ];
+  },
+
+  // כניסה למערכת / פתיחת האפליקציה: מורידים את מה שבענן וממזגים עם השינויים המקומיים שעוד
+  // לא עלו (לא דורסים אותם), ואז שולחים את השינויים האלה. אם לחשבון אין עדיין כלום בענן
+  // (כניסה ראשונה אי פעם) - מעלים את מה שכבר קיים במכשיר כדי לזרוע את החשבון.
+  // אם אין רשת - לא נוגעים בכלום, האפליקציה עובדת מקומית, ומנסים שוב ב-resume / חזרת רשת.
   async hydrateFromCloud(userId: string): Promise<void> {
-    setCloudUser(userId);
-    const hasCloudData = await cloudHasAnyData();
-
-    if (hasCloudData) {
-      // Promise.allSettled ולא Promise.all: pullListFromCloud עכשיו זורק בשגיאה (ולא מחזיר [])
-      // כשהשליפה נכשלת (רשת/timeout) - בלי ה-allSettled, כשל ברשת בטבלה אחת היה מפיל את כל
-      // הבטחת ה-Promise.all, וחמור מזה - קודם לתיקון הזה, כשל שקט כזה היה גורם לדריסת הנתונים
-      // המקומיים ב-[] (מערך ריק) בטעות. עכשיו: טבלה שנכשלה - משאירים את הנתון המקומי הקיים.
-      const results = await Promise.allSettled([
-        pullListFromCloud<WorkoutSession>('workouts'),
-        pullListFromCloud<RoutineTemplate>('routines'),
-        pullListFromCloud<Exercise>('custom_exercises'),
-        pullListFromCloud<BodyWeightEntry>('body_weight_entries'),
-        pullListFromCloud<MeasurementCategory>('measurement_categories'),
-        pullListFromCloud<MeasurementEntry>('measurement_entries'),
-        pullListFromCloud<ProgressPhoto>('progress_photos'),
-        pullListFromCloud<FoodItem>('food_items'),
-        pullListFromCloud<NutritionEntry>('nutrition_entries'),
-        pullListFromCloud<ExerciseProgressState>('exercise_progress'),
-      ]);
-
-      const listKeys = [
-        STORAGE_KEYS.WORKOUT_HISTORY,
-        STORAGE_KEYS.ROUTINES,
-        STORAGE_KEYS.EXERCISES,
-        STORAGE_KEYS.BODY_WEIGHT_LOG,
-        STORAGE_KEYS.MEASUREMENT_CATEGORIES,
-        STORAGE_KEYS.MEASUREMENT_ENTRIES,
-        STORAGE_KEYS.PROGRESS_PHOTOS,
-        STORAGE_KEYS.FOOD_ITEMS,
-        STORAGE_KEYS.NUTRITION_ENTRIES,
-        STORAGE_KEYS.EXERCISE_PROGRESS,
-      ];
-      results.forEach((result, i) => {
-        if (result.status === 'fulfilled') {
-          localStorage.setItem(listKeys[i], JSON.stringify(result.value));
-        } else {
-          console.error(`[hydrateFromCloud] pull failed for "${listKeys[i]}" - keeping local data as-is`, result.reason);
-        }
-      });
-
-      const settingsBlob = await pullSettingsFromCloud<CloudSettingsBlob>();
-      if (settingsBlob) this.applySettingsBlob(settingsBlob);
-    } else {
-      // משתמש חדש - מעלים את מה שכבר קיים במכשיר (אם קיים) כדי לזרוע את החשבון שלו.
-      syncListToCloud('workouts', this.getWorkoutHistory());
-      syncListToCloud('routines', this.getRoutines());
-      syncListToCloud('custom_exercises', this.getExercises().filter((e) => e.isCustom));
-      syncListToCloud('body_weight_entries', this.getBodyWeightLog());
-      syncListToCloud('measurement_categories', this.getMeasurementCategories());
-      syncListToCloud('measurement_entries', this.getAllMeasurementEntries());
-      syncListToCloud('progress_photos', this.getProgressPhotos());
-      syncListToCloud('food_items', this.getFoodItems());
-      syncListToCloud('nutrition_entries', this.getAllNutritionEntries());
-      syncListToCloud('exercise_progress', this.getAllExerciseProgressStates());
-      this.pushSettingsBlob();
+    const owner = localStorage.getItem(SYNC_META_KEYS.OWNER);
+    if (owner && owner !== userId) {
+      // משתמש אחר מתחבר במכשיר הזה - הנתונים שבמכשיר שייכים לקודם ואסור שיעלו לחשבון הזה
+      this.clearLocalDataOnLogout();
     }
+    localStorage.setItem(SYNC_META_KEYS.OWNER, userId);
+    setCloudUser(userId);
+    hydrated = false;
+
+    let hasCloudData: boolean;
+    try {
+      hasCloudData = await cloudHasAnyData();
+    } catch {
+      return; // אין קשר לענן - ממשיכים מקומית, hydrated נשאר false וננסה שוב
+    }
+    if (getCloudUser() !== userId) return;
+
+    if (!hasCloudData) {
+      hydrated = true;
+      this.flushPendingSync();
+      this.pushSettingsBlob();
+      return;
+    }
+
+    const tables = this.syncedTables();
+    // allSettled: כשל בטבלה אחת משאיר את הנתונים המקומיים שלה כמו שהם, בלי להפיל את השאר
+    const results = await Promise.allSettled(tables.map(({ table }) => pullListFromCloud<{ id: string }>(table)));
+    if (getCloudUser() !== userId) return;
+    let allPulled = true;
+    results.forEach((result, i) => {
+      const { table, key, getLocal } = tables[i];
+      if (result.status !== 'fulfilled') {
+        allPulled = false;
+        console.error(`[hydrateFromCloud] pull failed for "${table}" - keeping local data as-is`, result.reason);
+        return;
+      }
+      const cloudList = result.value.filter((item) => item && typeof item.id === 'string');
+      const { merged, cloudShadow } = mergeCloudWithLocal(cloudList, getLocal(), getTableShadow(table));
+      localStorage.setItem(key, JSON.stringify(merged));
+      setTableShadow(table, cloudShadow);
+      syncListToCloud(table, merged);
+    });
+    PhotoStorage.flushPending(this.getProgressPhotos().map((p) => p.id)).catch(() => {});
+
+    if (localStorage.getItem(SYNC_META_KEYS.SETTINGS_DIRTY)) {
+      // ההגדרות במכשיר השתנו בלי שנשמרו (למשל מעבר ליום הבא באימון בלי קליטה) - הן הגרסה העדכנית
+      hydrated = allPulled;
+      if (hydrated) this.pushSettingsBlob();
+      return;
+    }
+    try {
+      const settingsBlob = await pullSettingsFromCloud<CloudSettingsBlob>();
+      if (getCloudUser() !== userId) return;
+      if (settingsBlob) this.applySettingsBlob(settingsBlob);
+    } catch {
+      allPulled = false;
+    }
+    hydrated = allPulled;
+  },
+
+  /** האם הסנכרון הראשוני מול הענן הושלם (אם לא - צריך לנסות שוב כשיש רשת) */
+  isHydrated(): boolean {
+    return hydrated;
+  },
+
+  /** שולח לענן כל שינוי מקומי שעוד לא עלה (נקרא בחזרה לאפליקציה ובחזרת רשת) */
+  flushPendingSync() {
+    if (!getCloudUser()) return;
+    this.syncedTables().forEach(({ table, getLocal }) => syncListToCloud(table, getLocal()));
+    PhotoStorage.flushPending(this.getProgressPhotos().map((p) => p.id)).catch(() => {});
+    if (hydrated && localStorage.getItem(SYNC_META_KEYS.SETTINGS_DIRTY)) this.pushSettingsBlob();
+  },
+
+  /** כמה שינויים מקומיים עוד לא נשמרו בענן (לאזהרה לפני התנתקות) */
+  countPendingCloudChanges(): number {
+    if (!getCloudUser()) return 0;
+    let count = this.syncedTables().reduce(
+      (sum, { table, getLocal }) => sum + countPendingChanges(getLocal(), getTableShadow(table)),
+      0
+    );
+    if (localStorage.getItem(SYNC_META_KEYS.SETTINGS_DIRTY)) count += 1;
+    return count + PhotoStorage.pendingCount();
   },
 
   // בהתנתקות - מנקים את המכשיר כדי שמשתמש הבא שיתחבר כאן (מכשיר משותף) לא יראה נתונים
@@ -775,6 +843,9 @@ export const StorageService = {
   // ההתקדמות ב-IndexedDB - שני אלה נשארו בעבר כ"יתומים" אחרי logout על מכשיר משותף.
   clearLocalDataOnLogout() {
     setCloudUser(null);
+    hydrated = false;
+    clearSyncShadow();
+    Object.values(SYNC_META_KEYS).forEach((key) => localStorage.removeItem(key));
     Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
     localStorage.removeItem('gym_tracker_favorite_exercises_v2');
     Object.keys(localStorage)

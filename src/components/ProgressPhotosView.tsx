@@ -103,9 +103,14 @@ export const ProgressPhotosView: React.FC<ProgressPhotosViewProps> = ({ onBack }
               <button
                 key={p.id}
                 onClick={() => setViewingId(p.id)}
-                style={{ aspectRatio: '1', borderRadius: 10, overflow: 'hidden', border: 'none', padding: 0, background: 'var(--bg-surface-2)', cursor: 'pointer' }}
+                style={{ aspectRatio: '1', borderRadius: 10, overflow: 'hidden', border: 'none', padding: 0, background: 'var(--bg-surface-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                {urls[p.id] && <img src={urls[p.id]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                {urls[p.id] ? (
+                  <img src={urls[p.id]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  // עוד יורדת מהענן, או שאין כרגע רשת
+                  <Camera size={20} style={{ opacity: 0.35, color: 'var(--text-muted)' }} />
+                )}
               </button>
             ))}
           </div>

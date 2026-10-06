@@ -18,16 +18,12 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "saveBodyWeight", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveWorkout", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "deleteWorkout", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "startWatchApp", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getLatestHeartRate", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getStepsToday", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "startWatchApp", returnType: CAPPluginReturnPromise)
     ]
 
     private let healthStore = HKHealthStore()
 
     private var bodyMassType: HKQuantityType { HKQuantityType.quantityType(forIdentifier: .bodyMass)! }
-    private var heartRateType: HKQuantityType { HKQuantityType.quantityType(forIdentifier: .heartRate)! }
-    private var stepType: HKQuantityType { HKQuantityType.quantityType(forIdentifier: .stepCount)! }
     private var activeEnergyType: HKQuantityType { HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)! }
     private var workoutType: HKWorkoutType { HKObjectType.workoutType() }
 
@@ -41,7 +37,9 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
-        let readTypes: Set<HKObjectType> = [heartRateType, stepType, bodyMassType, workoutType]
+        // מבקשים רק את מה שבאמת בשימוש (Apple דוחה בקשת הרשאות עודפות): קריאת אימונים נדרשת
+        // כדי למצוא ולמחוק אימון של Ballast; כתיבה - אימונים, קלוריות ומשקל גוף.
+        let readTypes: Set<HKObjectType> = [workoutType]
         let writeTypes: Set<HKSampleType> = [bodyMassType, activeEnergyType, workoutType]
 
         healthStore.requestAuthorization(toShare: writeTypes, read: readTypes) { success, error in
@@ -254,45 +252,5 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             self.healthStore.deleteObjects(of: self.activeEnergyType, predicate: predicate) { _, _, _ in resolve() }
         }
-    }
-
-    @objc func getLatestHeartRate(_ call: CAPPluginCall) {
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-        let query = HKSampleQuery(sampleType: heartRateType, predicate: nil, limit: 1, sortDescriptors: [sortDescriptor]) { _, samples, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    call.reject(error.localizedDescription)
-                    return
-                }
-                guard let sample = samples?.first as? HKQuantitySample else {
-                    call.resolve(["bpm": NSNull(), "date": NSNull()])
-                    return
-                }
-                let bpm = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: HKUnit.minute()))
-                call.resolve([
-                    "bpm": bpm,
-                    "date": sample.startDate.timeIntervalSince1970 * 1000
-                ])
-            }
-        }
-        healthStore.execute(query)
-    }
-
-    @objc func getStepsToday(_ call: CAPPluginCall) {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: Date())
-        let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: Date(), options: .strictStartDate)
-
-        let query = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, statistics, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    call.reject(error.localizedDescription)
-                    return
-                }
-                let steps = statistics?.sumQuantity()?.doubleValue(for: .count()) ?? 0
-                call.resolve(["steps": steps])
-            }
-        }
-        healthStore.execute(query)
     }
 }

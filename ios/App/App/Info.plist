@@ -22,10 +22,12 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Ballast משתמשת במצלמה כדי לצלם תמונות התקדמות, רק כשאתה בוחר לצלם.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Ballast משתמשת ב-Health כדי להציג את הדופק והצעדים שלך לצד נתוני האימונים.</string>
+	<string>Ballast קוראת מ-Health את האימונים שהיא עצמה שמרה, כדי שתוכל למחוק אותם משם כשאתה מוחק אימון באפליקציה.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Ballast שומרת ב-Health את האימונים שהשלמת ואת מדידות המשקל שלך.</string>
+	<string>Ballast שומרת ב-Health את האימונים שהשלמת, את הקלוריות שנשרפו בהם ואת מדידות משקל הגוף שלך.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>

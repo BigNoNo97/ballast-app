@@ -174,6 +174,9 @@ final class WatchConnector: NSObject, ObservableObject {
             if let catalogData = try? JSONEncoder().encode(newCatalog) {
                 UserDefaults.standard.set(catalogData, forKey: catalogKey)
             }
+        } else if !decoded.active, decoded.noCatalog == true {
+            catalog = nil
+            UserDefaults.standard.removeObject(forKey: catalogKey)
         }
         if decoded.healthSync != nil || decoded.autoRest != nil {
             lastHealthSync = decoded.healthSync ?? lastHealthSync

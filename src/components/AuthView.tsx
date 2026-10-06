@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Dumbbell, Mail, Lock, User, Loader2, Sparkles, Check } from 'lucide-react';
-import { supabase } from '../services/supabaseClient';
+import { supabase, markOAuthPending } from '../services/supabaseClient';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -39,6 +39,8 @@ export const AuthView: React.FC = () => {
   const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signupDone, setSignupDone] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   // אם המשתמש חוזר לאפליקציה מהדפדפן החיצוני בלי להשלים התחברות (ביטל/חזר עם כפתור
   // "חזרה") - מאפסים את מצב הטעינה, אחרת הכפתור נשאר תקוע עם ספינר לצמיתות.
@@ -55,12 +57,22 @@ export const AuthView: React.FC = () => {
   const handleDemoLogin = async () => {
     setError(null);
     setDemoLoading(true);
-    const { error: demoError } = await supabase.auth.signInWithPassword({
-      email: 'test@test.com',
-      password: '123456',
-    });
+    // הסיסמה של חשבון הדמו לא בקוד: פונקציה בשרת קובעת סיסמה חדשה בכל כניסה ומחזירה טוקנים
+    // (ראו supabase/functions/demo-login) - כך אי אפשר להשתלט על החשבון המשותף ולנעול אותו
+    const { data, error: invokeError } = await supabase.functions.invoke('demo-login', { method: 'POST' });
+    const demoError =
+      invokeError?.message || data?.error || (!data?.access_token ? 'לא התקבלה תשובה מהשרת' : null);
     if (demoError) {
-      setError('החשבון הדמו לא זמין כרגע: ' + demoError.message);
+      setError('החשבון הדמו לא זמין כרגע: ' + demoError);
+      setDemoLoading(false);
+      return;
+    }
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    });
+    if (sessionError) {
+      setError('החשבון הדמו לא זמין כרגע: ' + sessionError.message);
       setDemoLoading(false);
     }
     // בהצלחה - זה בדיוק אותו flow של התחברות רגילה, אז ה-sync לענן קורה אוטומטית
@@ -70,6 +82,7 @@ export const AuthView: React.FC = () => {
     setError(null);
     setOauthLoading(provider);
     const isNative = Capacitor.isNativePlatform();
+    markOAuthPending(provider);
     const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
@@ -142,6 +155,94 @@ export const AuthView: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // שכחתי סיסמה: שולחים מייל עם קישור. באפליקציה הקישור חוזר דרך co.brainslead.ballast://
+  // (כמו Google/Apple) ופותח את מסך "סיסמה חדשה"; באתר הוא חוזר לאתר עצמו.
+  const handleSendReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!email.trim()) {
+      setError('נא למלא את האימייל של החשבון.');
+      return;
+    }
+    setLoading(true);
+    const isNative = Capacitor.isNativePlatform();
+    if (isNative) markOAuthPending('recovery');
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: isNative ? NATIVE_OAUTH_REDIRECT : window.location.origin,
+    });
+    setLoading(false);
+    if (resetError) {
+      setError(
+        /rate limit|security purposes/i.test(resetError.message)
+          ? 'נשלחו יותר מדי בקשות. נסה שוב בעוד כמה דקות.'
+          : resetError.message
+      );
+      return;
+    }
+    setResetSent(true);
+  };
+
+  if (resetMode) {
+    return (
+      <div style={containerStyle}>
+        <form onSubmit={handleSendReset} style={{ width: '100%', maxWidth: 340 }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={logoWrap}>
+              <Lock size={30} color="var(--color-blue)" />
+            </div>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 8 }}>איפוס סיסמה</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.6 }}>
+              {resetSent
+                ? `אם קיים חשבון עם ${email.trim()}, שלחנו אליו מייל עם קישור לבחירת סיסמה חדשה. פתח את הקישור במכשיר הזה.`
+                : 'הכנס את האימייל של החשבון ונשלח לך קישור לבחירת סיסמה חדשה.'}
+            </p>
+          </div>
+
+          {!resetSent && (
+            <>
+              <div style={fieldWrap}>
+                <Mail size={18} color="var(--text-muted)" />
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  placeholder="אימייל"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={inputStyle}
+                  dir="ltr"
+                />
+              </div>
+              {error && (
+                <div style={{ color: 'var(--color-red)', fontSize: '0.82rem', marginBottom: 14, textAlign: 'center' }}>
+                  {error}
+                </div>
+              )}
+              <button type="submit" className="btn-primary" style={{ width: '100%', marginBottom: 14 }} disabled={loading}>
+                {loading ? <Loader2 size={18} className="spin" /> : 'שלח קישור לאיפוס'}
+              </button>
+            </>
+          )}
+
+          <div style={{ textAlign: 'center' }}>
+            <button
+              type="button"
+              style={linkButtonStyle}
+              onClick={() => {
+                setResetMode(false);
+                setResetSent(false);
+                setError(null);
+              }}
+            >
+              חזרה להתחברות
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   if (signupDone) {
     return (
@@ -249,6 +350,22 @@ export const AuthView: React.FC = () => {
             dir="ltr"
           />
         </div>
+
+        {mode === 'login' && (
+          <div style={{ textAlign: 'start', margin: '-4px 2px 14px' }}>
+            <button
+              type="button"
+              style={{ ...linkButtonStyle, fontWeight: 600, fontSize: '0.8rem' }}
+              onClick={() => {
+                setResetMode(true);
+                setResetSent(false);
+                setError(null);
+              }}
+            >
+              שכחתי סיסמה
+            </button>
+          </div>
+        )}
 
         {mode === 'signup' && (
           <button
@@ -390,6 +507,93 @@ export const AuthView: React.FC = () => {
           לשימוש בחשבון דמו
         </button>
       </form>
+    </div>
+  );
+};
+
+/** אחרי שנכנסו מקישור איפוס הסיסמה: בוחרים סיסמה חדשה לחשבון המחובר */
+export const SetNewPasswordView: React.FC<{ onDone: () => void }> = ({ onDone }) => {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (password.length < 8) {
+      setError('הסיסמה חייבת להכיל לפחות 8 תווים.');
+      return;
+    }
+    if (password !== confirm) {
+      setError('הסיסמאות לא תואמות.');
+      return;
+    }
+    setSaving(true);
+    const { error: updateError } = await supabase.auth.updateUser({ password });
+    setSaving(false);
+    if (updateError) {
+      setError(
+        /different from the old/i.test(updateError.message)
+          ? 'הסיסמה החדשה חייבת להיות שונה מהקודמת.'
+          : updateError.message
+      );
+      return;
+    }
+    alert('הסיסמה עודכנה בהצלחה.');
+    onDone();
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'var(--bg-app)', overflowY: 'auto' }}>
+      <div style={containerStyle}>
+        <form onSubmit={handleSave} style={{ width: '100%', maxWidth: 340 }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={logoWrap}>
+              <Lock size={30} color="var(--color-blue)" />
+            </div>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 8 }}>בחירת סיסמה חדשה</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>לפחות 8 תווים.</p>
+          </div>
+          <div style={fieldWrap}>
+            <Lock size={18} color="var(--text-muted)" />
+            <input
+              type="password"
+              autoComplete="new-password"
+              placeholder="סיסמה חדשה"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={inputStyle}
+              dir="ltr"
+            />
+          </div>
+          <div style={fieldWrap}>
+            <Lock size={18} color="var(--text-muted)" />
+            <input
+              type="password"
+              autoComplete="new-password"
+              placeholder="אימות סיסמה"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              style={inputStyle}
+              dir="ltr"
+            />
+          </div>
+          {error && (
+            <div style={{ color: 'var(--color-red)', fontSize: '0.82rem', marginBottom: 14, textAlign: 'center' }}>
+              {error}
+            </div>
+          )}
+          <button type="submit" className="btn-primary" style={{ width: '100%', marginBottom: 14 }} disabled={saving}>
+            {saving ? <Loader2 size={18} className="spin" /> : 'שמור סיסמה'}
+          </button>
+          <div style={{ textAlign: 'center' }}>
+            <button type="button" style={linkButtonStyle} onClick={onDone}>
+              לא עכשיו
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

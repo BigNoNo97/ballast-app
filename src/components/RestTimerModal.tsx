@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Plus, Minus, Bell, BellOff, TimerOff } from 'lucide-react';
 import { playTimerWarningBeep, playTimerFinishBeep, triggerHaptic } from '../services/sound';
+import { scheduleRestEndNotification, cancelRestEndNotification } from '../services/restNotification';
 
 interface RestTimerModalProps {
   initialSeconds: number;
@@ -20,48 +21,66 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
   const [timeLeft, setTimeLeft] = useState(initialSeconds);
   const [totalTime, setTotalTime] = useState(initialSeconds);
   const [isMuted, setIsMuted] = useState(!soundEnabled);
-  // עוקב אחרי הערך העדכני ביותר של timeLeft בזמן אמת (גם באמצע אותה קריאה סינכרונית) -
-  // צריך את זה כדי ש-addTime יוכל לחשב totalTime נכון על בסיס timeLeft העדכני, לא הערך
-  // המיושן מה-closure של הרנדר האחרון (בעייתי בלחיצות כפולות מהירות על "+30 שנ'").
-  const timeLeftRef = useRef(initialSeconds);
-  useEffect(() => {
-    timeLeftRef.current = timeLeft;
-  }, [timeLeft]);
+  // מתי המנוחה נגמרת לפי השעון האמיתי. לא סופרים "טיקים": כשהמסך נעול ה-JS מושהה, וספירה לפי
+  // טיקים הייתה קופאת ומראה בחזרה זמן שגוי. כך הזמן תמיד נכון, גם אחרי נעילה.
+  const endsAtRef = useRef(Date.now() + initialSeconds * 1000);
+  const lastAlertedRef = useRef<number | null>(null);
+  const notificationCancelledRef = useRef(false);
+
+  const remainingSeconds = () => Math.max(0, Math.ceil((endsAtRef.current - Date.now()) / 1000));
+
+  const restartNotification = () => {
+    notificationCancelledRef.current = false;
+    scheduleRestEndNotification(new Date(endsAtRef.current));
+  };
 
   useEffect(() => {
-    if (isOpen) {
-      setTimeLeft(initialSeconds);
-      setTotalTime(initialSeconds);
-      timeLeftRef.current = initialSeconds;
+    if (!isOpen) {
+      cancelRestEndNotification();
+      return;
     }
+    endsAtRef.current = Date.now() + initialSeconds * 1000;
+    lastAlertedRef.current = null;
+    setTimeLeft(initialSeconds);
+    setTotalTime(initialSeconds);
+    restartNotification();
+    return () => cancelRestEndNotification();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialSeconds]);
 
   useEffect(() => {
     if (!isOpen) return;
+    const tick = () => {
+      // האפליקציה פתוחה ממש לפני הסוף - מצפצפים כאן, אז מבטלים את ההתראה כדי שלא תופיע גם היא
+      if (!notificationCancelledRef.current && endsAtRef.current - Date.now() < 1500 && document.visibilityState === 'visible') {
+        notificationCancelledRef.current = true;
+        cancelRestEndNotification();
+      }
+      setTimeLeft(remainingSeconds());
+    };
+    tick();
+    const timer = setInterval(tick, 250);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || lastAlertedRef.current === timeLeft) return;
+    lastAlertedRef.current = timeLeft;
+    // חזרה לאפליקציה הרבה אחרי שהמנוחה נגמרה (ההתראה כבר הוצגה) - בלי צפצוף מאוחר
+    const endedLongAgo = Date.now() - endsAtRef.current > 2000;
     if (timeLeft <= 0) {
-      if (!isMuted) playTimerFinishBeep();
-      triggerHaptic([100, 100, 200]);
+      if (!endedLongAgo) {
+        if (!isMuted) playTimerFinishBeep();
+        triggerHaptic([100, 100, 200]);
+      }
       return;
     }
-
     // Beep on 3, 2, 1
     if (timeLeft <= 3 && !isMuted) {
       playTimerWarningBeep();
       triggerHaptic(40);
     }
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
   }, [isOpen, timeLeft, isMuted]);
 
   if (!isOpen) return null;
@@ -73,12 +92,15 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
   const progressPercent = totalTime > 0 ? ((totalTime - timeLeft) / totalTime) * 100 : 100;
 
   const addTime = (secs: number) => {
-    setTimeLeft((prev) => {
-      const next = Math.max(0, prev + secs);
-      timeLeftRef.current = next;
-      return next;
-    });
-    setTotalTime((prev) => Math.max(prev, timeLeftRef.current));
+    const now = Date.now();
+    endsAtRef.current = Math.max(now, endsAtRef.current) + secs * 1000;
+    if (endsAtRef.current < now) endsAtRef.current = now;
+    const next = remainingSeconds();
+    lastAlertedRef.current = null;
+    setTimeLeft(next);
+    setTotalTime((prev) => Math.max(prev, next));
+    if (next > 0) restartNotification();
+    else cancelRestEndNotification();
   };
 
   const handleDisableAuto = () => {

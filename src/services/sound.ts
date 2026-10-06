@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 // Audio Synthesizer using standard Web Audio API (No external sound files required)
 let audioCtx: AudioContext | null = null;
 
@@ -108,8 +110,19 @@ export function playWorkoutCompleteSound() {
   }
 }
 
+// באייפון navigator.vibrate לא קיים בכלל (WKWebView/Safari) - שם עוברים דרך מנוע ה-Haptics
+// הנייטיבי: רצף (מערך) = רטט "הצלחה", מספר = מכה קצרה בעוצמה לפי האורך שביקשו.
 export function triggerHaptic(pattern: number | number[] = 50) {
   try {
+    if (Capacitor.isNativePlatform()) {
+      if (Array.isArray(pattern)) {
+        Haptics.notification({ type: NotificationType.Success }).catch(() => {});
+      } else {
+        const style = pattern >= 60 ? ImpactStyle.Heavy : pattern >= 30 ? ImpactStyle.Medium : ImpactStyle.Light;
+        Haptics.impact({ style }).catch(() => {});
+      }
+      return;
+    }
     if (typeof window !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate(pattern);
     }

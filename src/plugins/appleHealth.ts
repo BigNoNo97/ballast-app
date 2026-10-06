@@ -34,12 +34,6 @@ export interface AppleHealthPlugin {
 
   /** מוחק מ-Health אימון ש-Ballast שמרה, לפי שעת ההתחלה שלו (לא נוגע באימונים של אפליקציות אחרות) */
   deleteWorkout(options: { startMs: number }): Promise<{ deletedWorkouts: number }>;
-
-  /** קורא את מדידת הדופק האחרונה שנשמרה ב-Health (למשל מהשעון) */
-  getLatestHeartRate(): Promise<{ bpm: number | null; date: number | null }>;
-
-  /** סך הצעדים שנספרו היום */
-  getStepsToday(): Promise<{ steps: number }>;
 }
 
 export const AppleHealth = registerPlugin<AppleHealthPlugin>('AppleHealth');

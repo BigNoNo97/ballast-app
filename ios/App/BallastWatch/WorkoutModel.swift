@@ -78,6 +78,8 @@ struct WorkoutState: Codable, Equatable {
     var healthSync: Bool?
     var lastEnded: LastEndedWorkout?
     var catalog: WorkoutCatalog?
+    /// אין תוכנית פעילה באייפון / המשתמש התנתק - מוחקים את התוכנית השמורה בשעון
+    var noCatalog: Bool?
     var workoutId: String?
     var title: String?
     var startTime: Double?
@@ -230,6 +232,7 @@ extension WorkoutState {
         lastEnded = try? c.decodeIfPresent(LastEndedWorkout.self, forKey: .lastEnded)
         // תוכנית שלא מצליחים לקרוא לא מפילה את מצב האימון עצמו
         catalog = try? c.decodeIfPresent(WorkoutCatalog.self, forKey: .catalog)
+        noCatalog = try? c.decodeIfPresent(Bool.self, forKey: .noCatalog)
         workoutId = try? c.decodeIfPresent(String.self, forKey: .workoutId)
         title = try? c.decodeIfPresent(String.self, forKey: .title)
         startTime = try? c.decodeIfPresent(Double.self, forKey: .startTime)

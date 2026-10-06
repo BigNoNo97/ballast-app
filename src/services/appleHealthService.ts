@@ -122,27 +122,4 @@ export const AppleHealthService = {
       console.warn('[AppleHealth] סנכרון משקל נכשל:', e);
     }
   },
-
-  /** דופק אחרון שנמדד (למשל ע"י Apple Watch) - null אם אין נתון/הרשאה/לא iOS */
-  async getLatestHeartRate(): Promise<{ bpm: number; date: number } | null> {
-    if (!isNativeIOS()) return null;
-    try {
-      const result = await AppleHealth.getLatestHeartRate();
-      if (result.bpm == null || result.date == null) return null;
-      return { bpm: result.bpm, date: result.date };
-    } catch {
-      return null;
-    }
-  },
-
-  /** צעדים שנספרו היום - null אם לא זמין */
-  async getStepsToday(): Promise<number | null> {
-    if (!isNativeIOS()) return null;
-    try {
-      const { steps } = await AppleHealth.getStepsToday();
-      return steps;
-    } catch {
-      return null;
-    }
-  },
 };

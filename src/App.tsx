@@ -38,11 +38,11 @@ import { NutritionView } from './components/NutritionView';
 import { WorkoutSummaryModal } from './components/WorkoutSummaryModal';
 import { ExerciseProfileView } from './components/ExerciseProfileView';
 import { IPhonePreviewFrame } from './components/IPhonePreviewFrame';
-import { AuthView } from './components/AuthView';
+import { AuthView, SetNewPasswordView } from './components/AuthView';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { NoRoutineWorkoutView } from './components/NoRoutineWorkoutView';
 import { ProgramGeneratingLoader } from './components/ProgramGeneratingLoader';
-import { supabase } from './services/supabaseClient';
+import { supabase, consumeOAuthPending, rememberAppleRefreshToken } from './services/supabaseClient';
 import type { Session } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -51,6 +51,7 @@ import { WatchBridge } from './plugins/watchBridge';
 import {
   applyWatchCommand,
   buildWatchState,
+  clearWatchSyncState,
   getWatchAck,
   isWatchSyncSupported,
   loadOrphanCommands,
@@ -75,13 +76,22 @@ export const App: React.FC = () => {
 
   // Auth: session === undefined means "still checking", null means "logged out"
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  // נכנסו דרך קישור "שכחתי סיסמה" - מציגים מסך בחירת סיסמה חדשה
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [dataReady, setDataReady] = useState(false);
   const lastHydratedUserId = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
+      if (event === 'SIGNED_OUT') setPasswordRecovery(false);
+      // באתר: חזרה מ-Apple מגיעה כאן עם provider_refresh_token (באפליקציה זה מטופל ב-appUrlOpen)
+      if (event === 'SIGNED_IN' && newSession?.provider_refresh_token) {
+        const provider = consumeOAuthPending();
+        if (provider === 'apple') setTimeout(() => rememberAppleRefreshToken(newSession.provider_refresh_token), 0);
+      }
     });
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -94,6 +104,11 @@ export const App: React.FC = () => {
     const listenerPromise = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
       if (!url.includes('auth-callback')) return;
       await Browser.close().catch(() => {});
+      // מקבלים טוקנים רק אם המשתמש באמת התחיל עכשיו התחברות מהאפליקציה. אחרת כל קישור
+      // co.brainslead.ballast://auth-callback#access_token=... (למשל מאתר זדוני) היה מחבר
+      // את המשתמש בשקט לחשבון של מישהו אחר.
+      const provider = consumeOAuthPending();
+      if (!provider) return;
 
       // ה-client עובד ב-implicit flow (ברירת המחדל של supabase-js) - הטוקנים מגיעים
       // ב-hash. אם יום אחד נעבור ל-PKCE, יגיע ?code= ב-query במקום.
@@ -108,6 +123,8 @@ export const App: React.FC = () => {
       if (accessToken && refreshToken) {
         const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
         if (error) alert('ההתחברות נכשלה: ' + error.message);
+        else if (provider === 'apple') rememberAppleRefreshToken(hashParams.get('provider_refresh_token'));
+        else if (provider === 'recovery' && hashParams.get('type') === 'recovery') setPasswordRecovery(true);
       } else if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) alert('ההתחברות נכשלה: ' + error.message);
@@ -129,12 +146,29 @@ export const App: React.FC = () => {
 
     if (userId === null) {
       StorageService.clearLocalDataOnLogout();
+      // גם השעון ושכבת הסנכרון שלו לא אמורים להמשיך להחזיק את התוכנית/האימון של מי שהתנתק
+      clearWatchSyncState();
+      if (isWatchSyncSupported()) {
+        WatchBridge.takePendingCommands().catch(() => {});
+        WatchBridge.sendState({
+          state: JSON.stringify(buildWatchState(null, [], StorageService.getSettings())),
+        }).catch(() => {});
+      }
       setDataReady(false);
       return;
     }
 
     setDataReady(false);
     StorageService.hydrateFromCloud(userId).then(() => {
+      if (lastHydratedUserId.current !== userId) return;
+      loadStateFromStorage();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  // אחרי סנכרון מול הענן: טוענים את כל מה שבמכשיר למסכים
+  const loadStateFromStorage = () => {
+    {
       let loadedSettings = StorageService.getSettings();
       // חשבון בלי דגל אונבורדינג בכלל: אם הוא נוצר עכשיו ממש (הרשמה טרייה) - נציג את
       // תהליך ההיכרות; אם הוא ישן (חשבון מלפני התכונה הזו) - נסמן כבוצע בלי להציג כלום.
@@ -171,8 +205,54 @@ export const App: React.FC = () => {
         setSelectedDayNumber(StorageService.getSelectedDayNumber(resolvedRoutine.id));
       }
       setDataReady(true);
+    }
+  };
+
+  // שינויים שלא הגיעו לענן (אין קליטה בחדר הכושר) נשלחים שוב כשחוזרים לאפליקציה או כשהרשת
+  // חוזרת. ואם בכניסה לא הצלחנו לראות את מה שבענן - משלימים את הסנכרון עכשיו.
+  const retrySyncRef = useRef<() => void>(() => {});
+  retrySyncRef.current = () => {
+    const userId = lastHydratedUserId.current;
+    if (!userId || !dataReady) return;
+    if (StorageService.isHydrated()) {
+      StorageService.flushPendingSync();
+      return;
+    }
+    StorageService.hydrateFromCloud(userId).then(() => {
+      if (lastHydratedUserId.current !== userId || !StorageService.isHydrated()) return;
+      // לא מחליפים את המסכים באמצע אימון פעיל - הנתונים במכשיר כבר עדכניים, יוצגו בפעם הבאה
+      if (!activeWorkoutRef.current) loadStateFromStorage();
     });
-  }, [session]);
+  };
+  useEffect(() => {
+    const retry = () => retrySyncRef.current();
+    window.addEventListener('online', retry);
+    const resumeListener = Capacitor.isNativePlatform()
+      ? CapacitorApp.addListener('resume', retry)
+      : null;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') retry();
+    };
+    if (!Capacitor.isNativePlatform()) document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', onVisible);
+      resumeListener?.then((l) => l.remove());
+    };
+  }, []);
+
+  // התנתקות מוחקת את הנתונים מהמכשיר - אם חלק מהם עוד לא הגיע לענן, הם היו נעלמים לגמרי
+  const handleLogout = () => {
+    const pending = StorageService.countPendingCloudChanges();
+    if (pending > 0) {
+      StorageService.flushPendingSync();
+      const proceed = window.confirm(
+        'חלק מהנתונים שלך (למשל אימון אחרון) עוד לא נשמרו בענן - כנראה בגלל שאין חיבור לאינטרנט.\n\nאם תתנתק עכשיו הם יימחקו. מומלץ לבטל, להתחבר לאינטרנט ולנסות שוב.\n\nלהתנתק בכל זאת?'
+      );
+      if (!proceed) return;
+    }
+    supabase.auth.signOut();
+  };
 
   const [settings, setSettings] = useState<UserSettings>(() => StorageService.getSettings());
   const [exercises, setExercises] = useState<Exercise[]>(() => StorageService.getExercises());
@@ -725,6 +805,7 @@ export const App: React.FC = () => {
   return (
     <IPhonePreviewFrame showFrameOnDesktop={settings.showIphoneFrameOnDesktop}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+        {passwordRecovery && <SetNewPasswordView onDone={() => setPasswordRecovery(false)} />}
         {/* Main Content Area */}
         <main
           className="app-content-scroll"
@@ -1089,7 +1170,7 @@ export const App: React.FC = () => {
                 onUpdateSettings={handleUpdateSettings}
                 onResetData={handleResetData}
                 userEmail={session?.user?.email}
-                onLogout={() => supabase.auth.signOut()}
+                onLogout={handleLogout}
               />
             </div>
           </div>

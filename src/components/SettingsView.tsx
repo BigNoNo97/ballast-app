@@ -16,10 +16,13 @@ import {
   LogOut,
   Heart,
   Flame,
+  FileArchive,
+  Loader2,
 } from 'lucide-react';
 import { UserSettings } from '../types';
 import { StorageService } from '../services/storage';
 import { AppleHealthService } from '../services/appleHealthService';
+import { parseExternalExport } from '../services/importers';
 
 interface SettingsViewProps {
   settings: UserSettings;
@@ -27,6 +30,8 @@ interface SettingsViewProps {
   onResetData: () => void;
   userEmail?: string;
   onLogout?: () => void;
+  /** אחרי ייבוא היסטוריה מאפליקציה אחרת - לרענן את המסכים מהאחסון */
+  onDataImported?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -35,9 +40,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onResetData,
   userEmail,
   onLogout,
+  onDataImported,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const externalInputRef = useRef<HTMLInputElement>(null);
+  const [externalBusy, setExternalBusy] = useState(false);
+  const [externalStatus, setExternalStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [healthBusy, setHealthBusy] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
 
@@ -98,6 +107,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       }
     };
     reader.readAsText(file);
+  };
+
+  // ייבוא מאפליקציה אחרת (Planfit): מציגים קודם מה נמצא בקובץ, ומייבאים רק אחרי אישור
+  const handleExternalSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const list = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (list.length === 0) return;
+    setExternalBusy(true);
+    setExternalStatus(null);
+    try {
+      const known = new Set(StorageService.getExercises().map((x) => x.id));
+      const result = await parseExternalExport(list, known);
+      const r = result.report;
+      const created = [...r.customExercisesCreated, ...r.unknownExercisesAutoCreated];
+      const lines = [
+        `נמצא ייצוא של ${result.source}:`,
+        `• ${r.workouts} אימונים`,
+        `• ${r.sets.toLocaleString('he-IL')} סטים ב-${r.exerciseEntries - r.cardioEntries} תרגילים`,
+        r.cardioEntries > 0 ? `• ${r.cardioEntries} פעילויות קרדיו (יירשמו בהערת האימון עם משך הזמן)` : '',
+        created.length > 0 ? `• ${created.length} תרגילים שאין להם מקבילה ייווצרו כתרגילים אישיים` : '',
+        r.skippedFiles.length > 0 ? `\nלא ייובאו (אין להם מקום ב-Ballast): צעדים יומיים ופרטי פרופיל.` : '',
+        '\nהאימונים יתווספו להיסטוריה שלך (שום דבר קיים לא יימחק). לייבא?',
+      ].filter(Boolean);
+      if (!window.confirm(lines.join('\n'))) return;
+      const { added, skipped } = StorageService.importExternalHistory(result.workouts, result.customExercises);
+      onDataImported?.();
+      setExternalStatus({
+        ok: true,
+        text:
+          `יובאו ${added} אימונים מ-${result.source}` +
+          (skipped > 0 ? ` (${skipped} כבר היו קיימים ודולגו)` : '') +
+          '. הם מופיעים בהיסטוריה, בניתוח ובשיאים.',
+      });
+    } catch (err) {
+      setExternalStatus({ ok: false, text: err instanceof Error ? err.message : 'הייבוא נכשל.' });
+    } finally {
+      setExternalBusy(false);
+    }
   };
 
   const restTimeOptions = [45, 60, 90, 120, 150, 180];
@@ -399,6 +446,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           style={{ display: 'none' }}
           onChange={handleFileSelected}
         />
+
+        <button
+          className="btn-secondary"
+          style={{ width: '100%', marginBottom: 12 }}
+          onClick={() => externalInputRef.current?.click()}
+          disabled={externalBusy}
+        >
+          {externalBusy ? <Loader2 size={16} className="spin" /> : <FileArchive size={16} />}
+          ייבוא מאפליקציה אחרת (Planfit)
+        </button>
+        <input
+          type="file"
+          ref={externalInputRef}
+          accept=".zip,.csv,application/zip,text/csv"
+          multiple
+          style={{ display: 'none' }}
+          onChange={handleExternalSelected}
+        />
+        {externalStatus && (
+          <div
+            style={{
+              background: 'var(--bg-surface-2)',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.8rem',
+              color: externalStatus.ok ? 'var(--color-green)' : 'var(--color-red)',
+              textAlign: 'center',
+              marginBottom: 10,
+              lineHeight: 1.5,
+            }}
+          >
+            {externalStatus.text}
+          </div>
+        )}
 
         {importStatus && (
           <div

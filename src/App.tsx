@@ -1171,6 +1171,10 @@ export const App: React.FC = () => {
                 onResetData={handleResetData}
                 userEmail={session?.user?.email}
                 onLogout={handleLogout}
+                onDataImported={() => {
+                  setHistory(StorageService.getWorkoutHistory());
+                  setExercises(StorageService.getExercises());
+                }}
               />
             </div>
           </div>

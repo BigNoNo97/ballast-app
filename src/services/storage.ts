@@ -462,6 +462,33 @@ export const StorageService = {
     }
   },
 
+  // ייבוא היסטוריה מאפליקציה אחרת: מוסיף (לא מחליף) - אימון/תרגיל שכבר קיים לפי מזהה מדולג,
+  // כך שייבוא חוזר של אותו קובץ לא יוצר כפילויות. כתיבה אחת וסנכרון ענן אחד לכל הרשימה.
+  importExternalHistory(workouts: WorkoutSession[], customExercises: Exercise[]): { added: number; skipped: number } {
+    const history = this.getWorkoutHistory();
+    const existingIds = new Set(history.map((w) => w.id));
+    const fresh = workouts.filter((w) => !existingIds.has(w.id));
+
+    const exercises = this.getExercises();
+    const existingExerciseIds = new Set(exercises.map((e) => e.id));
+    const newExercises = customExercises.filter((e) => !existingExerciseIds.has(e.id));
+
+    const nextHistory = [...history, ...fresh].sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
+    try {
+      localStorage.setItem(STORAGE_KEYS.WORKOUT_HISTORY, JSON.stringify(nextHistory));
+      if (newExercises.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify([...newExercises, ...exercises]));
+      }
+    } catch (e) {
+      // localStorage מלא - מחזירים את המצב הקודם כדי לא להשאיר ייבוא חלקי
+      localStorage.setItem(STORAGE_KEYS.WORKOUT_HISTORY, JSON.stringify(history));
+      throw new Error('אין מספיק מקום באחסון המכשיר לייבוא הזה.');
+    }
+    if (newExercises.length > 0) syncListToCloud('custom_exercises', this.getExercises().filter((e) => e.isCustom));
+    syncListToCloud('workouts', nextHistory);
+    return { added: fresh.length, skipped: workouts.length - fresh.length };
+  },
+
   // Body Weight Tracking
   getBodyWeightLog(): BodyWeightEntry[] {
     try {

@@ -11,7 +11,6 @@ import {
   RotateCcw,
   CheckCircle,
   HelpCircle,
-  Share,
   Timer,
   LogOut,
   Heart,
@@ -153,44 +152,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
       <div>
-        <h2 style={{ fontSize: '1.3rem', fontWeight: 800 }}>הגדרות והתקנה</h2>
+        <h2 style={{ fontSize: '1.3rem', fontWeight: 800 }}>הגדרות</h2>
         <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-          התאמה אישית של האפליקציה, גיבוי נתונים ומדריך התקנה לאייפון
+          התאמה אישית של האפליקציה וגיבוי נתונים
         </p>
-      </div>
-
-      {/* Guide: How to install on iPhone */}
-      <div
-        className="ios-card"
-        style={{
-          background: 'linear-gradient(135deg, rgba(110, 124, 245, 0.15), var(--color-purple-bg))',
-          border: '1px solid rgba(110, 124, 245, 0.35)',
-          padding: '16px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <Smartphone size={20} color="var(--color-blue)" />
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 800 }}>איך להתקין על האייפון שלך? 📱</h3>
-        </div>
-
-        <p style={{ fontSize: '0.82rem', color: 'var(--text-main)', lineHeight: 1.45, marginBottom: 12 }}>
-          האפליקציה פועלת כאפליקציית PWA עצמאית ללא צורך בחנות האפליקציות:
-        </p>
-
-        <ol style={{ fontSize: '0.8rem', color: 'var(--text-main)', paddingRight: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <li>
-            פתח את הקישור בדפדפן <strong>Safari</strong> באייפון שלך.
-          </li>
-          <li>
-            לחץ על כפתור השיתוף בתחתית המסך (<Share size={13} style={{ display: 'inline', verticalAlign: 'middle' }} /> ריבוע עם חץ כלפי מעלה).
-          </li>
-          <li>
-            גלול בתפריט ולחץ על <strong>"הוסף למסך הבית" (Add to Home Screen)</strong>.
-          </li>
-          <li>
-            זהו! האפליקציה תופיע במסך הבית עם אייקון אמיתי ותרוץ במסך מלא חלק.
-          </li>
-        </ol>
       </div>
 
       {/* App Preferences */}

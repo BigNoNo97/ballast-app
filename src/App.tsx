@@ -907,7 +907,7 @@ export const App: React.FC = () => {
                 />
               )}
 
-              {currentTab === 'nutrition' && <NutritionView />}
+              {currentTab === 'nutrition' && <NutritionView settings={settings} onUpdateSettings={handleUpdateSettings} />}
 
               {currentTab === 'profile' && (
                 <ProfileView

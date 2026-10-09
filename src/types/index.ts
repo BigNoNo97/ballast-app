@@ -207,7 +207,14 @@ export interface UserSettings {
   lastNutritionAdaptationPromptAt?: number; // timestamp - למנוע הצעות חזרתיות תכופות
   sessionDurationMinutes?: number; // משך אימון מועדף (30/45/50/60/90) - קובע תקציב תרגילים ליום
   includeWarmup?: boolean; // האם להוסיף תרגילי חימום כלליים בתחילת כל יום שנוצר
+  // ===== מוח התזונה (services/nutrition/engine.ts) =====
+  activityLevel?: ActivityLevel; // פעילות יומיומית מחוץ לאימונים - להערכה הראשונית של ההוצאה
+  nutritionGoalMode?: NutritionGoalMode; // undefined = נגזר מ-goals של האונבורדינג
+  weeklyRatePercent?: number; // קצב רצוי (% ממשקל הגוף בשבוע) - undefined = ברירת מחדל מבוססת מחקר
 }
+
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+export type NutritionGoalMode = 'lose' | 'recomp' | 'maintain' | 'gain';
 
 export interface BodyWeightEntry {
   id: string;
@@ -235,6 +242,33 @@ export interface ProgressPhoto {
   note?: string;
 }
 
+// רכיבים מעבר למאקרו (ערכים ל-100 גרם). רשימה ויחידות: services/nutrition/nutrients.ts
+export type NutrientKey =
+  | 'fiber'
+  | 'sugars'
+  | 'satFat'
+  | 'transFat'
+  | 'monoFat'
+  | 'polyFat'
+  | 'cholesterol'
+  | 'sodium'
+  | 'potassium'
+  | 'calcium'
+  | 'iron'
+  | 'magnesium'
+  | 'vitaminA'
+  | 'vitaminC'
+  | 'vitaminD'
+  | 'vitaminB12';
+export type NutrientMap = Partial<Record<NutrientKey, number>>;
+
+export interface FoodServing {
+  label: string; // "כף", "פרוסה", "מנה"...
+  grams: number;
+}
+
+export type FoodSource = 'tzameret' | 'off';
+
 export interface FoodItem {
   id: string;
   name: string;
@@ -242,6 +276,10 @@ export interface FoodItem {
   proteinPer100g: number;
   carbsPer100g: number;
   fatPer100g: number;
+  fiberPer100g?: number;
+  nutrientsPer100g?: NutrientMap;
+  servings?: FoodServing[];
+  barcode?: string; // מאכל שנוצר אחרי סריקה שלא נמצאה - בסריקה הבאה יימצא מיד
 }
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -257,6 +295,12 @@ export interface NutritionEntry {
   proteinPer100g: number;
   carbsPer100g: number;
   fatPer100g: number;
+  fiberPer100g?: number; // undefined = לא ידוע (פריט שהוזן ידנית)
+  nutrientsPer100g?: NutrientMap; // רכיבים נוספים (סוכרים, נתרן, ויטמינים...) - מה שידוע
+  source?: FoodSource; // tzameret = מאגר התזונה הלאומי (foodId 'tz-<קוד>'), off = Open Food Facts ('off-<ברקוד>')
+  servings?: FoodServing[]; // היחידות של המאכל - כדי שאפשר יהיה לערוך "2 כפות" ולא רק גרמים
+  unitLabel?: string; // היחידה שנבחרה (undefined = גרמים)
+  unitQty?: number; // כמה יחידות
 }
 
 export interface NutritionGoals {

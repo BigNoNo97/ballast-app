@@ -3,7 +3,7 @@ import { ChevronRight, Check } from 'lucide-react';
 import { EquipmentType, ExperienceLevel, OnboardingGoal, UserSettings } from '../types';
 import { StorageService } from '../services/storage';
 import { AppleHealthService } from '../services/appleHealthService';
-import { GOAL_CALORIE_ADJUST } from '../services/nutritionAdaptation';
+import { buildProfile, computeTargets, formulaTdee } from '../services/nutrition/engine';
 import { EQUIPMENT_LABELS } from '../data/exercises';
 
 type Gender = 'male' | 'female';
@@ -77,21 +77,16 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
     }
 
     if (goals.length > 0) {
-      const bmr =
-        gender === 'female'
-          ? 10 * weight + 6.25 * height - 5 * age - 161
-          : 10 * weight + 6.25 * height - 5 * age + 5;
-      const tdee = bmr * 1.45; // פעילות מתונה כברירת מחדל
-      // כשנבחרו כמה מטרות (למשל גם ירידה במשקל וגם עלייה בכוח) - ממוצע ההתאמות
-      // הקלוריות של כולן, במקום לבחור מטרה אחת שרירותית.
-      const adjust = Math.round(
-        goals.reduce((sum, g) => sum + GOAL_CALORIE_ADJUST[g], 0) / goals.length
+      // יעדים ראשוניים מ"מוח התזונה": נוסחת Mifflin × רמת פעילות, קצב לפי המטרה והניסיון,
+      // חלבון לפי מסת הגוף הרזה. מהשבוע השלישי-רביעי היעד מתעדכן לפי הנתונים האמיתיים.
+      const profile = buildProfile(
+        { ...settings, gender, ageYears: age, heightCm: height, goals, experienceLevel: level ?? settings.experienceLevel, trainingDaysPerWeek: trainingDays },
+        weight
       );
-      const calories = Math.round(tdee + adjust);
-      const protein = Math.round(weight * 2);
-      const fat = Math.round((calories * 0.25) / 9);
-      const carbs = Math.max(0, Math.round((calories - protein * 4 - fat * 9) / 4));
-      StorageService.saveNutritionGoals({ calories, protein, carbs, fat });
+      if (profile) {
+        const { calories, protein, carbs, fat } = computeTargets(profile, formulaTdee(profile));
+        StorageService.saveNutritionGoals({ calories, protein, carbs, fat });
+      }
     }
 
     const newSettings: UserSettings = {

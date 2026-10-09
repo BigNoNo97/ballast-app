@@ -23,7 +23,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Ballast משתמשת במצלמה כדי לצלם תמונות התקדמות, רק כשאתה בוחר לצלם.</string>
+	<string>Ballast משתמשת במצלמה כדי לסרוק ברקוד של מוצרי מזון ולצלם תמונות התקדמות - רק כשאתה בוחר בזה.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Ballast קוראת מ-Health את האימונים שהיא עצמה שמרה, כדי שתוכל למחוק אותם משם כשאתה מוחק אימון באפליקציה.</string>
 	<key>NSHealthUpdateUsageDescription</key>

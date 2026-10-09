@@ -651,6 +651,20 @@ export const StorageService = {
     syncListToCloud('nutrition_entries', list);
   },
 
+  // כמה רשומות בכתיבה אחת (למשל "העתק מאתמול") - סנכרון ענן אחד במקום אחד לכל פריט
+  addNutritionEntries(entries: NutritionEntry[]) {
+    if (entries.length === 0) return;
+    const list = this.getAllNutritionEntries().concat(entries);
+    localStorage.setItem(STORAGE_KEYS.NUTRITION_ENTRIES, JSON.stringify(list));
+    syncListToCloud('nutrition_entries', list);
+  },
+
+  updateNutritionEntry(entry: NutritionEntry) {
+    const list = this.getAllNutritionEntries().map((e) => (e.id === entry.id ? entry : e));
+    localStorage.setItem(STORAGE_KEYS.NUTRITION_ENTRIES, JSON.stringify(list));
+    syncListToCloud('nutrition_entries', list);
+  },
+
   deleteNutritionEntry(id: string) {
     const list = this.getAllNutritionEntries().filter((e) => e.id !== id);
     localStorage.setItem(STORAGE_KEYS.NUTRITION_ENTRIES, JSON.stringify(list));

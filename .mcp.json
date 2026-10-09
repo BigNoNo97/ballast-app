@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "israel-nutrition": {
+      "command": "npx",
+      "args": ["-y", "@skills-il/israel-nutrition-mcp@1.0.1"]
+    }
+  }
+}

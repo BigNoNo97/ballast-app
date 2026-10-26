@@ -128,13 +128,15 @@ export const AuthView: React.FC = () => {
     setLoading(true);
     try {
       if (mode === 'signup') {
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: { data: { full_name: fullName.trim() } },
         });
         if (signUpError) throw signUpError;
-        setSignupDone(true);
+        // כשאימות מייל כבוי בשרת חוזרת כבר session והמאזין ב-App מכניס את המשתמש -
+        // מסך "שלחנו מייל אימות" מוצג רק כשבאמת נשלח מייל.
+        if (!signUpData.session) setSignupDone(true);
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: email.trim(),

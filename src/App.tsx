@@ -38,6 +38,8 @@ import { SettingsView } from './components/SettingsView';
 import { ProfileView } from './components/ProfileView';
 import { NutritionView } from './components/NutritionView';
 import { AiCoachView } from './components/AiCoachView';
+import { TrainerHub } from './components/trainer/TrainerHub';
+import { useTrainerInbox } from './components/trainer/useTrainerInbox';
 import { WorkoutSummaryModal } from './components/WorkoutSummaryModal';
 import { ExerciseProfileView } from './components/ExerciseProfileView';
 import { IPhonePreviewFrame } from './components/IPhonePreviewFrame';
@@ -279,6 +281,8 @@ export const App: React.FC = () => {
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
   const [coachNote, setCoachNote] = useState<string | null>(null);
   const [showAiCoach, setShowAiCoach] = useState(false);
+  const [showTrainerHub, setShowTrainerHub] = useState(false);
+  const trainerInbox = useTrainerInbox(session?.user?.id ?? null);
   const [healthSync, setHealthSync] = useState<{ ok: boolean; message: string } | null>(null);
   const [pendingDeleteWorkout, setPendingDeleteWorkout] = useState<WorkoutSession | null>(null);
   const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
@@ -671,6 +675,19 @@ export const App: React.FC = () => {
     StorageService.saveSettings(newSettings);
   };
 
+  // תוכנית שהמאמן שלח והמתאמן אישר: נשמרת כתוכנית רגילה שלו ונהיית הפעילה. תרגילים מותאמים
+  // אישית של המאמן שהתוכנית משתמשת בהם נוספים לספרייה (אחרת התרגילים יופיעו בלי שם).
+  const handleTrainerProgramAccepted = (routine: RoutineTemplate, customExercises: Exercise[]) => {
+    const known = new Set(StorageService.getExercises().map((e) => e.id));
+    customExercises.filter((e) => !known.has(e.id)).forEach((e) => StorageService.saveExercise({ ...e, isCustom: true }));
+    StorageService.saveRoutine(routine);
+    setExercises(StorageService.getExercises());
+    setRoutines(StorageService.getRoutines());
+    setActiveRoutine(routine);
+    handleUpdateSettings({ ...settings, activeRoutineId: routine.id });
+    setSelectedDayNumber(StorageService.getSelectedDayNumber(routine.id));
+  };
+
   // בונה תוכנית אישית מכל נתוני המשתמש (services/programGenerator). תוכנית אוטומטית קודמת
   // שלא נערכה ידנית מוחלפת - ומשקלי העבודה של תרגילים שנשארים עוברים לתוכנית החדשה.
   // מסך טעינה קצר - כדי שיהיה ברור שבונים תוכנית מותאמת ולא מציגים תבנית קבועה.
@@ -949,6 +966,8 @@ export const App: React.FC = () => {
                   onDeleteWorkout={handleDeleteWorkout}
                   user={session.user}
                   onDeleteAccount={handleDeleteAccount}
+                  onOpenTrainers={() => setShowTrainerHub(true)}
+                  trainerBadge={trainerInbox.total}
                 />
               )}
             </>
@@ -1009,20 +1028,39 @@ export const App: React.FC = () => {
                 setPreviewingDay(null);
               }}
             >
-              <span className="tab-icon-chip"><User size={20} /></span>
+              <span className="tab-icon-chip" style={{ position: 'relative' }}>
+                <User size={20} />
+                {trainerInbox.total > 0 && <span className="tab-badge-dot" aria-label="יש עדכונים מהמאמנים" />}
+              </span>
               <span>פרופיל</span>
             </button>
           </nav>
         )}
 
         {/* כפתור המאמן (AI) - צף מעל סרגל הלשוניות, בכל הלשוניות */}
-        {!activeWorkout && !previewingDay && !homeModalOpen && !showAiCoach && (
+        {!activeWorkout && !previewingDay && !homeModalOpen && !showAiCoach && !showTrainerHub && (
           <button className="ai-coach-fab" aria-label="המאמן" onClick={() => setShowAiCoach(true)}>
             <Sparkles size={22} />
           </button>
         )}
         {showAiCoach && (
           <AiCoachView settings={settings} onUpdateSettings={handleUpdateSettings} onClose={() => setShowAiCoach(false)} />
+        )}
+        {showTrainerHub && session && (
+          <TrainerHub
+            meId={session.user.id}
+            defaultName={
+              (session.user.user_metadata?.full_name as string | undefined) ||
+              (session.user.user_metadata?.name as string | undefined) ||
+              session.user.email?.split('@')[0] ||
+              ''
+            }
+            allExercises={exercises}
+            myRoutines={routines}
+            inbox={trainerInbox}
+            onClose={() => setShowTrainerHub(false)}
+            onAcceptProgram={handleTrainerProgramAccepted}
+          />
         )}
 
         {/* All Routines Manager Modal */}

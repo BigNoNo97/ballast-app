@@ -353,6 +353,21 @@ as $$
   where id = p_program and client_id = auth.uid() and status = 'sent';
 $$;
 
+-- סגירת חשבון המאמן: כל הקשרים הפעילים מסתיימים (הגישה לנתוני המתאמנים נחסמת) והפרופיל נמחק
+create or replace function public.close_trainer_account()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null then raise exception 'unauthorized'; end if;
+  update public.trainer_clients set status = 'ended', ended_at = now(), ended_by = auth.uid()
+  where trainer_id = auth.uid() and status = 'active';
+  delete from public.trainer_profiles where user_id = auth.uid();
+end;
+$$;
+
 -- הפרופיל של המאמן המחובר, כולל קוד ההזמנה
 create or replace function public.my_trainer_profile()
 returns setof public.trainer_profiles
@@ -395,6 +410,7 @@ revoke all on function public.mark_trainer_thread_read(uuid, uuid) from public, 
 revoke all on function public.respond_trainer_program(uuid, boolean) from public, anon;
 revoke all on function public.my_trainer_status() from public, anon;
 revoke all on function public.my_trainer_profile() from public, anon;
+revoke all on function public.close_trainer_account() from public, anon;
 
 grant execute on function public.trainer_can_read(uuid, boolean) to authenticated;
 grant execute on function public.is_client_of(uuid) to authenticated;
@@ -409,6 +425,7 @@ grant execute on function public.mark_trainer_thread_read(uuid, uuid) to authent
 grant execute on function public.respond_trainer_program(uuid, boolean) to authenticated;
 grant execute on function public.my_trainer_status() to authenticated;
 grant execute on function public.my_trainer_profile() to authenticated;
+grant execute on function public.close_trainer_account() to authenticated;
 
 -- הודעות ותוכניות בזמן אמת (Realtime מכבד את מדיניות ה-select שלמעלה)
 do $$

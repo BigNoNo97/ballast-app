@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { Settings as SettingsIcon, ChevronRight, ChevronLeft, Flame, CalendarPlus, CalendarClock, Scale, Trash2, X, Ruler, Camera, Mail, ShieldAlert, Loader2 } from 'lucide-react';
+import { Settings as SettingsIcon, ChevronRight, ChevronLeft, Flame, CalendarPlus, CalendarClock, Scale, Trash2, X, Ruler, Camera, Mail, ShieldAlert, Loader2, Users } from 'lucide-react';
 import { WorkoutSession, Exercise, UserSettings } from '../types';
 import { AddPastWorkoutModal } from './AddPastWorkoutModal';
 import { WeeklyScheduleModal } from './WeeklyScheduleModal';
@@ -19,6 +19,9 @@ interface ProfileViewProps {
   onDeleteWorkout: (id: string) => void;
   user: User;
   onDeleteAccount: () => Promise<{ error: string | null }>;
+  onOpenTrainers?: () => void;
+  /** הודעות שלא נקראו + תוכניות שממתינות מהמאמן */
+  trainerBadge?: number;
 }
 
 const WEEKDAY_LETTERS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
@@ -35,6 +38,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onDeleteWorkout,
   user,
   onDeleteAccount,
+  onOpenTrainers,
+  trainerBadge,
 }) => {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [showAddPast, setShowAddPast] = useState(false);
@@ -316,6 +321,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
         <ChevronLeft size={18} color="var(--text-muted)" />
       </button>
+
+      {onOpenTrainers && (
+        <button
+          className="ios-card"
+          onClick={onOpenTrainers}
+          style={{ padding: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'right', border: 'none', background: 'var(--bg-surface-1)', color: 'var(--text-main)', font: 'inherit', cursor: 'pointer' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Users size={20} color="var(--color-blue)" />
+            <div>
+              <span style={{ fontWeight: 700, fontSize: '0.92rem', display: 'block' }}>מאמנים</span>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>המאמן שלי · לוח המאמן</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {!!trainerBadge && (
+              <span style={{ minWidth: 20, height: 20, padding: '0 6px', borderRadius: 10, background: 'var(--color-red)', color: '#fff', fontSize: '0.7rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                {trainerBadge}
+              </span>
+            )}
+            <ChevronLeft size={18} color="var(--text-muted)" />
+          </div>
+        </button>
+      )}
 
       {/* Day Detail Sheet */}
       {selectedDayKey && (

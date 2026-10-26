@@ -169,6 +169,8 @@ export interface RoutineTemplate {
   planRationale?: PlanDecision[];
   /** יעדי נפח שבועיים אישיים לכל שריר (סטים בשבוע: התחלה -> שיא המחזור), לעדכון השבועי */
   volumeTargets?: Partial<Record<MuscleGroup, { start: number; peak: number }>>;
+  /** שם המאמן ששלח את התוכנית (תוכנית שהתקבלה ממאמן) */
+  assignedByTrainer?: string;
 }
 
 export interface PersonalRecord {

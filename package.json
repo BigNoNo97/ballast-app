@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "coach:knowledge": "node scripts/build-coach-knowledge.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

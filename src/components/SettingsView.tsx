@@ -18,6 +18,7 @@ import {
   Flame,
   FileArchive,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import { UserSettings } from '../types';
 import { StorageService } from '../services/storage';
@@ -509,6 +510,52 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           איפוס נתונים לברירת מחדל
         </button>
       </div>
+
+      {/* המאמן (AI) - שליטה במה שנשלח ל-Anthropic וביטול ההסכמה */}
+      {!!settings.aiCoachConsentAt && (
+        <div className="ios-card" style={{ padding: '16px' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Sparkles size={18} color="var(--color-blue)" />
+            המאמן (AI)
+          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div>
+              <span style={{ fontSize: '0.9rem', fontWeight: 600, display: 'block' }}>לצרף את הנתונים שלי לשאלות</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                פרופיל, פציעות, תוכנית, אימונים, משקל ותזונה - לתשובות מותאמות אישית
+              </span>
+            </div>
+            <button
+              className="btn-secondary"
+              style={{
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-full)',
+                background: settings.aiCoachShareData !== false ? 'rgba(110, 124, 245, 0.15)' : 'var(--bg-surface-2)',
+                color: settings.aiCoachShareData !== false ? 'var(--color-blue)' : 'var(--text-muted)',
+                border: '1px solid var(--border-subtle)',
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+              onClick={() => onUpdateSettings({ ...settings, aiCoachShareData: settings.aiCoachShareData === false })}
+            >
+              {settings.aiCoachShareData !== false ? 'פעיל ✓' : 'כבוי'}
+            </button>
+          </div>
+          <button
+            className="btn-secondary"
+            style={{ width: '100%', fontSize: '0.8rem' }}
+            onClick={() => {
+              if (window.confirm('לבטל את ההסכמה לשימוש במאמן? השיחה השמורה במכשיר תימחק.')) {
+                StorageService.saveAiChat([]);
+                // 0 ולא undefined: מפתח שנעלם מה-JSON היה חוזר מהעותק בענן במיזוג הבא
+                onUpdateSettings({ ...settings, aiCoachConsentAt: 0 });
+              }
+            }}
+          >
+            ביטול ההסכמה ומחיקת השיחה
+          </button>
+        </div>
+      )}
 
       {/* Account */}
       {onLogout && (

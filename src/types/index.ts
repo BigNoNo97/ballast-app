@@ -221,6 +221,9 @@ export interface UserSettings {
   // ===== מוח האימונים (services/programGenerator.ts) =====
   injuries?: InjuryArea[]; // אזורים פצועים/רגישים - תרגילים שמעמיסים עליהם לא ייכנסו לתוכנית
   focusMuscles?: MuscleGroup[]; // אזורי מיקוד (עד 3) - יותר נפח, תדירות 2+ ובתחילת האימון
+  // ===== צ'אט ה-AI =====
+  aiCoachConsentAt?: number; // מתי המשתמש אישר שליחת שאלות ל-Anthropic (חובה לפי הנחיה 5.1.2 של Apple)
+  aiCoachShareData?: boolean; // undefined/true = לצרף את נתוני האפליקציה לשאלות, false = רק את השאלה
 }
 
 export type JointArea = 'shoulder' | 'elbow' | 'wrist' | 'neck' | 'lower_back' | 'hip' | 'knee' | 'ankle';

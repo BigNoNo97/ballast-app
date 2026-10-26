@@ -10,6 +10,7 @@ import {
   Settings as SettingsIcon,
   ChevronLeft,
   Utensils,
+  Sparkles,
 } from 'lucide-react';
 import {
   WorkoutSession,
@@ -36,6 +37,7 @@ import { ExerciseLibraryView } from './components/ExerciseLibraryView';
 import { SettingsView } from './components/SettingsView';
 import { ProfileView } from './components/ProfileView';
 import { NutritionView } from './components/NutritionView';
+import { AiCoachView } from './components/AiCoachView';
 import { WorkoutSummaryModal } from './components/WorkoutSummaryModal';
 import { ExerciseProfileView } from './components/ExerciseProfileView';
 import { IPhonePreviewFrame } from './components/IPhonePreviewFrame';
@@ -276,6 +278,7 @@ export const App: React.FC = () => {
   const [previewingDay, setPreviewingDay] = useState<RoutineDay | null>(null);
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
   const [coachNote, setCoachNote] = useState<string | null>(null);
+  const [showAiCoach, setShowAiCoach] = useState(false);
   const [healthSync, setHealthSync] = useState<{ ok: boolean; message: string } | null>(null);
   const [pendingDeleteWorkout, setPendingDeleteWorkout] = useState<WorkoutSession | null>(null);
   const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
@@ -1010,6 +1013,16 @@ export const App: React.FC = () => {
               <span>פרופיל</span>
             </button>
           </nav>
+        )}
+
+        {/* כפתור המאמן (AI) - צף מעל סרגל הלשוניות, בכל הלשוניות */}
+        {!activeWorkout && !previewingDay && !homeModalOpen && !showAiCoach && (
+          <button className="ai-coach-fab" aria-label="המאמן" onClick={() => setShowAiCoach(true)}>
+            <Sparkles size={22} />
+          </button>
+        )}
+        {showAiCoach && (
+          <AiCoachView settings={settings} onUpdateSettings={handleUpdateSettings} onClose={() => setShowAiCoach(false)} />
         )}
 
         {/* All Routines Manager Modal */}

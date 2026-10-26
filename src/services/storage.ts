@@ -14,6 +14,7 @@ import {
   NutritionGoals,
   ExerciseProgressState,
 } from '../types';
+import type { CoachMessage } from './aiCoach';
 import { INITIAL_EXERCISES } from '../data/exercises';
 import { WARMUP_EXERCISES } from '../data/warmupExercises';
 import { IMPORTED_EXERCISES } from '../data/importedExercises';
@@ -61,6 +62,8 @@ const STORAGE_KEYS = {
   NUTRITION_ENTRIES: 'gym_tracker_nutrition_entries_v1',
   NUTRITION_GOALS: 'gym_tracker_nutrition_goals_v1',
   EXERCISE_PROGRESS: 'gym_tracker_exercise_progress_v1',
+  // שיחת צ'אט ה-AI - נשמרת רק במכשיר (לא בענן), ונמחקת בהתנתקות כמו כל השאר
+  AI_CHAT: 'gym_tracker_ai_chat_v1',
 };
 
 // מטא-דאטה של הסנכרון (לא נתוני משתמש, לכן מחוץ ל-STORAGE_KEYS)
@@ -728,6 +731,21 @@ export const StorageService = {
   saveNutritionGoals(goals: NutritionGoals) {
     localStorage.setItem(STORAGE_KEYS.NUTRITION_GOALS, JSON.stringify(goals));
     this.pushSettingsBlob();
+  },
+
+  getAiChat(): CoachMessage[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.AI_CHAT);
+      const list = data ? JSON.parse(data) : [];
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  },
+
+  saveAiChat(messages: CoachMessage[]) {
+    // רק סוף השיחה - מספיק להקשר, ולא מנפח את האחסון המקומי
+    localStorage.setItem(STORAGE_KEYS.AI_CHAT, JSON.stringify(messages.slice(-60)));
   },
 
   // ===================== סנכרון ענן =====================

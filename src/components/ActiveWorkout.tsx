@@ -245,7 +245,8 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
       triggerHaptic(50);
       const exId = targetEx.exerciseId;
       const exData = exerciseMap.get(exId);
-      const restTime = exData?.defaultRestSec || defaultRestSec;
+      // מנוחה מהתוכנית (מורכב ארוך, בידוד קצר) גוברת על ברירת המחדל של התרגיל ושל ההגדרות
+      const restTime = targetEx.restSec || exData?.defaultRestSec || defaultRestSec;
 
       // זיהוי "קל מדי" בזמן אמת בלי RPE - שני אותות אובייקטיביים: הגעה לתקרת טווח החזרות
       // המתוכנן (לתוכניות שהמערכת בנתה, מדויק) או שיפור בולט לעומת האימון הקודם על התרגיל

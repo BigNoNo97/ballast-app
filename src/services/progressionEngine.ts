@@ -2,6 +2,7 @@ import { Exercise, ExerciseProgressState, ExperienceLevel, RoutineTemplate, User
 import { getWeightIncrement } from '../data/exerciseClassification';
 import { StorageService } from './storage';
 import { applyWeeklyVolume, pickRepRange, regenerateForNewCycle } from './programGenerator';
+import { currentWeight } from './nutrition/engine';
 
 const round025 = (kg: number) => Math.round(kg * 4) / 4;
 
@@ -125,7 +126,12 @@ export function processFinishedWorkout(
   const nextWeek = mesocycle.currentWeek + 1;
   if (nextWeek > mesocycle.lengthWeeks) {
     // סוף שבוע הדילול - גלגול למחזור הבא (נפח פתיחה גבוה מעט, ואולי תרגילים מעט אחרים לגיוון).
-    const { routine: rolledRoutine, progressStates } = regenerateForNewCycle(routine, settings, library);
+    const { routine: rolledRoutine, progressStates } = regenerateForNewCycle(
+      routine,
+      settings,
+      library,
+      currentWeight(StorageService.getBodyWeightLog(), Date.now()) ?? undefined
+    );
     StorageService.saveExerciseProgressStates(progressStates);
     return { updatedRoutine: rolledRoutine, stalledExerciseIds, didRollover: true };
   }

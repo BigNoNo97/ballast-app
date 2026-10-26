@@ -3,18 +3,11 @@
 // סיסמה אקראית חדשה (וגם מחזירה את האימייל המקורי), מתחברת איתה ומחזירה את הטוקנים.
 // כך גם אם מישהו השתמש בחשבון כדי לשנות לו סיסמה או אימייל, הכניסה הבאה מחזירה אותו לשליטתנו.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { corsHeadersFor } from '../_shared/cors.ts';
 
 // לא סוד: המזהה של חשבון הדמו (test@test.com) - לפיו ולא לפי האימייל, כי האימייל יכול להשתנות
 const DEMO_USER_ID = '85ea1b60-fc24-4a16-a92b-e87d91dfb89b';
 const DEMO_EMAIL = 'test@test.com';
-
-const ALLOWED_ORIGINS = new Set([
-  'https://gym-tracker-app-110.netlify.app',
-  'capacitor://localhost',
-  'ionic://localhost',
-  'http://localhost',
-  'http://localhost:5173',
-]);
 
 function randomPassword(): string {
   const bytes = new Uint8Array(24);
@@ -23,11 +16,7 @@ function randomPassword(): string {
 }
 
 Deno.serve(async (req: Request) => {
-  const origin = req.headers.get('Origin') || '';
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://gym-tracker-app-110.netlify.app',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
+  const corsHeaders = corsHeadersFor(req);
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 

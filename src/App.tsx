@@ -24,6 +24,7 @@ import {
 import { StorageService } from './services/storage';
 import { AppleHealthService } from './services/appleHealthService';
 import { buildRoutine } from './services/programGenerator';
+import { currentWeight } from './services/nutrition/engine';
 import { processFinishedWorkout } from './services/progressionEngine';
 import { WorkoutHomeView } from './components/WorkoutHomeView';
 import { WorkoutDetailPreview } from './components/WorkoutDetailPreview';
@@ -43,7 +44,7 @@ import { OnboardingFlow } from './components/OnboardingFlow';
 import { NoRoutineWorkoutView } from './components/NoRoutineWorkoutView';
 import { ProgramGeneratingLoader } from './components/ProgramGeneratingLoader';
 import { supabase, consumeOAuthPending, rememberAppleRefreshToken } from './services/supabaseClient';
-import type { Session } from '@supabase/supabase-js';
+import { FunctionsFetchError, FunctionsHttpError, type Session } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
@@ -459,7 +460,7 @@ export const App: React.FC = () => {
   // Step 2 -> Step 3: Clicking "Get Started" on Screen 2 begins Live Active Workout
   const handleGetStartedFromPreview = (configuredExercises: RoutineDayExercise[]) => {
     if (!activeRoutine) return; // לא אמור לקרות - המסך הזה נגיש רק כשיש תוכנית פעילה
-    const newWorkoutExercises = buildWorkoutExercisesForDay(configuredExercises);
+    const newWorkoutExercises = buildWorkoutExercisesForDay(configuredExercises, !!activeRoutine.isGenerated);
 
     const newSession: WorkoutSession = {
       id: `workout-${Date.now()}`,
@@ -667,6 +668,34 @@ export const App: React.FC = () => {
     StorageService.saveSettings(newSettings);
   };
 
+  // בונה תוכנית אישית מכל נתוני המשתמש (services/programGenerator). תוכנית אוטומטית קודמת
+  // שלא נערכה ידנית מוחלפת - ומשקלי העבודה של תרגילים שנשארים עוברים לתוכנית החדשה.
+  // מסך טעינה קצר - כדי שיהיה ברור שבונים תוכנית מותאמת ולא מציגים תבנית קבועה.
+  const generateProgram = (s: UserSettings) => {
+    setIsGeneratingProgram(true);
+    setTimeout(() => {
+      const { routine, progressStates } = buildRoutine(s, exercises, currentWeight(StorageService.getBodyWeightLog(), Date.now()) ?? undefined);
+      const previous = activeRoutine?.isGenerated && !activeRoutine.manuallyEditedAt ? activeRoutine : null;
+      let states = progressStates;
+      if (previous) {
+        const oldStates = new Map(StorageService.getExerciseProgressStates(previous.id).map((st) => [st.exerciseId, st]));
+        states = progressStates.map((st) => {
+          const old = oldStates.get(st.exerciseId);
+          return old ? { ...st, currentWeightKg: old.currentWeightKg } : st;
+        });
+        StorageService.deleteRoutine(previous.id);
+        StorageService.deleteExerciseProgressStatesForRoutine(previous.id);
+      }
+      StorageService.saveRoutine(routine);
+      StorageService.saveExerciseProgressStates(states);
+      setRoutines(StorageService.getRoutines());
+      setActiveRoutine(routine);
+      handleUpdateSettings({ ...s, activeRoutineId: routine.id });
+      setSelectedDayNumber(StorageService.getSelectedDayNumber(routine.id));
+      setIsGeneratingProgram(false);
+    }, 1300);
+  };
+
   const deleteWorkoutLocally = (id: string) => {
     StorageService.deleteWorkout(id);
     setHistory(StorageService.getWorkoutHistory());
@@ -708,9 +737,18 @@ export const App: React.FC = () => {
   // מחיקת חשבון לצמיתות - קוראת ל-Edge Function שמזהה את המשתמש מהטוקן שלו
   // ומוחקת אותו (ובעקבותיו נמחקים בשרשור כל הנתונים שלו בענן).
   const handleDeleteAccount = async (): Promise<{ error: string | null }> => {
-    const { data, error } = await supabase.functions.invoke('delete-account');
+    const { data, error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
     if (error) {
-      return { error: error.message || 'מחיקת החשבון נכשלה, נסה שוב.' };
+      // השרת ענה בשגיאה (למשל "אי אפשר למחוק את חשבון הדמו") - מציגים את ההסבר שלו
+      if (error instanceof FunctionsHttpError) {
+        const body = await error.context.json().catch(() => null);
+        return { error: body?.error || 'מחיקת החשבון נכשלה, נסה שוב.' };
+      }
+      // הבקשה לא הגיעה לשרת בכלל
+      if (error instanceof FunctionsFetchError) {
+        return { error: 'אין חיבור לשרת. בדוק את החיבור לאינטרנט ונסה שוב.' };
+      }
+      return { error: 'מחיקת החשבון נכשלה, נסה שוב.' };
     }
     if (data?.error) {
       return { error: data.error };
@@ -870,23 +908,7 @@ export const App: React.FC = () => {
                 ) : (
                   /* אין למשתמש תוכנית פעילה - להציע לבנות אחת, לתת למערכת, או להתחיל בלי תוכנית */
                   <NoRoutineWorkoutView
-                    onChooseSystem={() => {
-                      // בונה תוכנית אישית אמיתית לפי נתוני המשתמש (ימים בשבוע, ציוד, רמת ניסיון,
-                      // מטרות, משך אימון) - עם מחזור אימון ומנוע התקדמות משלה, לא תבנית קבועה.
-                      // מסך טעינה קצר במקום הופעה מיידית - כדי שיהיה ברור שבפועל בונים תוכנית
-                      // מותאמת ולא רק מציגים דבר קבוע מראש.
-                      setIsGeneratingProgram(true);
-                      setTimeout(() => {
-                        const { routine, progressStates } = buildRoutine(settings, exercises);
-                        StorageService.saveRoutine(routine);
-                        StorageService.saveExerciseProgressStates(progressStates);
-                        setRoutines(StorageService.getRoutines());
-                        setActiveRoutine(routine);
-                        handleUpdateSettings({ ...settings, activeRoutineId: routine.id });
-                        setSelectedDayNumber(StorageService.getSelectedDayNumber(routine.id));
-                        setIsGeneratingProgram(false);
-                      }, 1300);
-                    }}
+                    onChooseSystem={() => generateProgram(settings)}
                     onOpenRoutinesMenu={() => setShowRoutinesManagerModal(true)}
                     onStartEmptyWorkout={handleStartEmptyWorkout}
                     onOpenSettings={() => setShowSettingsScreen(true)}
@@ -1171,6 +1193,13 @@ export const App: React.FC = () => {
                 onResetData={handleResetData}
                 userEmail={session?.user?.email}
                 onLogout={handleLogout}
+                onDeleteAccount={handleDeleteAccount}
+                canRebuildProgram={!!activeRoutine?.isGenerated}
+                onRebuildProgram={(s) => {
+                  setShowSettingsScreen(false);
+                  setCurrentTab('workout');
+                  generateProgram(s);
+                }}
                 onDataImported={() => {
                   setHistory(StorageService.getWorkoutHistory());
                   setExercises(StorageService.getExercises());

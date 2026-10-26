@@ -13,6 +13,7 @@ import {
   HelpCircle,
   Timer,
   LogOut,
+  Trash2,
   Heart,
   Flame,
   FileArchive,
@@ -22,6 +23,11 @@ import { UserSettings } from '../types';
 import { StorageService } from '../services/storage';
 import { AppleHealthService } from '../services/appleHealthService';
 import { parseExternalExport } from '../services/importers';
+import { BodyAreaPicker } from './BodyAreaPicker';
+import { DeleteAccountModal } from './ProfileView';
+import { MUSCLE_GROUP_LABELS } from '../data/exercises';
+import { injuryLabel } from '../services/training/injuries';
+import { InjuryArea, MuscleGroup } from '../types';
 
 interface SettingsViewProps {
   settings: UserSettings;
@@ -31,6 +37,11 @@ interface SettingsViewProps {
   onLogout?: () => void;
   /** אחרי ייבוא היסטוריה מאפליקציה אחרת - לרענן את המסכים מהאחסון */
   onDataImported?: () => void;
+  /** יש תוכנית שהמערכת בנתה - אפשר לבנות אותה מחדש לפי השינויים */
+  canRebuildProgram?: boolean;
+  onRebuildProgram?: (settings: UserSettings) => void;
+  /** מחיקת החשבון וכל הנתונים לצמיתות (Edge Function delete-account) */
+  onDeleteAccount?: () => Promise<{ error: string | null }>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -40,10 +51,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   userEmail,
   onLogout,
   onDataImported,
+  canRebuildProgram,
+  onRebuildProgram,
+  onDeleteAccount,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const externalInputRef = useRef<HTMLInputElement>(null);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [externalBusy, setExternalBusy] = useState(false);
   const [externalStatus, setExternalStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [healthBusy, setHealthBusy] = useState(false);
@@ -158,6 +173,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </p>
       </div>
 
+      <PersonalizationCard
+        settings={settings}
+        canRebuild={!!canRebuildProgram}
+        onSave={(updated, rebuild) => {
+          onUpdateSettings(updated);
+          if (rebuild) onRebuildProgram?.(updated);
+        }}
+      />
+
       {/* App Preferences */}
       <div className="ios-card" style={{ padding: '16px' }}>
         <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 14 }}>העדפות אימון</h3>
@@ -203,11 +227,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        {/* Default Rest Time */}
-        <div style={{ marginBottom: 14 }}>
+        {/* Default Rest Time - רלוונטי רק כשהטיימר האוטומטי פעיל: אחרת מוצג אפור ולא לחיץ */}
+        <div
+          style={{ marginBottom: 14, opacity: settings.autoRestTimerEnabled ? 1 : 0.45, transition: 'opacity 0.2s' }}
+          aria-disabled={!settings.autoRestTimerEnabled}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>זמן מנוחה ברירת מחדל בין סטים</span>
-            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-blue)' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: settings.autoRestTimerEnabled ? 'var(--color-blue)' : 'var(--text-muted)' }}>
               {settings.defaultRestSeconds} שניות
             </span>
           </div>
@@ -218,11 +245,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 key={secs}
                 className={`filter-chip ${settings.defaultRestSeconds === secs ? 'active' : ''}`}
                 onClick={() => onUpdateSettings({ ...settings, defaultRestSeconds: secs })}
+                disabled={!settings.autoRestTimerEnabled}
+                style={!settings.autoRestTimerEnabled ? { cursor: 'not-allowed', filter: 'grayscale(1)' } : undefined}
               >
                 {secs} שנ׳
               </button>
             ))}
           </div>
+          {!settings.autoRestTimerEnabled && (
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6 }}>
+              פעיל רק כשהטיימר האוטומטי דולק
+            </div>
+          )}
         </div>
 
         {/* Auto Rest Timer on Set Completion Toggle */}
@@ -493,7 +527,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <LogOut size={16} />
             התנתק
           </button>
+          {onDeleteAccount && (
+            <>
+              <button
+                className="btn-secondary"
+                style={{ color: 'var(--color-red)', borderColor: 'rgba(255, 69, 58, 0.3)', marginTop: 10 }}
+                onClick={() => setShowDeleteAccount(true)}
+              >
+                <Trash2 size={16} />
+                מחיקת החשבון לצמיתות
+              </button>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>
+                מוחק את החשבון ואת כל הנתונים בענן - אימונים, תוכניות, מדידות, תזונה ותמונות. אי אפשר לשחזר.
+              </p>
+            </>
+          )}
         </div>
+      )}
+      {showDeleteAccount && onDeleteAccount && (
+        <DeleteAccountModal onClose={() => setShowDeleteAccount(false)} onConfirm={onDeleteAccount} />
       )}
 
       {/* Attribution for exercise images (CC-BY-SA) */}
@@ -505,6 +557,77 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {' '}ומופצות תחת רישיון Creative Commons BY-SA. תודה לתורמים: 54str, AlucardEvil40, anto.kreegyr, ataraxie67, BFad07, benjamin.yildiz, carlos3c, clafal, cshep442, fabrice, flori, Franpol, lhegedus, nate303303, nishant0712, novadani, polloperro, roneydya, sebk, sistab2, Tierrasverdes, YYCfit ולצוות wger.de.
         </p>
       </div>
+    </div>
+  );
+};
+
+// ===== התאמה אישית של התוכנית: אזורי מיקוד ופציעות =====
+
+const PersonalizationCard: React.FC<{
+  settings: UserSettings;
+  canRebuild: boolean;
+  onSave: (settings: UserSettings, rebuild: boolean) => void;
+}> = ({ settings, canRebuild, onSave }) => {
+  const [editing, setEditing] = useState(false);
+  const [focus, setFocus] = useState<MuscleGroup[]>(settings.focusMuscles || []);
+  const [injuries, setInjuries] = useState<InjuryArea[]>(settings.injuries || []);
+  const focusText = (settings.focusMuscles || []).map((m) => MUSCLE_GROUP_LABELS[m]?.he ?? m).join(', ') || 'אין';
+  const injuryText = (settings.injuries || []).map(injuryLabel).join(', ') || 'אין';
+
+  const save = (rebuild: boolean) => {
+    onSave({ ...settings, focusMuscles: focus, injuries }, rebuild);
+    setEditing(false);
+  };
+
+  return (
+    <div className="ios-card" style={{ padding: '16px' }}>
+      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 6 }}>התאמת התוכנית</h3>
+      <div style={{ fontSize: '0.82rem', lineHeight: 1.7, marginBottom: 12 }}>
+        <div><span style={{ color: 'var(--text-muted)' }}>אזורי מיקוד:</span> {focusText}</div>
+        <div><span style={{ color: 'var(--text-muted)' }}>פציעות / אזורים רגישים:</span> {injuryText}</div>
+      </div>
+      <button
+        className="btn-secondary"
+        style={{ width: '100%' }}
+        onClick={() => {
+          setFocus(settings.focusMuscles || []);
+          setInjuries(settings.injuries || []);
+          setEditing(true);
+        }}
+      >
+        עריכה
+      </button>
+
+      {editing && (
+        <div className="modal-overlay" onClick={() => setEditing(false)}>
+          <div className="action-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: 'calc(var(--app-vh, 1vh) * 88)', overflowY: 'auto' }}>
+            <div className="sheet-handle" />
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 4 }}>אזורי מיקוד</h3>
+            <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: 10 }}>יותר סטים, לפחות פעמיים בשבוע ובתחילת האימון.</p>
+            <BodyAreaPicker mode="focus" selected={focus} onChange={setFocus} max={3} />
+
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '20px 0 4px' }}>פציעות / אזורים רגישים</h3>
+            <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: 10 }}>תרגילים שמעמיסים על האזור לא ייכנסו לתוכנית. כשהחלמת - הסר את האזור.</p>
+            <BodyAreaPicker mode="injury" selected={injuries} onChange={setInjuries} />
+
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '14px 0', lineHeight: 1.5 }}>
+              {canRebuild
+                ? 'אפשר לבנות את התוכנית מחדש עכשיו (משקלי העבודה בתרגילים שנשארים נשמרים), או שהשינויים ייכנסו בתחילת המחזור הבא.'
+                : 'השינויים ייכנסו בפעם הבאה שהמערכת תבנה לך תוכנית.'}
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-secondary" style={{ flex: 1 }} onClick={() => save(false)}>
+                {canRebuild ? 'שמור למחזור הבא' : 'שמירה'}
+              </button>
+              {canRebuild && (
+                <button className="btn-primary" style={{ flex: 1 }} onClick={() => save(true)}>
+                  שמור ובנה מחדש
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

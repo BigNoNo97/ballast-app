@@ -30,11 +30,20 @@ export function configureDayExercises(routine: RoutineTemplate, day: RoutineDay)
   });
 }
 
-/** התרגילים והסטים של אימון חדש לפי יעדי היום (עם משקל/חזרות קודמים לכל סט) */
-export function buildWorkoutExercisesForDay(configuredExercises: RoutineDayExercise[]): WorkoutExercise[] {
+/**
+ * התרגילים והסטים של אימון חדש לפי יעדי היום (עם משקל/חזרות קודמים לכל סט).
+ * planned = תוכנית שהמערכת בנתה: מספר הסטים נקבע ע"י התוכנית (עולה משבוע לשבוע במחזור, ויורד
+ * בשבוע ההקלה) - לא לפי האימון הקודם, אחרת העלייה בנפח לא הייתה מגיעה לאימון אף פעם.
+ */
+export function buildWorkoutExercisesForDay(configuredExercises: RoutineDayExercise[], planned = false): WorkoutExercise[] {
   return configuredExercises.map((item) => {
     const lastPerf = StorageService.getLastExercisePerformance(item.exerciseId);
-    const targetSetsCount = lastPerf && lastPerf.sets && lastPerf.sets.length > 0 ? lastPerf.sets.length : item.targetSets || 3;
+    const targetSetsCount =
+      planned && item.targetSets
+        ? item.targetSets
+        : lastPerf && lastPerf.sets && lastPerf.sets.length > 0
+        ? lastPerf.sets.length
+        : item.targetSets || 3;
 
     // item.suggestedWeight / item.targetReps כבר עברו חישוב התקדמות (configureDayExercises)
     const sets: WorkoutSet[] = Array.from({ length: targetSetsCount }).map((_, idx) => {
@@ -56,6 +65,7 @@ export function buildWorkoutExercisesForDay(configuredExercises: RoutineDayExerc
       sets,
       supersetGroupId: item.supersetGroupId,
       notes: StorageService.getNoteForExercise(item.exerciseId),
+      restSec: item.restSec,
     };
   });
 }

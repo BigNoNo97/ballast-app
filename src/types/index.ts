@@ -63,6 +63,7 @@ export interface WorkoutExercise {
   notes?: string;
   swappedFromId?: string;
   supersetGroupId?: string;
+  restSec?: number; // מהתוכנית - גובר על ברירת המחדל של התרגיל
 }
 
 export interface WorkoutSession {
@@ -107,6 +108,8 @@ export interface RoutineDayExercise {
   suggestedWeight?: number;
   supersetGroupId?: string;
   progressionRule?: ProgressionRule;
+  restSec?: number; // מנוחה מומלצת בין סטים לתרגיל הזה (מורכב ארוך יותר, בידוד קצר יותר)
+  repRangeMax?: number; // תקרת טווח החזרות של התרגיל (targetReps = הרצפה)
 }
 
 export interface RoutineDay {
@@ -162,6 +165,10 @@ export interface RoutineTemplate {
   manuallyEditedAt?: number;
   splitType?: SplitType;
   mesocycle?: MesocyclePlan;
+  /** "למה התוכנית ככה" - כל ההחלטות שהמנוע קיבל לפי מה שהמשתמש הזין, עם מקורות */
+  planRationale?: PlanDecision[];
+  /** יעדי נפח שבועיים אישיים לכל שריר (סטים בשבוע: התחלה -> שיא המחזור), לעדכון השבועי */
+  volumeTargets?: Partial<Record<MuscleGroup, { start: number; peak: number }>>;
 }
 
 export interface PersonalRecord {
@@ -211,6 +218,20 @@ export interface UserSettings {
   activityLevel?: ActivityLevel; // פעילות יומיומית מחוץ לאימונים - להערכה הראשונית של ההוצאה
   nutritionGoalMode?: NutritionGoalMode; // undefined = נגזר מ-goals של האונבורדינג
   weeklyRatePercent?: number; // קצב רצוי (% ממשקל הגוף בשבוע) - undefined = ברירת מחדל מבוססת מחקר
+  // ===== מוח האימונים (services/programGenerator.ts) =====
+  injuries?: InjuryArea[]; // אזורים פצועים/רגישים - תרגילים שמעמיסים עליהם לא ייכנסו לתוכנית
+  focusMuscles?: MuscleGroup[]; // אזורי מיקוד (עד 3) - יותר נפח, תדירות 2+ ובתחילת האימון
+}
+
+export type JointArea = 'shoulder' | 'elbow' | 'wrist' | 'neck' | 'lower_back' | 'hip' | 'knee' | 'ankle';
+/** מפרק רגיש, או שריר פצוע (מתיחה/קרע) */
+export type InjuryArea = JointArea | MuscleGroup;
+
+/** החלטה אחת של מחולל התוכניות: מה הוחלט ולמה, עם מזהי המקורות (services/training/evidence.ts) */
+export interface PlanDecision {
+  id: string;
+  text: string;
+  evidence: string[];
 }
 
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';

@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { RoutineTemplate, RoutineDay } from '../types';
+import { PlanRationaleSheet } from './PlanRationaleSheet';
 
 interface WorkoutHomeViewProps {
   routines: RoutineTemplate[];
@@ -40,12 +41,13 @@ export const WorkoutHomeView: React.FC<WorkoutHomeViewProps> = ({
 }) => {
   const [showDayPicker, setShowDayPicker] = useState(false);
   const [showRoutinePicker, setShowRoutinePicker] = useState(false);
+  const [showRationale, setShowRationale] = useState(false);
 
   // מסתירים את סרגל התחתית כשגיליון נפתח, כדי שלא "יקפוץ" מעל התוכן שלו
   useEffect(() => {
-    onModalOpenChange?.(showDayPicker || showRoutinePicker);
+    onModalOpenChange?.(showDayPicker || showRoutinePicker || showRationale);
     return () => onModalOpenChange?.(false);
-  }, [showDayPicker, showRoutinePicker, onModalOpenChange]);
+  }, [showDayPicker, showRoutinePicker, showRationale, onModalOpenChange]);
 
   // Find active day data
   const currentDays = activeRoutine.days && activeRoutine.days.length > 0
@@ -137,8 +139,15 @@ export const WorkoutHomeView: React.FC<WorkoutHomeViewProps> = ({
               מחזור {activeRoutine.mesocycle.cycleNumber} · שבוע {activeRoutine.mesocycle.currentWeek}/{activeRoutine.mesocycle.lengthWeeks}
             </span>
           )}
+          <button
+            onClick={() => setShowRationale(true)}
+            style={{ background: 'transparent', border: 'none', color: 'var(--color-blue)', fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+          >
+            למה התוכנית ככה?
+          </button>
         </div>
       )}
+      {showRationale && <PlanRationaleSheet routine={activeRoutine} onClose={() => setShowRationale(false)} />}
 
       {/* Day Selector Pill: אימון [שם האימון] ⌄ */}
       <div>

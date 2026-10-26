@@ -2,20 +2,10 @@
 // נדרש כדי שמחיקת חשבון תוכל לבטל את ההרשאה מול Apple (ראו delete-account).
 // המשתמש מזוהה מה-JWT שלו, והטוקן נשמר רק אם החשבון באמת מחובר ל-Apple.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-
-const ALLOWED_ORIGINS = new Set([
-  'https://gym-tracker-app-110.netlify.app',
-  'capacitor://localhost',
-  'ionic://localhost',
-  'http://localhost',
-]);
+import { corsHeadersFor } from '../_shared/cors.ts';
 
 Deno.serve(async (req: Request) => {
-  const origin = req.headers.get('Origin') || '';
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://gym-tracker-app-110.netlify.app',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
+  const corsHeaders = corsHeadersFor(req);
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 

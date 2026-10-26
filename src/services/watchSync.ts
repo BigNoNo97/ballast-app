@@ -54,12 +54,12 @@ export function buildWatchCatalog(
       dayNumber: day.dayNumber,
       title: day.dayTitle || `יום ${day.dayNumber}`,
       subtitle: day.targetMuscles || '',
-      exercises: buildWorkoutExercisesForDay(configureDayExercises(routine, day)).map((ex) => {
+      exercises: buildWorkoutExercisesForDay(configureDayExercises(routine, day), !!routine.isGenerated).map((ex) => {
         const data = byId.get(ex.exerciseId);
         return {
           exerciseId: ex.exerciseId,
           name: data?.nameHe || 'תרגיל',
-          restSec: toWholeNumber(data?.defaultRestSec || settings.defaultRestSeconds, 90),
+          restSec: toWholeNumber(ex.restSec || data?.defaultRestSec || settings.defaultRestSeconds, 90),
           weightStep: data ? getWeightIncrement(data.muscle) : 2.5,
           sets: ex.sets.map((s) => ({ weightKg: toNumber(s.weightKg), reps: toWholeNumber(s.reps, 0) })),
         };
@@ -247,7 +247,7 @@ export function buildWatchState(
       return {
         exerciseId: ex.exerciseId,
         name: data?.nameHe || 'תרגיל',
-        restSec: toWholeNumber(data?.defaultRestSec || settings.defaultRestSeconds, 90),
+        restSec: toWholeNumber(ex.restSec || data?.defaultRestSec || settings.defaultRestSeconds, 90),
         weightStep: data ? getWeightIncrement(data.muscle) : 2.5,
         sets: ex.sets.map((s) => ({ weightKg: toNumber(s.weightKg), reps: toWholeNumber(s.reps, 0), completed: Boolean(s.completed) })),
       };

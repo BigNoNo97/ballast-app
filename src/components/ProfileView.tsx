@@ -417,20 +417,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   );
 };
 
-const DELETE_CONFIRM_WORD = 'מחק';
-
-const DeleteAccountModal: React.FC<{
+// האזהרה עצמה היא האישור: חלון נפרד עם הסבר ברור, ולחיצה על הכפתור האדום מבצעת את המחיקה
+export const DeleteAccountModal: React.FC<{
   onClose: () => void;
   onConfirm: () => Promise<{ error: string | null }>;
 }> = ({ onClose, onConfirm }) => {
-  const [confirmText, setConfirmText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canDelete = confirmText.trim() === DELETE_CONFIRM_WORD;
-
   const handleConfirm = async () => {
-    if (!canDelete || loading) return;
+    if (loading) return;
     setLoading(true);
     setError(null);
     const result = await onConfirm();
@@ -453,27 +449,6 @@ const DeleteAccountModal: React.FC<{
           פעולה זו תמחק לצמיתות את החשבון שלך ואת <b style={{ color: 'var(--text-main)' }}>כל</b> הנתונים
           המשויכים אליו - היסטוריית אימונים, תוכניות, מדידות, תזונה והגדרות. אי אפשר לשחזר את זה.
         </p>
-        <p style={{ fontSize: '0.82rem', color: 'var(--text-main)', marginBottom: 8 }}>
-          כדי לאשר, הקלד <b>{DELETE_CONFIRM_WORD}</b> בשדה למטה:
-        </p>
-        <input
-          value={confirmText}
-          onChange={(e) => setConfirmText(e.target.value)}
-          placeholder={DELETE_CONFIRM_WORD}
-          style={{
-            width: '100%',
-            background: 'var(--bg-surface-2)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            padding: '12px 14px',
-            fontSize: '0.95rem',
-            color: 'var(--text-main)',
-            outline: 'none',
-            marginBottom: 12,
-            textAlign: 'center',
-          }}
-          disabled={loading}
-        />
         {error && (
           <div style={{ color: 'var(--color-red)', fontSize: '0.82rem', marginBottom: 12, textAlign: 'center' }}>
             {error}
@@ -485,14 +460,9 @@ const DeleteAccountModal: React.FC<{
           </button>
           <button
             className="btn-primary"
-            style={{
-              flex: 1,
-              background: canDelete ? 'var(--color-red)' : 'var(--bg-surface-3)',
-              color: canDelete ? '#fff' : 'var(--text-muted)',
-              cursor: canDelete ? 'pointer' : 'not-allowed',
-            }}
+            style={{ flex: 1, background: 'var(--color-red)', color: '#fff' }}
             onClick={handleConfirm}
-            disabled={!canDelete || loading}
+            disabled={loading}
           >
             {loading ? <Loader2 size={18} className="spin" /> : 'מחק את החשבון'}
           </button>

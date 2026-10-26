@@ -14,6 +14,8 @@ export const COMPOUND_EXERCISE_IDS = new Set<string>([
   'bulgarian-split-squat', 'walking-lunges-dumbbell', 'lunge-barbell', 'reverse-lunge-dumbbell', 'sumo-squat-dumbbell',
   'chair-squat-barbell', 'elevated-reverse-lunge-barbell', 'step-up-barbell', 'step-up-dumbbell', 'step-up-knee-raise',
   'bodyweight-squat', 'jump-squat-bodyweight',
+  // Hip thrust - תנועת ירך אחת, אבל תרגיל העומס הראשי לישבן; מתוכנן כתרגיל ראשי
+  'hip-thrust-barbell', 'hip-thrust-machine', 'smith-hip-thrust',
   // Horizontal push (chest)
   'bench-press-barbell', 'bench-press-dumbbell', 'incline-bench-dumbbell', 'incline-bench-barbell',
   'incline-smith-press', 'bench-press-smith', 'decline-bench-press-barbell', 'decline-bench-press-dumbbell',

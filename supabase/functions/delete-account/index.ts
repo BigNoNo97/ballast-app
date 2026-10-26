@@ -1,6 +1,7 @@
 // Edge Function: מוחקת לצמיתות את חשבון המשתמש שקורא לפונקציה - ואת כל הנתונים שלו
 // (מחיקה עם הרשאת admin, אבל רק על המשתמש המזוהה מה-JWT שלו עצמו - לא אפשרי למחוק מישהו אחר).
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { corsHeadersFor } from '../_shared/cors.ts';
 import { appleConfigured, revokeAppleToken } from '../_shared/apple.ts';
 
 // מקורות מוכרים בלבד - לא * (wildcard). הפונקציה כבר מאמתת את המשתמש מהטוקן שלו ולא
@@ -9,19 +10,8 @@ import { appleConfigured, revokeAppleToken } from '../_shared/apple.ts';
 // חשבון הדמו (test@test.com) - ראו demo-login
 const DEMO_USER_ID = '85ea1b60-fc24-4a16-a92b-e87d91dfb89b';
 
-const ALLOWED_ORIGINS = new Set([
-  'https://gym-tracker-app-110.netlify.app',
-  'capacitor://localhost',
-  'ionic://localhost',
-  'http://localhost',
-]);
-
 Deno.serve(async (req: Request) => {
-  const origin = req.headers.get('Origin') || '';
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://gym-tracker-app-110.netlify.app',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
+  const corsHeaders = corsHeadersFor(req);
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });

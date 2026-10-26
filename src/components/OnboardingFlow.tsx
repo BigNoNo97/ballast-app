@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Check } from 'lucide-react';
-import { EquipmentType, ExperienceLevel, OnboardingGoal, UserSettings } from '../types';
+import { EquipmentType, ExperienceLevel, InjuryArea, MuscleGroup, OnboardingGoal, UserSettings } from '../types';
+import { BodyAreaPicker } from './BodyAreaPicker';
 import { StorageService } from '../services/storage';
 import { AppleHealthService } from '../services/appleHealthService';
 import { buildProfile, computeTargets, formulaTdee } from '../services/nutrition/engine';
@@ -15,12 +16,14 @@ const STEP_IDS = [
   'height',
   'weight',
   'goal',
+  'focus',
   'level',
   'trainingDays',
   'trainingLocation',
   'equipment',
   'sessionDuration',
   'warmup',
+  'injuries',
   'success',
 ] as const;
 type StepId = (typeof STEP_IDS)[number];
@@ -52,6 +55,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
   // את כל הציוד אוטומטית (ראה onChange של TrainingLocationStep) ולא רואה את המסך הזה בכלל.
   const [equipment, setEquipment] = useState<EquipmentType[]>([]);
   const [sessionDuration, setSessionDuration] = useState(60);
+  const [focusMuscles, setFocusMuscles] = useState<MuscleGroup[]>([]);
+  const [injuries, setInjuries] = useState<InjuryArea[]>([]);
 
   // מי שמתאמן בחדר כושר לא צריך את מסך בחירת הציוד בכלל - מניחים גישה לכל הציוד
   // (equipment כבר מאותחל לכל הציוד כברירת מחדל, אז פשוט מדלגים על השלב).
@@ -105,6 +110,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
       availableEquipment: equipment,
       sessionDurationMinutes: sessionDuration,
       includeWarmup: includeWarmup ?? false,
+      focusMuscles,
+      injuries,
     };
     StorageService.saveSettings(newSettings);
     onComplete(newSettings);
@@ -129,6 +136,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
         {step === 'height' && <NumberPickerStep title="מה הגובה שלך?" subtitle="בסנטימטרים. אפשר תמיד לשנות את זה מאוחר יותר" min={130} max={220} value={height} onChange={setHeight} />}
         {step === 'weight' && <NumberPickerStep title="מה המשקל שלך?" subtitle="בקילוגרם. ייכנס כרשומה הראשונה בגרף המשקל שלך" min={35} max={200} value={weight} onChange={setWeight} />}
         {step === 'goal' && <GoalStep value={goals} onChange={setGoals} />}
+        {step === 'focus' && <FocusStep value={focusMuscles} onChange={setFocusMuscles} />}
         {step === 'level' && <LevelStep value={level} onChange={setLevel} />}
         {step === 'trainingDays' && <TrainingDaysStep value={trainingDays} onChange={setTrainingDays} />}
         {step === 'trainingLocation' && (
@@ -143,6 +151,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ settings, onComp
         {step === 'equipment' && <EquipmentStep value={equipment} onChange={setEquipment} />}
         {step === 'sessionDuration' && <SessionDurationStep value={sessionDuration} onChange={setSessionDuration} />}
         {step === 'warmup' && <WarmupStep value={includeWarmup} onChange={setIncludeWarmup} />}
+        {step === 'injuries' && <InjuriesStep value={injuries} onChange={setInjuries} />}
         {step === 'success' && <SuccessStep saving={saving} onDone={finish} />}
       </div>
 
@@ -242,6 +251,38 @@ const WelcomeStep: React.FC<{ onStart: () => void; onSkip: () => void }> = ({ on
   </>
 );
 
+const StepTitle: React.FC<{ title: string; subtitle: string }> = ({ title, subtitle }) => (
+  <div style={{ padding: '24px 24px 10px', textAlign: 'center' }}>
+    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>{title}</div>
+    <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{subtitle}</div>
+  </div>
+);
+
+// אזורי מיקוד: יותר נפח (סטים), לפחות פעמיים בשבוע ובתחילת האימון - ראו programGenerator
+const FocusStep: React.FC<{ value: MuscleGroup[]; onChange: (v: MuscleGroup[]) => void }> = ({ value, onChange }) => (
+  <>
+    <StepTitle title="על איזה אזור תרצה להתמקד?" subtitle="אזורי המיקוד יקבלו יותר סטים, לפחות פעמיים בשבוע ובתחילת האימון. אפשר לבחור עד 3, או לדלג." />
+    <div style={{ padding: '0 16px 16px' }}>
+      <BodyAreaPicker mode="focus" selected={value} onChange={onChange} max={3} />
+    </div>
+  </>
+);
+
+// פציעות: תרגילים שמעמיסים על האזור לא ייכנסו לתוכנית - ראו services/training/injuries.ts
+const InjuriesStep: React.FC<{ value: InjuryArea[]; onChange: (v: InjuryArea[]) => void }> = ({ value, onChange }) => (
+  <>
+    <StepTitle title="יש אזור פצוע או רגיש?" subtitle="נבנה את התוכנית בלי התרגילים שמעמיסים עליו, ונמשיך לחזק את כל השאר. אין? פשוט המשך." />
+    <div style={{ padding: '0 16px 12px' }}>
+      <BodyAreaPicker mode="injury" selected={value} onChange={onChange} />
+    </div>
+    {value.length > 0 && (
+      <div style={{ margin: '0 20px 16px', fontSize: '0.76rem', lineHeight: 1.6, color: 'var(--text-main)', background: 'var(--color-orange-bg)', borderRadius: 12, padding: '10px 12px' }}>
+        זו התאמה של בחירת התרגילים, לא טיפול. כאב עד 5 מתוך 10 שחולף עד למחרת - בסדר; כאב חד או מחמיר - לעצור ולהתייעץ עם פיזיותרפיסט/ית או רופא/ה.
+      </div>
+    )}
+  </>
+);
+
 const GenderStep: React.FC<{ value: Gender; onChange: (g: Gender) => void }> = ({ value, onChange }) => (
   <>
     <div style={{ padding: '24px 24px 6px', textAlign: 'center' }}>
@@ -260,11 +301,12 @@ const GenderStep: React.FC<{ value: Gender; onChange: (g: Gender) => void }> = (
               width: 120,
               height: 120,
               borderRadius: '50%',
-              background: value === g ? 'var(--color-blue)' : 'var(--bg-surface-2)',
+              // זכר - כחול המותג, נקבה - ורוד; לא נבחר - אפור
+              background: value === g ? (g === 'female' ? 'var(--color-pink)' : 'var(--color-blue)') : 'var(--bg-surface-2)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: value === g ? '0 6px 18px rgba(75,95,224,0.35)' : 'none',
+              boxShadow: value === g ? (g === 'female' ? '0 6px 18px var(--color-pink-glow)' : '0 6px 18px rgba(75,95,224,0.35)') : 'none',
             }}
           >
             {g === 'male' ? (

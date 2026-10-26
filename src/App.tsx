@@ -22,7 +22,8 @@ import {
   WorkoutExercise,
   WorkoutSet,
 } from './types';
-import { StorageService } from './services/storage';
+import { DATA_CHANGED_EVENT, StorageService } from './services/storage';
+import { resumePush, setPushOpenHandler, unregisterPush } from './services/push';
 import { AppleHealthService } from './services/appleHealthService';
 import { buildRoutine } from './services/programGenerator';
 import { currentWeight } from './services/nutrition/engine';
@@ -215,20 +216,48 @@ export const App: React.FC = () => {
 
   // שינויים שלא הגיעו לענן (אין קליטה בחדר הכושר) נשלחים שוב כשחוזרים לאפליקציה או כשהרשת
   // חוזרת. ואם בכניסה לא הצלחנו לראות את מה שבענן - משלימים את הסנכרון עכשיו.
-  const retrySyncRef = useRef<() => void>(() => {});
-  retrySyncRef.current = () => {
+  // בנוסף מושכים גם שינויים מהענן (מאמן או מכשיר אחר): בחזרה לאפליקציה לכל היותר פעם בדקה,
+  // ומיד (force) כשהמאמן שינה משהו. hydrateFromCloud ממזג - שינויים מקומיים שעוד לא עלו לא נדרסים.
+  const retrySyncRef = useRef<(force?: boolean) => void>(() => {});
+  const lastPullAt = useRef(0);
+  retrySyncRef.current = (force = false) => {
     const userId = lastHydratedUserId.current;
     if (!userId || !dataReady) return;
-    if (StorageService.isHydrated()) {
+    if (StorageService.isHydrated() && !force && Date.now() - lastPullAt.current < 60_000) {
       StorageService.flushPendingSync();
       return;
     }
+    lastPullAt.current = Date.now();
     StorageService.hydrateFromCloud(userId).then(() => {
       if (lastHydratedUserId.current !== userId || !StorageService.isHydrated()) return;
       // לא מחליפים את המסכים באמצע אימון פעיל - הנתונים במכשיר כבר עדכניים, יוצגו בפעם הבאה
       if (!activeWorkoutRef.current) loadStateFromStorage();
     });
   };
+  // נתונים שהתעדכנו מהענן שלא ביוזמת המשתמש (מיזוג הגדרות) - מציגים אותם
+  const dataChangedRef = useRef<() => void>(() => {});
+  dataChangedRef.current = () => {
+    if (!dataReady) return;
+    if (activeWorkoutRef.current) setSettings(StorageService.getSettings());
+    else loadStateFromStorage();
+  };
+  useEffect(() => {
+    const onChanged = () => dataChangedRef.current();
+    window.addEventListener(DATA_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, onChanged);
+  }, []);
+
+  // התראות פוש: נרשמים מחדש אם כבר אושרו, ולחיצה על התראה פותחת את מסך המאמנים
+  useEffect(() => {
+    setPushOpenHandler(() => {
+      setCurrentTab('profile');
+      setShowTrainerHub(true);
+    });
+  }, []);
+  useEffect(() => {
+    if (dataReady && session?.user?.id) resumePush();
+  }, [dataReady, session?.user?.id]);
+
   useEffect(() => {
     const retry = () => retrySyncRef.current();
     window.addEventListener('online', retry);
@@ -256,7 +285,8 @@ export const App: React.FC = () => {
       );
       if (!proceed) return;
     }
-    supabase.auth.signOut();
+    // המכשיר מפסיק לקבל התראות של החשבון הזה לפני שהטוקן של המשתמש נמחק
+    unregisterPush().finally(() => supabase.auth.signOut());
   };
 
   const [settings, setSettings] = useState<UserSettings>(() => StorageService.getSettings());
@@ -282,7 +312,8 @@ export const App: React.FC = () => {
   const [coachNote, setCoachNote] = useState<string | null>(null);
   const [showAiCoach, setShowAiCoach] = useState(false);
   const [showTrainerHub, setShowTrainerHub] = useState(false);
-  const trainerInbox = useTrainerInbox(session?.user?.id ?? null);
+  // המאמן שינה משהו בנתונים שלי -> מושכים מהשרת מיד (retrySyncRef מוגדר בהמשך; נקרא רק אחרי הרינדור)
+  const trainerInbox = useTrainerInbox(session?.user?.id ?? null, () => retrySyncRef.current(true));
   const [healthSync, setHealthSync] = useState<{ ok: boolean; message: string } | null>(null);
   const [pendingDeleteWorkout, setPendingDeleteWorkout] = useState<WorkoutSession | null>(null);
   const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
@@ -675,19 +706,6 @@ export const App: React.FC = () => {
     StorageService.saveSettings(newSettings);
   };
 
-  // תוכנית שהמאמן שלח והמתאמן אישר: נשמרת כתוכנית רגילה שלו ונהיית הפעילה. תרגילים מותאמים
-  // אישית של המאמן שהתוכנית משתמשת בהם נוספים לספרייה (אחרת התרגילים יופיעו בלי שם).
-  const handleTrainerProgramAccepted = (routine: RoutineTemplate, customExercises: Exercise[]) => {
-    const known = new Set(StorageService.getExercises().map((e) => e.id));
-    customExercises.filter((e) => !known.has(e.id)).forEach((e) => StorageService.saveExercise({ ...e, isCustom: true }));
-    StorageService.saveRoutine(routine);
-    setExercises(StorageService.getExercises());
-    setRoutines(StorageService.getRoutines());
-    setActiveRoutine(routine);
-    handleUpdateSettings({ ...settings, activeRoutineId: routine.id });
-    setSelectedDayNumber(StorageService.getSelectedDayNumber(routine.id));
-  };
-
   // בונה תוכנית אישית מכל נתוני המשתמש (services/programGenerator). תוכנית אוטומטית קודמת
   // שלא נערכה ידנית מוחלפת - ומשקלי העבודה של תרגילים שנשארים עוברים לתוכנית החדשה.
   // מסך טעינה קצר - כדי שיהיה ברור שבונים תוכנית מותאמת ולא מציגים תבנית קבועה.
@@ -1059,7 +1077,6 @@ export const App: React.FC = () => {
             myRoutines={routines}
             inbox={trainerInbox}
             onClose={() => setShowTrainerHub(false)}
-            onAcceptProgram={handleTrainerProgramAccepted}
           />
         )}
 

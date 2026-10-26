@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUp, Loader2 } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 import { getThread, markThreadRead, sendMessage, TrainerError, TrainerMessage } from '../../services/trainer';
+import { notifyNewMessage } from '../../services/push';
 import { ErrorNote, formatTime, Muted } from './trainerUi';
 
 /** שיחה בין מאמן למתאמן. משותפת לשני הצדדים; הודעות חדשות מגיעות בזמן אמת. */
@@ -63,6 +64,7 @@ export const ChatThread: React.FC<{
     setError(null);
     try {
       const m = await sendMessage(trainerId, clientId, meId, body);
+      notifyNewMessage(m.id);
       setMessages((prev) => (prev && !prev.some((x) => x.id === m.id) ? [...prev, m] : prev));
       setInput('');
     } catch (e) {

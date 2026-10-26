@@ -57,6 +57,76 @@ export function setTableShadow(table: string, shadow: TableShadow) {
 
 export function clearSyncShadow() {
   localStorage.removeItem(SHADOW_KEY);
+  localStorage.removeItem(SETTINGS_SHADOW_KEY);
+}
+
+// ===================== צל ההגדרות =====================
+// ההגדרות הן רשומה אחת (בלוב) שגם המאמן יכול לעדכן בשרת (גובה, יעדים, תוכנית פעילה...).
+// כדי ששמירה מהמכשיר לא תדרוס שינוי של המאמן, ממזגים ברמת המפתח מול מה שהענן החזיק בסנכרון
+// האחרון: מפתח שהשתנה רק בענן נלקח מהענן, מפתח שהשתנה רק במכשיר נשלח, ואם השתנה בשניהם -
+// הענן גובר (המאמן מחליט, ושינוי ממכשיר אחר של המשתמש הוא ממילא החדש יותר).
+const SETTINGS_SHADOW_KEY = 'gym_tracker_settings_shadow_v1';
+const NESTED_SETTINGS_KEYS = new Set(['settings', 'nutritionGoals', 'selectedDayByRoutine', 'exerciseNotes']);
+
+type Blob = Record<string, unknown>;
+
+export function getSettingsShadow(): Blob | null {
+  if (!currentUserId) return null;
+  try {
+    const raw = localStorage.getItem(SETTINGS_SHADOW_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && parsed.userId === currentUserId ? (parsed.data as Blob) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setSettingsShadow(data: unknown) {
+  if (!currentUserId) return;
+  try {
+    localStorage.setItem(SETTINGS_SHADOW_KEY, JSON.stringify({ userId: currentUserId, data }));
+  } catch (e) {
+    console.error('[cloudSync] failed to save settings shadow', e);
+  }
+}
+
+// השוואה לפי תוכן: jsonb ב-Postgres מסדר מחדש את מפתחות האובייקט, אז סדר המפתחות לא נחשב שינוי
+function canonical(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`;
+  if (v && typeof v === 'object') {
+    return `{${Object.keys(v as Blob)
+      .filter((k) => (v as Blob)[k] !== undefined)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canonical((v as Blob)[k])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(v) ?? 'undefined';
+}
+const same = (a: unknown, b: unknown) => canonical(a) === canonical(b);
+const isObject = (v: unknown): v is Blob => !!v && typeof v === 'object' && !Array.isArray(v);
+
+function mergeLevel(local: Blob, cloud: Blob, shadow: Blob, nested: boolean): Blob {
+  const merged: Blob = {};
+  const keys = new Set([...Object.keys(local), ...Object.keys(cloud)]);
+  keys.forEach((k) => {
+    const l = local[k];
+    const c = cloud[k];
+    const sh = shadow[k];
+    let v: unknown;
+    if (same(c, sh)) v = l; // רק המכשיר (אולי) שינה
+    else if (same(l, sh)) v = c; // רק הענן שינה
+    else if (nested && NESTED_SETTINGS_KEYS.has(k) && isObject(l) && isObject(c)) v = mergeLevel(l, c, isObject(sh) ? sh : {}, false);
+    else v = c; // שניהם שינו - הענן גובר
+    if (v !== undefined) merged[k] = v;
+  });
+  return merged;
+}
+
+/** מיזוג תלת-כיווני של בלוב ההגדרות. בלי צל (מכשיר שלא סנכרן מאז העדכון) - המכשיר גובר, כמו קודם. */
+export function mergeSettingsBlob(local: Blob, cloud: Blob | null, shadow: Blob | null): Blob {
+  if (!cloud) return local;
+  if (!shadow) return { ...cloud, ...local };
+  return mergeLevel(local, cloud, shadow, true);
 }
 
 // FNV-1a על ה-JSON - מספיק כדי לזהות "הרשומה השתנתה". התנגשות נדירה רק תגרום לשליחה מיותרת.
@@ -194,11 +264,13 @@ export async function pullListFromCloud<T>(table: string): Promise<T[]> {
 
 // גם ההגדרות בתור: רק הגרסה האחרונה נשלחת, ומחזירים אם היא באמת נשמרה
 let settingsQueue: Promise<boolean> = Promise.resolve(true);
-let latestSettings: { data: unknown } | null = null;
+let latestSettings: { data: Blob; onMerged?: (merged: Blob) => void } | null = null;
 
-export function syncSettingsToCloud(data: unknown): Promise<boolean> {
+/** שומר את ההגדרות בענן אחרי מיזוג עם מה שכבר שם (ראו mergeSettingsBlob). onMerged נקרא
+ *  כשהמיזוג הכניס שינויים מהענן - כדי לעדכן גם את המכשיר. */
+export function syncSettingsToCloud(data: Blob, onMerged?: (merged: Blob) => void): Promise<boolean> {
   if (!currentUserId) return Promise.resolve(false);
-  latestSettings = { data };
+  latestSettings = { data, onMerged };
   settingsQueue = settingsQueue.then(async () => {
     const userId = currentUserId;
     const pending = latestSettings;
@@ -206,8 +278,14 @@ export function syncSettingsToCloud(data: unknown): Promise<boolean> {
     if (!userId) return false;
     latestSettings = null;
     try {
-      const { error } = await supabase.from('user_settings').upsert({ user_id: userId, data: pending.data });
+      const { data: row, error: pullError } = await supabase.from('user_settings').select('data').eq('user_id', userId).maybeSingle();
+      if (pullError) throw pullError;
+      const merged = mergeSettingsBlob(pending.data, (row?.data as Blob) ?? null, getSettingsShadow());
+      const { error } = await supabase.from('user_settings').upsert({ user_id: userId, data: merged });
       if (error) throw error;
+      if (currentUserId !== userId) return false;
+      setSettingsShadow(merged);
+      if (!same(merged, pending.data)) pending.onMerged?.(merged);
       return true;
     } catch (e) {
       console.error('[cloudSync] failed to sync settings - will retry later', e);

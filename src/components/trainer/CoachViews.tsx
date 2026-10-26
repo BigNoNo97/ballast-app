@@ -1,31 +1,35 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Copy, Dumbbell, Loader2, RefreshCw, Send, Share2, UserMinus, Users } from 'lucide-react';
-import type { Exercise, RoutineTemplate } from '../../types';
+import { Copy, Dumbbell, Library, Loader2, Pencil, RefreshCw, Share2, UserMinus } from 'lucide-react';
+import type { Exercise, RoutineTemplate, WorkoutSession } from '../../types';
 import { currentWeight, weightTrend } from '../../services/nutrition/engine';
 import { injuryLabel } from '../../services/training/injuries';
 import { MUSCLE_GROUP_LABELS } from '../../data/exercises';
 import {
   activeRoutineOf,
+  assignProgram,
   becomeTrainer,
   ClientSnapshot,
   closeTrainerAccount,
+  deleteClientRows,
   endRelation,
   getClientSnapshot,
   getMyClients,
-  getProgramsForClient,
   getRecentClientWorkouts,
   getTrainerStatus,
-  ProgramOffer,
+  patchClientSettings,
   rotateInviteCode,
-  sendProgram,
+  routineWithCurrentLoads,
+  saveClientRoutine,
   TrainerError,
   TrainerProfile,
   TrainerRelation,
   TrainerStatus,
   updateTrainerProfile,
 } from '../../services/trainer';
-import type { WorkoutSession } from '../../types';
+import { notifyClientUpdated } from '../../services/push';
+import { RoutinesView } from '../RoutinesView';
 import { ChatThread } from './ChatThread';
+import { BodyWeightEditor, NutritionGoalsEditor, ProfileEditorScreen, WorkoutEditCard } from './ClientEditors';
 import {
   Badge,
   Card,
@@ -84,11 +88,11 @@ export const BecomeTrainerScreen: React.FC<{
           <div style={{ fontWeight: 800, marginBottom: 6 }}>מנהלים את כל המתאמנים מאותה אפליקציה</div>
           <ul style={{ margin: 0, paddingInlineStart: 18, display: 'flex', flexDirection: 'column', gap: 5, fontSize: '0.84rem', lineHeight: 1.5 }}>
             <li>קוד הזמנה אישי שאפשר לשלוח לכל מתאמן</li>
-            <li>מעקב אחרי האימונים, התוכנית, המשקל והתזונה של כל מתאמן (מה שהוא בחר לשתף)</li>
-            <li>שליחת תוכניות אימון ישירות לאפליקציה שלו</li>
+            <li>ניהול מלא של כל מתאמן: תוכניות, סדר תרגילים, משקלים וחזרות, אימונים שנרשמו, משקל גוף, פרופיל ויעדי תזונה</li>
+            <li>כל שינוי מתעדכן מיד באפליקציה של המתאמן</li>
             <li>הודעות עם כל מתאמן</li>
           </ul>
-          <Muted style={{ marginTop: 8 }}>בחשבון החינמי אפשר ללוות עד 2 מתאמנים. מנוי מאמן ללא הגבלה - בקרוב.</Muted>
+          <Muted style={{ marginTop: 8 }}>בחשבון החינמי אפשר ללוות עד 5 מתאמנים. מנוי מאמן ללא הגבלה - בקרוב.</Muted>
         </Card>
       )}
       <SectionTitle>השם שהמתאמנים יראו</SectionTitle>
@@ -221,7 +225,7 @@ export const TrainerDashboard: React.FC<{
       {status && (
         <Muted>
           {status.active_clients}/{status.client_limit} מתאמנים פעילים
-          {status.plan !== 'trainer' && ' · בחשבון החינמי אפשר עד 2 מתאמנים. מנוי מאמן ללא הגבלה - בקרוב.'}
+          {status.plan !== 'trainer' && ' · בחשבון החינמי אפשר עד 5 מתאמנים. מנוי מאמן ללא הגבלה - בקרוב.'}
         </Muted>
       )}
       <ErrorNote text={error} />
@@ -271,17 +275,19 @@ export const TrainerDashboard: React.FC<{
 
 // ===================== מתאמן אחד =====================
 
-type Tab = 'overview' | 'workouts' | 'program' | 'nutrition' | 'messages';
+type Tab = 'overview' | 'workouts' | 'program' | 'body' | 'nutrition' | 'messages';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'סקירה' },
-  { id: 'workouts', label: 'אימונים' },
   { id: 'program', label: 'תוכנית' },
+  { id: 'workouts', label: 'אימונים' },
+  { id: 'body', label: 'גוף' },
   { id: 'nutrition', label: 'תזונה' },
   { id: 'messages', label: 'הודעות' },
 ];
 
 export const ClientDetailScreen: React.FC<{
   trainerId: string;
+  trainerName: string;
   relation: TrainerRelation;
   allExercises: Exercise[];
   myRoutines: RoutineTemplate[];
@@ -289,87 +295,173 @@ export const ClientDetailScreen: React.FC<{
   onBack: () => void;
   onRead: () => void;
   onRemoved: () => void;
-}> = ({ trainerId, relation, allExercises, myRoutines, unread, onBack, onRead, onRemoved }) => {
+}> = ({ trainerId, trainerName, relation, allExercises, myRoutines, unread, onBack, onRead, onRemoved }) => {
   const isActive = relation.status === 'active';
+  const clientId = relation.client_id;
   const [tab, setTab] = useState<Tab>(isActive ? 'overview' : 'messages');
   const [snap, setSnap] = useState<ClientSnapshot | null>(null);
-  const [programs, setPrograms] = useState<ProgramOffer[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
+  const [overlay, setOverlay] = useState<'profile' | 'routines' | 'assign' | null>(null);
 
   const load = async () => {
     if (!isActive) return;
     try {
-      const [s, p] = await Promise.all([getClientSnapshot(relation), getProgramsForClient(trainerId, relation.client_id)]);
-      setSnap(s);
-      setPrograms(p);
+      setSnap(await getClientSnapshot(relation));
+      setError(null);
     } catch (e) {
       setError(msg(e));
     }
   };
   useEffect(() => {
     load();
-  }, [relation.client_id]);
+  }, [clientId]);
 
-  const nameOf = useMemo(() => {
-    const lib = new Map([...allExercises, ...(snap?.customExercises ?? [])].map((e) => [e.id, e.nameHe]));
-    return (id: string) => lib.get(id) ?? id;
+  /** אחרי כל שינוי: טוענים מחדש ומודיעים למתאמן (פוש מרוכז - לא על כל שמירה) */
+  const changed = () => {
+    load();
+    notifyClientUpdated(clientId);
+  };
+
+  const library = useMemo(() => {
+    const map = new Map<string, Exercise>();
+    [...allExercises, ...(snap?.customExercises ?? [])].forEach((e) => map.set(e.id, e));
+    return [...map.values()];
   }, [allExercises, snap]);
+  const nameOf = useMemo(() => {
+    const lib = new Map(library.map((e) => [e.id, e.nameHe]));
+    return (id: string) => lib.get(id) ?? id;
+  }, [library]);
 
-  if (sending && snap) {
+  const name = relation.client_display_name;
+
+  if (snap && overlay === 'profile') {
     return (
-      <SendProgramScreen
-        trainerId={trainerId}
-        relation={relation}
+      <ProfileEditorScreen
+        clientId={clientId}
+        clientName={name}
+        snap={snap}
+        onBack={() => setOverlay(null)}
+        onSaved={() => {
+          setOverlay(null);
+          changed();
+        }}
+      />
+    );
+  }
+  if (snap && overlay === 'assign') {
+    return (
+      <AssignProgramScreen
+        clientName={name}
         myRoutines={myRoutines}
-        allExercises={allExercises}
         nameOf={nameOf}
-        onBack={() => setSending(false)}
-        onSent={() => {
-          setSending(false);
-          load();
+        onBack={() => setOverlay(null)}
+        onAssign={async (routine) => {
+          await assignProgram(clientId, trainerName, routine, allExercises, snap);
+          setOverlay(null);
+          setTab('program');
+          changed();
         }}
       />
     );
   }
 
-  const name = relation.client_display_name;
   return (
-    <Screen title={name} subtitle={isActive ? undefined : 'השיתוף הסתיים'} onBack={onBack} noScroll={tab === 'messages'}>
+    <Screen title={name} subtitle={isActive ? syncedLabel(snap) : 'השיתוף הסתיים'} onBack={onBack} noScroll={tab === 'messages'}>
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flexShrink: 0, paddingBottom: 2 }}>
         {TABS.filter((t) => isActive || t.id === 'messages').map((t) => (
           <button key={t.id} className={`filter-chip ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)} style={{ flexShrink: 0 }}>
             {t.label}
-            {t.id === 'messages' && unread > 0 && <span style={{ marginInlineStart: 4 }}><Badge count={unread} /></span>}
+            {t.id === 'messages' && unread > 0 && (
+              <span style={{ marginInlineStart: 4 }}>
+                <Badge count={unread} />
+              </span>
+            )}
           </button>
         ))}
       </div>
       <ErrorNote text={error} />
 
       {tab === 'messages' ? (
-        <ChatThread trainerId={trainerId} clientId={relation.client_id} meId={trainerId} otherName={name} canSend={isActive} onRead={onRead} />
+        <ChatThread trainerId={trainerId} clientId={clientId} meId={trainerId} otherName={name} canSend={isActive} onRead={onRead} />
       ) : !snap ? (
         !error && <Loader2 size={20} className="spin" style={{ margin: '40px auto' }} />
       ) : tab === 'overview' ? (
-        <Overview snap={snap} relation={relation} onRemove={async () => {
-          if (!window.confirm(`להסיר את ${name} מרשימת המתאמנים? הגישה לנתונים שלו תיחסם מיד, והוא לא יוכל להצטרף שוב לבד.`)) return;
-          try {
-            await endRelation(trainerId, relation.client_id);
-            onRemoved();
-          } catch (e) {
-            setError(msg(e));
-          }
-        }} />
+        <Overview
+          snap={snap}
+          relation={relation}
+          onEditProfile={() => setOverlay('profile')}
+          onRemove={async () => {
+            if (!window.confirm(`להסיר את ${name} מרשימת המתאמנים? הגישה לנתונים שלו תיחסם מיד, והוא לא יוכל להצטרף שוב לבד.`)) return;
+            try {
+              await endRelation(trainerId, clientId);
+              onRemoved();
+            } catch (e) {
+              setError(msg(e));
+            }
+          }}
+        />
       ) : tab === 'workouts' ? (
-        <WorkoutsTab workouts={snap.workouts} nameOf={nameOf} />
+        <WorkoutsTab clientId={clientId} workouts={snap.workouts} nameOf={nameOf} onChanged={changed} />
       ) : tab === 'program' ? (
-        <ProgramTab snap={snap} programs={programs} nameOf={nameOf} onSend={() => setSending(true)} />
+        <ProgramTab snap={snap} nameOf={nameOf} onEdit={() => setOverlay('routines')} onAssign={() => setOverlay('assign')} />
+      ) : tab === 'body' ? (
+        <BodyWeightEditor clientId={clientId} log={snap.weightLog} onChanged={changed} />
       ) : (
-        <NutritionTab snap={snap} shared={relation.share_nutrition} />
+        <NutritionTab snap={snap} clientId={clientId} shared={relation.share_nutrition} onChanged={changed} />
+      )}
+
+      {snap && overlay === 'routines' && (
+        <div className="modal-overlay" style={{ zIndex: 230 }} onClick={() => setOverlay(null)}>
+          <div className="action-sheet" onClick={(e) => e.stopPropagation()} style={{ height: 'calc(var(--app-vh, 1vh) * 90)', overflowY: 'auto' }}>
+            <div className="sheet-handle" />
+            <Muted style={{ marginBottom: 8 }}>עורכים את התוכניות של {name}. כל שמירה מתעדכנת אצלו באפליקציה.</Muted>
+            <RoutinesView
+              routines={snap.routines.map((r) => routineWithCurrentLoads(r, snap))}
+              activeRoutine={(() => {
+                const a = activeRoutineOf(snap);
+                return a ? routineWithCurrentLoads(a, snap) : null;
+              })()}
+              allExercises={library}
+              onSelectActiveRoutine={async (r) => {
+                try {
+                  await patchClientSettings(clientId, { settings: { activeRoutineId: r.id } });
+                  changed();
+                } catch (e) {
+                  setError(msg(e));
+                }
+              }}
+              onSaveRoutine={async (r) => {
+                try {
+                  await saveClientRoutine(clientId, r, snap);
+                  changed();
+                } catch (e) {
+                  setError(msg(e));
+                }
+              }}
+              onDeleteRoutine={async (id) => {
+                try {
+                  await deleteClientRows(clientId, 'routines', [id]);
+                  if (snap.settings.activeRoutineId === id) await patchClientSettings(clientId, { settings: { activeRoutineId: null } });
+                  changed();
+                } catch (e) {
+                  setError(msg(e));
+                }
+              }}
+              onStartRoutine={() => {}}
+              onStartEmptyWorkout={() => {}}
+              onClose={() => setOverlay(null)}
+            />
+          </div>
+        </div>
       )}
     </Screen>
   );
 };
+
+function syncedLabel(snap: ClientSnapshot | null): string | undefined {
+  if (!snap?.lastSyncedAt) return undefined;
+  return `הנתונים מהמכשיר שלו עד ${daysAgoLabel(snap.lastSyncedAt)}, ${new Date(snap.lastSyncedAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
+}
 
 const Fact: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: '0.84rem', padding: '5px 0', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -378,7 +470,12 @@ const Fact: React.FC<{ label: string; value: React.ReactNode }> = ({ label, valu
   </div>
 );
 
-const Overview: React.FC<{ snap: ClientSnapshot; relation: TrainerRelation; onRemove: () => void }> = ({ snap, relation, onRemove }) => {
+const Overview: React.FC<{ snap: ClientSnapshot; relation: TrainerRelation; onEditProfile: () => void; onRemove: () => void }> = ({
+  snap,
+  relation,
+  onEditProfile,
+  onRemove,
+}) => {
   const s = snap.settings;
   const now = Date.now();
   const weight = currentWeight(snap.weightLog, now);
@@ -395,7 +492,12 @@ const Overview: React.FC<{ snap: ClientSnapshot; relation: TrainerRelation; onRe
         <Fact label="4 שבועות אחרונים" value={`${last28} אימונים`} />
       </Card>
       <Card>
-        <div style={{ fontWeight: 800, fontSize: '0.9rem', marginBottom: 6 }}>גוף ומטרות</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <div style={{ fontWeight: 800, fontSize: '0.9rem' }}>גוף ומטרות</div>
+          <button className="btn-secondary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={onEditProfile}>
+            <Pencil size={13} /> עריכה
+          </button>
+        </div>
         <Fact label="משקל (מגמה)" value={weight ? `${weight.toFixed(1)} ק"ג` : '—'} />
         {trend && trend.weighIns >= 3 && (
           <Fact label="שינוי ב-4 שבועות" value={`${trend.slopeKgPerDay * 28 >= 0 ? '+' : ''}${(trend.slopeKgPerDay * 28).toFixed(1)} ק"ג`} />
@@ -405,13 +507,9 @@ const Overview: React.FC<{ snap: ClientSnapshot; relation: TrainerRelation; onRe
         <Fact label="ניסיון" value={s.experienceLevel ? EXPERIENCE_LABELS[s.experienceLevel] : '—'} />
         <Fact label="גיל · גובה" value={`${s.ageYears ?? '—'} · ${s.heightCm ? `${s.heightCm} ס"מ` : '—'}`} />
         <Fact label="ימי אימון בשבוע" value={s.trainingDaysPerWeek ?? '—'} />
+        {!!s.injuries?.length && <Fact label="פציעות / מגבלות" value={s.injuries.map(injuryLabel).join(', ')} />}
+        {!!s.focusMuscles?.length && <Fact label="אזורי מיקוד" value={s.focusMuscles.map((m) => MUSCLE_GROUP_LABELS[m]?.he ?? m).join(', ')} />}
       </Card>
-      {(s.injuries?.length || s.focusMuscles?.length) ? (
-        <Card style={{ background: s.injuries?.length ? 'var(--color-orange-bg)' : undefined }}>
-          {!!s.injuries?.length && <Fact label="פציעות / מגבלות" value={s.injuries.map(injuryLabel).join(', ')} />}
-          {!!s.focusMuscles?.length && <Fact label="אזורי מיקוד" value={s.focusMuscles.map((m) => MUSCLE_GROUP_LABELS[m]?.he ?? m).join(', ')} />}
-        </Card>
-      ) : null}
       <Muted>
         הצטרף/ה {new Date(relation.consented_at).toLocaleDateString('he-IL')} · תזונה {relation.share_nutrition ? 'משותפת' : 'לא משותפת'}
       </Muted>
@@ -422,17 +520,20 @@ const Overview: React.FC<{ snap: ClientSnapshot; relation: TrainerRelation; onRe
   );
 };
 
-const WorkoutsTab: React.FC<{ workouts: WorkoutSession[]; nameOf: (id: string) => string }> = ({ workouts, nameOf }) => {
+const WorkoutsTab: React.FC<{ clientId: string; workouts: WorkoutSession[]; nameOf: (id: string) => string; onChanged: () => void }> = ({
+  clientId,
+  workouts,
+  nameOf,
+  onChanged,
+}) => {
   const [open, setOpen] = useState<string | null>(null);
   if (!workouts.length) return <Muted>עוד אין אימונים.</Muted>;
   return (
     <>
+      <Muted>לחיצה על אימון פותחת אותו לעריכה: משקלים, חזרות, סימון סטים, או מחיקה.</Muted>
       {workouts.slice(0, 30).map((w) => (
         <Card key={w.id} style={{ padding: 12 }}>
-          <button
-            onClick={() => setOpen(open === w.id ? null : w.id)}
-            style={{ all: 'unset', display: 'block', width: '100%', cursor: 'pointer' }}
-          >
+          <button onClick={() => setOpen(open === w.id ? null : w.id)} style={{ all: 'unset', display: 'block', width: '100%', cursor: 'pointer' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
               <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{w.title}</span>
               <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>{new Date(w.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })}</span>
@@ -442,17 +543,15 @@ const WorkoutsTab: React.FC<{ workouts: WorkoutSession[]; nameOf: (id: string) =
             </Muted>
           </button>
           {open === w.id && (
-            <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {w.exercises.map((x, i) => {
-                const done = x.sets.filter((st) => st.completed);
-                return (
-                  <li key={`${x.exerciseId}-${i}`} style={{ fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <span>{nameOf(x.exerciseId)}</span>
-                    <span style={{ color: 'var(--text-muted)', direction: 'ltr' }}>{done.map((st) => `${st.weightKg}×${st.reps}`).join('  ') || '—'}</span>
-                  </li>
-                );
-              })}
-            </ul>
+            <WorkoutEditCard
+              clientId={clientId}
+              workout={w}
+              nameOf={nameOf}
+              onChanged={() => {
+                setOpen(null);
+                onChanged();
+              }}
+            />
           )}
         </Card>
       ))}
@@ -460,142 +559,132 @@ const WorkoutsTab: React.FC<{ workouts: WorkoutSession[]; nameOf: (id: string) =
   );
 };
 
-const PROGRAM_STATUS: Record<ProgramOffer['status'], string> = { sent: 'ממתינה לאישור', accepted: 'התקבלה', declined: 'נדחתה' };
-
-const ProgramTab: React.FC<{ snap: ClientSnapshot; programs: ProgramOffer[]; nameOf: (id: string) => string; onSend: () => void }> = ({ snap, programs, nameOf, onSend }) => {
+const ProgramTab: React.FC<{ snap: ClientSnapshot; nameOf: (id: string) => string; onEdit: () => void; onAssign: () => void }> = ({
+  snap,
+  nameOf,
+  onEdit,
+  onAssign,
+}) => {
   const routine = activeRoutineOf(snap);
   return (
     <>
-      <button className="btn-primary" style={{ padding: '11px 0' }} onClick={onSend}>
-        <Send size={16} /> שליחת תוכנית
-      </button>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn-primary" style={{ flex: 1, padding: '11px 0' }} onClick={onEdit}>
+          <Pencil size={15} /> עריכת התוכניות
+        </button>
+        <button className="btn-secondary" style={{ flex: 1, padding: '11px 0' }} onClick={onAssign}>
+          <Library size={15} /> תוכנית מהספרייה שלי
+        </button>
+      </div>
       <SectionTitle>התוכנית הפעילה</SectionTitle>
       {routine ? (
         <>
           <Muted>
             {routine.title}
-            {routine.assignedByTrainer ? ` · נשלחה ע"י ${routine.assignedByTrainer}` : routine.isGenerated ? ' · נבנתה ע"י מנוע האפליקציה' : ''}
+            {routine.assignedByTrainer ? ` · מאת ${routine.assignedByTrainer}` : routine.isGenerated ? ' · נבנתה ע"י מנוע האפליקציה' : ''}
           </Muted>
-          <RoutinePreview routine={routine} nameOf={nameOf} />
+          <RoutinePreview routine={routineWithCurrentLoads(routine, snap)} nameOf={nameOf} />
         </>
       ) : (
         <Muted>אין תוכנית פעילה.</Muted>
       )}
-      {programs.length > 0 && (
-        <>
-          <SectionTitle>תוכניות ששלחת</SectionTitle>
-          {programs.map((p) => (
-            <Card key={p.id} style={{ padding: 12, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: '0.86rem', fontWeight: 700 }}>{p.routine.title}</span>
-              <span style={{ fontSize: '0.76rem', color: p.status === 'accepted' ? 'var(--color-green)' : 'var(--text-muted)' }}>
-                {PROGRAM_STATUS[p.status]} · {daysAgoLabel(p.created_at)}
-              </span>
-            </Card>
-          ))}
-        </>
-      )}
     </>
   );
 };
 
-const NutritionTab: React.FC<{ snap: ClientSnapshot; shared: boolean }> = ({ snap, shared }) => {
-  if (!shared || !snap.nutritionEntries) return <Muted>המתאמן לא שיתף את יומן התזונה. הוא יכול להפעיל את זה במסך "המאמן שלי".</Muted>;
-  const goals = snap.nutritionGoals;
+const NutritionTab: React.FC<{ snap: ClientSnapshot; clientId: string; shared: boolean; onChanged: () => void }> = ({ snap, clientId, shared, onChanged }) => {
   const startToday = new Date(new Date().toDateString()).getTime();
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const start = startToday - i * DAY_MS;
-    const items = snap.nutritionEntries!.filter((e) => e.date >= start && e.date < start + DAY_MS);
-    const sum = (f: (e: (typeof items)[number]) => number) => Math.round(items.reduce((a, e) => a + (f(e) * e.grams) / 100, 0));
-    return { start, n: items.length, kcal: sum((e) => e.caloriesPer100g), protein: sum((e) => e.proteinPer100g) };
-  });
   const est = snap.nutrition?.estimate;
   return (
     <>
-      {goals && (
+      <NutritionGoalsEditor clientId={clientId} goals={snap.nutritionGoals} onChanged={onChanged} />
+      {est && (
+        <Muted>
+          הוצאה יומית משוערת: {Math.round(est.tdee).toLocaleString('he-IL')} קק"ל{est.adaptiveTdee ? ' (מהנתונים בפועל)' : ' (מנוסחה)'}
+        </Muted>
+      )}
+      {!shared || !snap.nutritionEntries ? (
+        <Muted>המתאמן לא שיתף את יומן האכילה. הוא יכול להפעיל את זה במסך "המאמן שלי".</Muted>
+      ) : (
         <Card>
-          <div style={{ fontWeight: 800, fontSize: '0.9rem', marginBottom: 6 }}>יעדים יומיים</div>
-          <Fact label="קלוריות" value={goals.calories.toLocaleString('he-IL')} />
-          <Fact label="חלבון · פחמימה · שומן" value={`${goals.protein} · ${goals.carbs} · ${goals.fat} גר׳`} />
-          {est && <Fact label="הוצאה יומית משוערת" value={`${Math.round(est.tdee).toLocaleString('he-IL')} קק"ל${est.adaptiveTdee ? ' (מהנתונים בפועל)' : ' (מנוסחה)'}`} />}
+          <div style={{ fontWeight: 800, fontSize: '0.9rem', marginBottom: 6 }}>7 ימים אחרונים</div>
+          {Array.from({ length: 7 }, (_, i) => {
+            const start = startToday - i * DAY_MS;
+            const items = snap.nutritionEntries!.filter((e) => e.date >= start && e.date < start + DAY_MS);
+            const sum = (f: (e: (typeof items)[number]) => number) => Math.round(items.reduce((a, e) => a + (f(e) * e.grams) / 100, 0));
+            return (
+              <Fact
+                key={start}
+                label={daysAgoLabel(start)}
+                value={
+                  items.length ? (
+                    `${sum((e) => e.caloriesPer100g).toLocaleString('he-IL')} קק"ל · ${sum((e) => e.proteinPer100g)} גר׳ חלבון`
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>לא תועד</span>
+                  )
+                }
+              />
+            );
+          })}
         </Card>
       )}
-      <Card>
-        <div style={{ fontWeight: 800, fontSize: '0.9rem', marginBottom: 6 }}>7 ימים אחרונים</div>
-        {days.map((d) => (
-          <Fact
-            key={d.start}
-            label={daysAgoLabel(d.start)}
-            value={d.n ? `${d.kcal.toLocaleString('he-IL')} קק"ל · ${d.protein} גר׳ חלבון` : <span style={{ color: 'var(--text-muted)' }}>לא תועד</span>}
-          />
-        ))}
-      </Card>
     </>
   );
 };
 
-// ===================== שליחת תוכנית =====================
+// ===================== תוכנית מהספרייה של המאמן =====================
 
-const SendProgramScreen: React.FC<{
-  trainerId: string;
-  relation: TrainerRelation;
+const AssignProgramScreen: React.FC<{
+  clientName: string;
   myRoutines: RoutineTemplate[];
-  allExercises: Exercise[];
   nameOf: (id: string) => string;
   onBack: () => void;
-  onSent: () => void;
-}> = ({ trainerId, relation, myRoutines, allExercises, nameOf, onBack, onSent }) => {
+  onAssign: (routine: RoutineTemplate) => Promise<void>;
+}> = ({ clientName, myRoutines, nameOf, onBack, onAssign }) => {
   const [selected, setSelected] = useState<RoutineTemplate | null>(null);
-  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const send = async () => {
-    if (!selected) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await sendProgram(trainerId, relation.client_id, selected, allExercises, note);
-      onSent();
-    } catch (e) {
-      setError(msg(e));
-      setBusy(false);
-    }
-  };
-
   if (selected) {
     return (
-      <Screen title={selected.title} subtitle={`שליחה ל${relation.client_display_name}`} onBack={() => setSelected(null)}>
+      <Screen title={selected.title} subtitle={`ל${clientName}`} onBack={() => setSelected(null)}>
         <RoutinePreview routine={selected} nameOf={nameOf} />
-        <SectionTitle>הערה למתאמן (לא חובה)</SectionTitle>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value.slice(0, 1000))}
-          rows={3}
-          style={{ ...inputStyle, resize: 'none' }}
-          placeholder="למשל: מתחילים ביום ראשון, משקלים לפי RPE 8"
-        />
-        <Muted>המתאמן יקבל את התוכנית באפליקציה ויוכל לאשר אותה. אחרי האישור היא תהפוך לתוכנית הפעילה שלו.</Muted>
+        <Muted>התוכנית תועתק ל{clientName} ותהפוך לתוכנית הפעילה שלו. התוכנית הקודמת שלו נשארת שמורה, ואפשר לערוך את העותק שלו בנפרד.</Muted>
         <ErrorNote text={error} />
-        <button className="btn-primary" style={{ padding: '12px 0' }} disabled={busy} onClick={send}>
-          {busy ? <Loader2 size={18} className="spin" /> : 'שליחה'}
+        <button
+          className="btn-primary"
+          style={{ padding: '12px 0' }}
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              await onAssign(selected);
+            } catch (e) {
+              setError(msg(e));
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? <Loader2 size={18} className="spin" /> : 'הפעלת התוכנית אצל המתאמן'}
         </button>
       </Screen>
     );
   }
 
-  const sendable = myRoutines.filter((r) => r.days.some((d) => d.exercises.length > 0));
+  const usable = myRoutines.filter((r) => r.days.some((d) => d.exercises.length > 0));
   return (
-    <Screen title="שליחת תוכנית" subtitle={relation.client_display_name} onBack={onBack}>
-      <Muted>בחר אחת מהתוכניות שלך. כדי לבנות תוכנית חדשה, צור אותה קודם במסך התוכניות שלך (לשונית אימון ← התוכניות שלי) ואז חזור לכאן.</Muted>
-      {sendable.length === 0 ? (
+    <Screen title="תוכנית מהספרייה שלי" subtitle={clientName} onBack={onBack}>
+      <Muted>התוכניות שבנית בחשבון שלך (לשונית אימון ← התוכניות שלי). אפשר גם לערוך ישירות את התוכניות של המתאמן בלשונית "תוכנית".</Muted>
+      {usable.length === 0 ? (
         <Card>
           <Muted>אין לך עדיין תוכניות עם תרגילים.</Muted>
         </Card>
       ) : (
-        sendable.map((r) => (
+        usable.map((r) => (
           <RowButton
             key={r.id}
-            icon={<Users size={18} color="var(--color-blue)" />}
+            icon={<Dumbbell size={18} color="var(--color-blue)" />}
             title={r.title}
             subtitle={`${r.days.length} ימים · ${r.days.reduce((a, d) => a + d.exercises.length, 0)} תרגילים`}
             onClick={() => setSelected(r)}

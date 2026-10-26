@@ -31,6 +31,7 @@ import {
   getTableShadow,
   setTableShadow,
   clearSyncShadow,
+  setSettingsShadow,
   mergeCloudWithLocal,
   countPendingChanges,
 } from './cloudSync';
@@ -44,6 +45,9 @@ interface CloudSettingsBlob {
   favoriteExerciseIds: string[];
   selectedDayByRoutine: Record<string, number>;
 }
+
+/** נשלח כשנתונים במכשיר התעדכנו מהענן שלא ביוזמת המשתמש (למשל המאמן שינה משהו) - App טוען מחדש */
+export const DATA_CHANGED_EVENT = 'ballast:data-changed';
 
 const STORAGE_KEYS = {
   EXERCISES: 'gym_tracker_exercises_v2',
@@ -771,7 +775,11 @@ export const StorageService = {
       favoriteExerciseIds: this.getFavoriteExerciseIds(),
       selectedDayByRoutine,
     };
-    syncSettingsToCloud(blob).then((ok) => {
+    syncSettingsToCloud(blob as unknown as Record<string, unknown>, (merged) => {
+      // המיזוג הכניס שינויים מהענן (למשל המאמן עדכן גובה או תוכנית פעילה) - מעדכנים גם את המכשיר
+      this.applySettingsBlob(merged as unknown as CloudSettingsBlob);
+      window.dispatchEvent(new Event(DATA_CHANGED_EVENT));
+    }).then((ok) => {
       if (ok && localStorage.getItem(SYNC_META_KEYS.SETTINGS_DIRTY) === token) {
         localStorage.removeItem(SYNC_META_KEYS.SETTINGS_DIRTY);
       }
@@ -866,7 +874,10 @@ export const StorageService = {
     try {
       const settingsBlob = await pullSettingsFromCloud<CloudSettingsBlob>();
       if (getCloudUser() !== userId) return;
-      if (settingsBlob) this.applySettingsBlob(settingsBlob);
+      if (settingsBlob) {
+        this.applySettingsBlob(settingsBlob);
+        setSettingsShadow(settingsBlob);
+      }
     } catch {
       allPulled = false;
     }

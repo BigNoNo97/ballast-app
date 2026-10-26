@@ -1,47 +1,46 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../../services/supabaseClient';
-import { getPendingPrograms, getUnreadCounts, subscribeTrainerInbox } from '../../services/trainer';
+import { getUnreadCounts, subscribeTrainerInbox } from '../../services/trainer';
 import type { TrainerInbox } from './TrainerHub';
 
-/** מוני "מאמנים" לכל האפליקציה: הודעות שלא נקראו ותוכניות שממתינות. מתעדכן בזמן אמת,
- *  ובכל חזרה של האפליקציה לחזית (Realtime לא רץ כשהאפליקציה ברקע). */
-export function useTrainerInbox(userId: string | null): TrainerInbox & { total: number } {
+/** מוני הודעות שלא נקראו לכל האפליקציה, בזמן אמת ובכל חזרה לחזית (Realtime לא רץ ברקע).
+ *  onMyDataChanged נקרא כשהמאמן שינה משהו בנתונים של המשתמש - כדי למשוך אותם מיד. */
+export function useTrainerInbox(userId: string | null, onMyDataChanged: () => void): TrainerInbox & { total: number } {
   const [unreadByThread, setUnread] = useState<Map<string, number>>(new Map());
-  const [pendingPrograms, setPending] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dataChanged = useRef(onMyDataChanged);
+  dataChanged.current = onMyDataChanged;
 
   const refresh = useCallback(() => {
     if (!userId) return;
     // כמה אירועים ברצף (הודעה + סימון כנקרא) -> רענון אחד
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      const [counts, programs] = await Promise.all([
-        getUnreadCounts(userId),
-        getPendingPrograms(userId).catch(() => []),
-      ]);
-      setUnread(counts);
-      setPending(programs.length);
-    }, 250);
+    timer.current = setTimeout(async () => setUnread(await getUnreadCounts(userId)), 250);
   }, [userId]);
 
   useEffect(() => {
     if (!userId) {
       setUnread(new Map());
-      setPending(0);
       return;
     }
     refresh();
-    const channel = subscribeTrainerInbox(userId, refresh);
+    let pullTimer: ReturnType<typeof setTimeout> | null = null;
+    const channel = subscribeTrainerInbox(userId, refresh, () => {
+      // המאמן שומר כמה רשומות ברצף - מושכים פעם אחת אחרי שהרצף נגמר
+      if (pullTimer) clearTimeout(pullTimer);
+      pullTimer = setTimeout(() => dataChanged.current(), 1500);
+    });
     const onVisible = () => document.visibilityState === 'visible' && refresh();
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       supabase.removeChannel(channel);
       document.removeEventListener('visibilitychange', onVisible);
       if (timer.current) clearTimeout(timer.current);
+      if (pullTimer) clearTimeout(pullTimer);
     };
   }, [userId, refresh]);
 
-  let total = pendingPrograms;
+  let total = 0;
   unreadByThread.forEach((n) => (total += n));
-  return { unreadByThread, pendingPrograms, refresh, total };
+  return { unreadByThread, refresh, total };
 }

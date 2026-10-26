@@ -1,11 +1,16 @@
 // מאמנים ומתאמנים: כל הקריאות לשרת (טבלאות + פונקציות ב-migration 20261027000000_trainers).
 // ההרשאות נאכפות בשרת (RLS + פונקציות שבודקות הכל) - כאן רק עטיפה נוחה ותרגום שגיאות לעברית.
+//
+// המאמן מנהל את נתוני המתאמן ישירות בשרת: אותן טבלאות ואותו מבנה שהאפליקציה של המתאמן
+// מסנכרנת. האפליקציה של המתאמן מושכת את השינויים (cloudSync ממזג אותם עם מה שבמכשיר),
+// ויומן השינויים (trainer_activity) מעדכן אותה מיד ומראה למתאמן מה השתנה.
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 import { analyzeNutrition, NutritionAnalysis } from './nutrition/engine';
 import type {
   BodyWeightEntry,
   Exercise,
+  ExerciseProgressState,
   MeasurementCategory,
   MeasurementEntry,
   NutritionEntry,
@@ -50,20 +55,28 @@ export interface TrainerMessage {
   read_at: string | null;
 }
 
-export interface ProgramOffer {
-  id: string;
+export interface TrainerActivity {
+  id: number;
   trainer_id: string;
   client_id: string;
-  routine: RoutineTemplate;
-  custom_exercises: Exercise[];
-  note: string | null;
-  status: 'sent' | 'accepted' | 'declined';
+  table_name: string;
+  row_id: string;
+  action: 'insert' | 'update' | 'delete';
   created_at: string;
-  responded_at: string | null;
 }
 
+/** הטבלאות שהמאמן מנהל ישירות (user_settings - רק דרך patchClientSettings) */
+export type ClientTable =
+  | 'workouts'
+  | 'routines'
+  | 'custom_exercises'
+  | 'body_weight_entries'
+  | 'measurement_categories'
+  | 'measurement_entries'
+  | 'exercise_progress'
+  | 'nutrition_entries';
+
 const RELATION_COLUMNS = 'trainer_id, client_id, client_display_name, status, share_nutrition, consented_at, ended_at, ended_by';
-const PROGRAM_COLUMNS = 'id, trainer_id, client_id, routine, custom_exercises, note, status, created_at, responded_at';
 
 const ERRORS: Record<string, string> = {
   invalid_code: 'הקוד לא נמצא. בדוק שהקלדת אותו נכון.',
@@ -73,6 +86,9 @@ const ERRORS: Record<string, string> = {
   removed_by_trainer: 'המאמן הסיר אותך מרשימת המתאמנים שלו. כדי לחזור, דבר איתו ישירות.',
   invalid_name: 'השם צריך להיות באורך 1–60 תווים.',
   not_a_trainer: 'אין לך חשבון מאמן.',
+  too_many_attempts: 'יותר מדי ניסיונות עם קוד שגוי. נסה שוב בעוד שעה.',
+  forbidden: 'אין לך יותר גישה לנתונים של המתאמן הזה.',
+  'row-level security': 'אין לך יותר גישה לנתונים של המתאמן הזה.',
 };
 
 /** שגיאה בעברית שאפשר להציג למשתמש */
@@ -167,33 +183,40 @@ export interface ClientSnapshot {
   workouts: WorkoutSession[];
   routines: RoutineTemplate[];
   customExercises: Exercise[];
+  exerciseProgress: ExerciseProgressState[];
   weightLog: BodyWeightEntry[];
   measurementCategories: MeasurementCategory[];
   measurementEntries: MeasurementEntry[];
   /** null = המתאמן לא שיתף תזונה */
   nutritionEntries: NutritionEntry[] | null;
   nutrition: NutritionAnalysis | null;
+  /** מתי המכשיר של המתאמן שמר משהו בשרת לאחרונה - מה שהמאמן רואה נכון לרגע הזה */
+  lastSyncedAt: string | null;
 }
 
-const rows = <T,>(res: { data: unknown; error: { message?: string } | null }): T[] => {
+type Res = { data: unknown; error: { message?: string } | null };
+const rows = <T,>(res: Res): T[] => {
   if (res.error) fail(res.error);
   return ((res.data ?? []) as { data: T }[]).map((r) => r.data).filter(Boolean);
 };
+const latest = (res: Res): string | null =>
+  ((res.data ?? []) as { updated_at?: string }[]).reduce<string | null>((m, r) => (r.updated_at && (!m || r.updated_at > m) ? r.updated_at : m), null);
 
 /** כל מה שהמתאמן משתף, במבנה הרגיל של האפליקציה - כדי להשתמש באותם מנועים ותצוגות */
 export async function getClientSnapshot(relation: TrainerRelation): Promise<ClientSnapshot> {
   const uid = relation.client_id;
   const since = Date.now() - 28 * 24 * 60 * 60 * 1000;
-  const [settingsRes, workoutsRes, routinesRes, customRes, weightRes, catRes, entryRes, nutritionRes] = await Promise.all([
-    supabase.from('user_settings').select('data').eq('user_id', uid).maybeSingle(),
-    supabase.from('workouts').select('data').eq('user_id', uid).order('updated_at', { ascending: false }).limit(80),
+  const [settingsRes, workoutsRes, routinesRes, customRes, progressRes, weightRes, catRes, entryRes, nutritionRes] = await Promise.all([
+    supabase.from('user_settings').select('data, updated_at').eq('user_id', uid).maybeSingle(),
+    supabase.from('workouts').select('data, updated_at').eq('user_id', uid).order('updated_at', { ascending: false }).limit(80),
     supabase.from('routines').select('data').eq('user_id', uid),
     supabase.from('custom_exercises').select('data').eq('user_id', uid),
-    supabase.from('body_weight_entries').select('data').eq('user_id', uid),
+    supabase.from('exercise_progress').select('data').eq('user_id', uid),
+    supabase.from('body_weight_entries').select('data, updated_at').eq('user_id', uid),
     supabase.from('measurement_categories').select('data').eq('user_id', uid),
     supabase.from('measurement_entries').select('data').eq('user_id', uid),
     relation.share_nutrition
-      ? supabase.from('nutrition_entries').select('data').eq('user_id', uid).filter('data->>date', 'gte', String(since))
+      ? supabase.from('nutrition_entries').select('data, updated_at').eq('user_id', uid).filter('data->>date', 'gte', String(since))
       : Promise.resolve(null),
   ]);
   if (settingsRes.error) fail(settingsRes.error);
@@ -216,6 +239,7 @@ export async function getClientSnapshot(relation: TrainerRelation): Promise<Clie
     }
   }
 
+  const syncTimes = [settingsRes.data?.updated_at ?? null, latest(workoutsRes), latest(weightRes), nutritionRes ? latest(nutritionRes) : null];
   return {
     settings,
     nutritionGoals,
@@ -225,51 +249,162 @@ export async function getClientSnapshot(relation: TrainerRelation): Promise<Clie
       .sort((a, b) => b.startTime - a.startTime),
     routines: rows<RoutineTemplate>(routinesRes),
     customExercises: rows<Exercise>(customRes),
+    exerciseProgress: rows<ExerciseProgressState>(progressRes),
     weightLog,
     measurementCategories: rows<MeasurementCategory>(catRes),
     measurementEntries: rows<MeasurementEntry>(entryRes),
     nutritionEntries,
     nutrition,
+    lastSyncedAt: syncTimes.reduce<string | null>((m, t) => (t && (!m || t > m) ? t : m), null),
   };
 }
 
-/** התוכנית שמוצגת למתאמן כפעילה: לפי activeRoutineId, ובחשבון ישן - הראשונה */
+/** התוכנית הפעילה של המתאמן: לפי activeRoutineId, ובחשבון ישן - הראשונה */
 export function activeRoutineOf(snapshot: ClientSnapshot): RoutineTemplate | null {
   const id = snapshot.settings.activeRoutineId;
   if (id === null) return null;
   return snapshot.routines.find((r) => r.id === id) ?? (id === undefined ? snapshot.routines[0] ?? null : null);
 }
 
-export async function sendProgram(
-  trainerId: string,
-  clientId: string,
-  routine: RoutineTemplate,
-  allExercises: Exercise[],
-  note: string
-): Promise<void> {
-  // תרגילים מותאמים אישית של המאמן לא קיימים אצל המתאמן - שולחים אותם יחד עם התוכנית
-  const ids = new Set(routine.days.flatMap((d) => d.exercises.map((x) => x.exerciseId)).concat(routine.exercises.map((x) => x.exerciseId)));
-  const custom = allExercises.filter((e) => e.isCustom && ids.has(e.id));
-  const { error } = await supabase.from('trainer_programs').insert({
-    trainer_id: trainerId,
-    client_id: clientId,
-    routine,
-    custom_exercises: custom,
-    note: note.trim() || null,
-  });
+// ---------- המאמן כותב בנתוני המתאמן ----------
+
+/** שמירה (יצירה/עדכון) של רשומות המתאמן - באותו מבנה שהאפליקציה שלו מסנכרנת */
+export async function saveClientRows<T extends { id: string }>(clientId: string, table: ClientTable, items: T[]): Promise<void> {
+  if (!items.length) return;
+  const { error } = await supabase
+    .from(table)
+    .upsert(items.map((item) => ({ id: item.id, user_id: clientId, data: item })), { onConflict: 'user_id,id' });
   if (error) fail(error);
 }
 
-export async function getProgramsForClient(trainerId: string, clientId: string): Promise<ProgramOffer[]> {
-  const { data, error } = await supabase
-    .from('trainer_programs')
-    .select(PROGRAM_COLUMNS)
-    .eq('trainer_id', trainerId)
-    .eq('client_id', clientId)
-    .order('created_at', { ascending: false })
-    .limit(20);
+export async function deleteClientRows(clientId: string, table: ClientTable, ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const { error } = await supabase.from(table).delete().eq('user_id', clientId).in('id', ids);
   if (error) fail(error);
-  return (data ?? []) as ProgramOffer[];
+}
+
+export interface ClientSettingsPatch {
+  settings?: Partial<UserSettings>;
+  nutritionGoals?: Partial<NutritionGoals>;
+  targetWeight?: number | null;
+  selectedDayByRoutine?: Record<string, number>;
+}
+
+/** עדכון פרטי הפרופיל של המתאמן (השרת מקבל רק רשימה סגורה של שדות) */
+export async function patchClientSettings(clientId: string, patch: ClientSettingsPatch): Promise<void> {
+  const { error } = await supabase.rpc('trainer_update_client_settings', { p_client: clientId, p_patch: patch });
+  if (error) fail(error);
+}
+
+/**
+ * העתק של תוכנית לתרגילים מותאמים אישית של המאמן שהתוכנית צריכה: מה שכבר קיים אצל המתאמן
+ * (אותו מזהה ואותו שם) נשאר; מזהה שתפוס אצלו ע"י תרגיל אחר מקבל מזהה חדש, והתוכנית מתעדכנת.
+ */
+function prepareCustomExercises(routine: RoutineTemplate, trainerLibrary: Exercise[], clientCustom: Exercise[]) {
+  const used = new Set(routine.days.flatMap((d) => d.exercises.map((x) => x.exerciseId)));
+  const clientById = new Map(clientCustom.map((e) => [e.id, e]));
+  const remap = new Map<string, string>();
+  const toCopy: Exercise[] = [];
+  trainerLibrary
+    .filter((e) => e.isCustom && used.has(e.id))
+    .forEach((e) => {
+      const existing = clientById.get(e.id);
+      if (existing && existing.nameHe === e.nameHe) return;
+      const id = existing ? `${e.id}-coach-${Date.now().toString(36)}` : e.id;
+      if (id !== e.id) remap.set(e.id, id);
+      toCopy.push({ ...e, id, isCustom: true });
+    });
+  const days = routine.days.map((d) => ({
+    ...d,
+    exercises: d.exercises.map((x) => (remap.has(x.exerciseId) ? { ...x, exerciseId: remap.get(x.exerciseId)! } : x)),
+  }));
+  return { days, toCopy };
+}
+
+/** המאמן נותן למתאמן תוכנית מהספרייה שלו: עותק חדש אצל המתאמן, והיא הופכת לתוכנית הפעילה */
+export async function assignProgram(
+  clientId: string,
+  trainerName: string,
+  routine: RoutineTemplate,
+  trainerLibrary: Exercise[],
+  snapshot: ClientSnapshot
+): Promise<RoutineTemplate> {
+  const { days, toCopy } = prepareCustomExercises(routine, trainerLibrary, snapshot.customExercises);
+  const copy: RoutineTemplate = {
+    ...routine,
+    id: `coach-${Date.now().toString(36)}`,
+    days,
+    isCustom: true,
+    isGenerated: false,
+    manuallyEditedAt: undefined,
+    mesocycle: undefined,
+    volumeTargets: undefined,
+    createdAt: Date.now(),
+    assignedByTrainer: trainerName,
+  };
+  await saveClientRows(clientId, 'custom_exercises', toCopy);
+  await saveClientRows(clientId, 'routines', [copy]);
+  await patchClientSettings(clientId, { settings: { activeRoutineId: copy.id }, selectedDayByRoutine: { [copy.id]: 1 } });
+  return copy;
+}
+
+/**
+ * שמירת תוכנית של המתאמן אחרי עריכה. בתוכניות שהמנוע בנה, המשקל והחזרות הנוכחיים של כל
+ * תרגיל נשמרים במצב ההתקדמות (exercise_progress) ולא בתוכנית עצמה - אז מעדכנים גם אותו,
+ * אחרת האימון הבא של המתאמן ימשיך מהמשקל הישן.
+ */
+export async function saveClientRoutine(clientId: string, routine: RoutineTemplate, snapshot: ClientSnapshot): Promise<void> {
+  await saveClientRows(clientId, 'routines', [routine]);
+  const states = snapshot.exerciseProgress.filter((s) => s.routineId === routine.id);
+  if (!states.length) return;
+  const items = new Map(routine.days.flatMap((d) => d.exercises).map((x) => [x.exerciseId, x]));
+  const updated = states
+    .map((s) => {
+      const item = items.get(s.exerciseId);
+      if (!item) return null;
+      const weight = item.suggestedWeight ?? s.currentWeightKg;
+      if (weight === s.currentWeightKg && item.targetReps === s.currentTargetReps) return null;
+      return {
+        ...s,
+        currentWeightKg: weight,
+        currentTargetReps: item.targetReps,
+        repRangeMin: Math.min(s.repRangeMin, item.targetReps),
+        repRangeMax: Math.max(item.repRangeMax ?? s.repRangeMax, item.targetReps),
+        consecutiveStalls: 0,
+      };
+    })
+    .filter((s): s is ExerciseProgressState => !!s);
+  await saveClientRows(clientId, 'exercise_progress', updated);
+}
+
+/** לעורך: בתוכנית שהמנוע בנה, מציגים למאמן את המשקל והחזרות הנוכחיים (ממצב ההתקדמות) */
+export function routineWithCurrentLoads(routine: RoutineTemplate, snapshot: ClientSnapshot): RoutineTemplate {
+  const states = new Map(snapshot.exerciseProgress.filter((s) => s.routineId === routine.id).map((s) => [s.exerciseId, s]));
+  if (!states.size) return routine;
+  return {
+    ...routine,
+    days: routine.days.map((d) => ({
+      ...d,
+      exercises: d.exercises.map((x) => {
+        const s = states.get(x.exerciseId);
+        return s ? { ...x, targetReps: s.currentTargetReps, suggestedWeight: s.currentWeightKg || x.suggestedWeight } : x;
+      }),
+    })),
+  };
+}
+
+/** אימון שנערך: מחשבים מחדש את הסיכומים (נפח וסטים) כדי שההיסטוריה והשיאים יישארו נכונים */
+export function recomputeWorkoutTotals(w: WorkoutSession): WorkoutSession {
+  let volume = 0;
+  let sets = 0;
+  w.exercises.forEach((x) =>
+    x.sets.forEach((s) => {
+      if (!s.completed) return;
+      sets += 1;
+      volume += (s.weightKg || 0) * (s.reps || 0);
+    })
+  );
+  return { ...w, totalVolumeKg: Math.round(volume), completedSetsCount: sets };
 }
 
 // ===================== צד המתאמן =====================
@@ -287,10 +422,11 @@ export async function joinTrainer(code: string, clientName: string, shareNutriti
     p_share_nutrition: shareNutrition,
   });
   if (error) fail(error);
+  if (!data) throw new TrainerError(ERRORS.invalid_code);
   return data as string;
 }
 
-/** הקשר הנוכחי של המשתמש כמתאמן (פעיל, או האחרון שהסתיים) + שם המאמן */
+/** הקשר הפעיל של המשתמש כמתאמן + שם המאמן */
 export async function getMyTrainerRelation(clientId: string): Promise<{ relation: TrainerRelation; trainerName: string; trainerBio: string | null } | null> {
   const { data, error } = await supabase
     .from('trainer_clients')
@@ -319,34 +455,16 @@ export async function endRelation(trainerId: string, clientId: string): Promise<
   if (error) fail(error);
 }
 
-export async function getPendingPrograms(clientId: string): Promise<ProgramOffer[]> {
+/** מה המאמן שינה לאחרונה בנתונים של המתאמן */
+export async function getRecentActivity(clientId: string, limit = 30): Promise<TrainerActivity[]> {
   const { data, error } = await supabase
-    .from('trainer_programs')
-    .select(PROGRAM_COLUMNS)
+    .from('trainer_activity')
+    .select('id, trainer_id, client_id, table_name, row_id, action, created_at')
     .eq('client_id', clientId)
-    .eq('status', 'sent')
-    .order('created_at', { ascending: false });
+    .order('id', { ascending: false })
+    .limit(limit);
   if (error) fail(error);
-  return (data ?? []) as ProgramOffer[];
-}
-
-export async function respondToProgram(programId: string, accept: boolean): Promise<void> {
-  const { error } = await supabase.rpc('respond_trainer_program', { p_program: programId, p_accept: accept });
-  if (error) fail(error);
-}
-
-/** תוכנית שהתקבלה הופכת לתוכנית רגילה של המתאמן (עותק שלו - מותר לו לערוך) */
-export function routineFromOffer(offer: ProgramOffer, trainerName: string): RoutineTemplate {
-  return {
-    ...offer.routine,
-    id: `trainer-${offer.id}`,
-    isCustom: true,
-    isGenerated: false,
-    manuallyEditedAt: undefined,
-    mesocycle: undefined,
-    createdAt: Date.now(),
-    assignedByTrainer: trainerName,
-  };
+  return (data ?? []) as TrainerActivity[];
 }
 
 // ===================== הודעות =====================
@@ -393,11 +511,18 @@ export async function getUnreadCounts(userId: string): Promise<Map<string, numbe
   return counts;
 }
 
-/** מאזין להודעות ותוכניות חדשות (Realtime מסנן לפי ה-RLS - מגיע רק מה שמותר לראות) */
-export function subscribeTrainerInbox(userId: string, onChange: () => void): RealtimeChannel {
+/**
+ * מאזין להודעות ולשינויים של המאמן (Realtime מסנן לפי ה-RLS - מגיע רק מה שמותר לראות).
+ * onMyDataChanged נקרא כשהמאמן שינה משהו בנתונים של המשתמש הזה (כדי למשוך אותם מהשרת).
+ */
+export function subscribeTrainerInbox(userId: string, onMessages: () => void, onMyDataChanged: () => void): RealtimeChannel {
   return supabase
     .channel(`trainer-inbox-${userId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'trainer_messages' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'trainer_programs' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'trainer_messages' }, onMessages)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'trainer_activity', filter: `client_id=eq.${userId}` },
+      onMyDataChanged
+    )
     .subscribe();
 }

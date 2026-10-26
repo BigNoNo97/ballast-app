@@ -24,32 +24,28 @@ export function appleConfigured(): boolean {
   return ['APPLE_PRIVATE_KEY', 'APPLE_KEY_ID', 'APPLE_TEAM_ID', 'APPLE_SERVICES_ID'].every((k) => !!Deno.env.get(k));
 }
 
-async function appleClientSecret(): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    'pkcs8',
-    pemToPkcs8(Deno.env.get('APPLE_PRIVATE_KEY')!),
-    { name: 'ECDSA', namedCurve: 'P-256' },
-    false,
-    ['sign']
-  );
+/** JWT חתום ב-ES256 עם מפתח .p8 של Apple (משמש גם ל-Sign in with Apple וגם ל-APNs) */
+export async function signES256(header: Record<string, unknown>, payload: Record<string, unknown>, pem: string): Promise<string> {
+  const key = await crypto.subtle.importKey('pkcs8', pemToPkcs8(pem), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const unsigned = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(payload))}`;
+  // WebCrypto מחזיר חתימת ECDSA בפורמט r||s - בדיוק מה ש-ES256 ב-JWT דורש
+  const signature = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, new TextEncoder().encode(unsigned));
+  return `${unsigned}.${base64url(signature)}`;
+}
+
+function appleClientSecret(): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  const header = base64url(JSON.stringify({ alg: 'ES256', kid: Deno.env.get('APPLE_KEY_ID') }));
-  const payload = base64url(
-    JSON.stringify({
+  return signES256(
+    { alg: 'ES256', kid: Deno.env.get('APPLE_KEY_ID') },
+    {
       iss: Deno.env.get('APPLE_TEAM_ID'),
       iat: now,
       exp: now + 300,
       aud: 'https://appleid.apple.com',
       sub: Deno.env.get('APPLE_SERVICES_ID'),
-    })
+    },
+    Deno.env.get('APPLE_PRIVATE_KEY')!
   );
-  // WebCrypto מחזיר חתימת ECDSA בפורמט r||s - בדיוק מה ש-ES256 ב-JWT דורש
-  const signature = await crypto.subtle.sign(
-    { name: 'ECDSA', hash: 'SHA-256' },
-    key,
-    new TextEncoder().encode(`${header}.${payload}`)
-  );
-  return `${header}.${payload}.${base64url(signature)}`;
 }
 
 /** מבטל את ההרשאה שהמשתמש נתן לאפליקציה ב-Apple. זורק אם Apple החזירה שגיאה. */

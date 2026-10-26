@@ -3,6 +3,7 @@ import { ClipboardList, KeyRound, Loader2, UserCheck } from 'lucide-react';
 import type { Exercise, RoutineTemplate } from '../../types';
 import { getMyTrainerProfile, getMyTrainerRelation, TrainerProfile, TrainerRelation } from '../../services/trainer';
 import { BecomeTrainerScreen, ClientDetailScreen, TrainerDashboard } from './CoachViews';
+import { requestPushPermission } from '../../services/push';
 import { JoinTrainerScreen, MyTrainerScreen } from './TraineeViews';
 import { Card, ErrorNote, Muted, RowButton, Screen, SectionTitle } from './trainerUi';
 
@@ -18,7 +19,6 @@ type Route =
 export interface TrainerInbox {
   /** הודעות שלא נקראו לפי שיחה: `${trainer_id}:${client_id}` */
   unreadByThread: Map<string, number>;
-  pendingPrograms: number;
   refresh: () => void;
 }
 
@@ -30,8 +30,7 @@ export const TrainerHub: React.FC<{
   myRoutines: RoutineTemplate[];
   inbox: TrainerInbox;
   onClose: () => void;
-  onAcceptProgram: (routine: RoutineTemplate, customExercises: Exercise[]) => void;
-}> = ({ meId, defaultName, allExercises, myRoutines, inbox, onClose, onAcceptProgram }) => {
+}> = ({ meId, defaultName, allExercises, myRoutines, inbox, onClose }) => {
   const [route, setRoute] = useState<Route>({ name: 'home' });
   const [profile, setProfile] = useState<TrainerProfile | null | undefined>(undefined);
   const [myTrainer, setMyTrainer] = useState<{ relation: TrainerRelation; trainerName: string } | null | undefined>(undefined);
@@ -66,11 +65,9 @@ export const TrainerHub: React.FC<{
       return (
         <MyTrainerScreen
           meId={meId}
-          allExercises={allExercises}
           unread={myTrainer ? inbox.unreadByThread.get(`${myTrainer.relation.trainer_id}:${meId}`) ?? 0 : 0}
           onBack={home}
           onChanged={inbox.refresh}
-          onAcceptProgram={onAcceptProgram}
         />
       );
     case 'become':
@@ -81,6 +78,7 @@ export const TrainerHub: React.FC<{
           existing={route.name === 'editProfile' ? profile : null}
           onBack={() => setRoute(route.name === 'editProfile' ? { name: 'dashboard' } : { name: 'home' })}
           onDone={(p) => {
+            if (p && !profile) requestPushPermission();
             setProfile(p);
             setRoute(p ? { name: 'dashboard' } : { name: 'home' });
           }}
@@ -101,6 +99,7 @@ export const TrainerHub: React.FC<{
       return (
         <ClientDetailScreen
           trainerId={meId}
+          trainerName={profile?.display_name ?? ''}
           relation={route.relation}
           allExercises={allExercises}
           myRoutines={myRoutines}
@@ -131,15 +130,15 @@ export const TrainerHub: React.FC<{
             <RowButton
               icon={<UserCheck size={20} color="var(--color-blue)" />}
               title={myTrainer.trainerName}
-              subtitle={inbox.pendingPrograms ? `${inbox.pendingPrograms} תוכנית חדשה מחכה לך` : 'הודעות, תוכניות ושיתוף'}
-              badge={clientUnread + inbox.pendingPrograms}
+              subtitle="הודעות ושינויים של המאמן"
+              badge={clientUnread}
               onClick={() => setRoute({ name: 'myTrainer' })}
             />
           ) : (
             <RowButton
               icon={<KeyRound size={20} color="var(--color-blue)" />}
               title="יש לך מאמן? הצטרפות עם קוד"
-              subtitle="המאמן יוכל לעקוב אחרי האימונים שלך, לשלוח תוכניות ולכתוב לך"
+              subtitle="המאמן ינהל לך את התוכנית, האימונים והיעדים, ותוכלו לדבר כאן"
               onClick={() => setRoute({ name: 'join' })}
             />
           )}
@@ -158,7 +157,7 @@ export const TrainerHub: React.FC<{
               <RowButton
                 icon={<ClipboardList size={20} color="var(--color-green)" />}
                 title="אתה מאמן כושר? פתיחת חשבון מאמן"
-                subtitle="ניהול כל המתאמנים מאותה אפליקציה: מעקב, תוכניות והודעות"
+                subtitle="ניהול כל המתאמנים מאותה אפליקציה: תוכניות, אימונים, יעדים והודעות"
                 onClick={() => setRoute({ name: 'become' })}
               />
               <Card style={{ background: 'transparent', boxShadow: 'none', padding: '0 4px' }}>

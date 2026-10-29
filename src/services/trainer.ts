@@ -190,7 +190,7 @@ export interface ClientSnapshot {
   /** null = המתאמן לא שיתף תזונה */
   nutritionEntries: NutritionEntry[] | null;
   nutrition: NutritionAnalysis | null;
-  /** מתי המכשיר של המתאמן שמר משהו בשרת לאחרונה - מה שהמאמן רואה נכון לרגע הזה */
+  /** העדכון האחרון של נתוני המתאמן בשרת (מהמכשיר שלו או של המאמן) */
   lastSyncedAt: string | null;
 }
 

@@ -460,7 +460,8 @@ export const ClientDetailScreen: React.FC<{
 
 function syncedLabel(snap: ClientSnapshot | null): string | undefined {
   if (!snap?.lastSyncedAt) return undefined;
-  return `הנתונים מהמכשיר שלו עד ${daysAgoLabel(snap.lastSyncedAt)}, ${new Date(snap.lastSyncedAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
+  // עדכון אחרון בשרת - מהמכשיר של המתאמן או מעריכה של המאמן
+  return `עודכן לאחרונה ${daysAgoLabel(snap.lastSyncedAt)}, ${new Date(snap.lastSyncedAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 const Fact: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (

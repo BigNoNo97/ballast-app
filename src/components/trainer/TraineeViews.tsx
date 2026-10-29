@@ -26,18 +26,19 @@ const MANAGED_ITEMS = [
   'משקל גוף, מדידות ויעדי תזונה',
 ];
 
-const TABLE_LABELS: Record<string, string> = {
-  routines: 'התוכנית',
-  workouts: 'אימון',
-  custom_exercises: 'תרגיל',
-  body_weight_entries: 'שקילה',
-  measurement_categories: 'מדידות',
-  measurement_entries: 'מדידה',
-  exercise_progress: 'משקלי העבודה',
-  nutrition_entries: 'יומן האכילה',
-  user_settings: 'הפרופיל והיעדים',
+// מה המאמן עשה, בעברית תקינה לכל פעולה
+const ACTIVITY_TEXT: Record<string, Partial<Record<TrainerActivity['action'], string>>> = {
+  routines: { insert: 'הוסיף תוכנית', update: 'עדכן את התוכנית', delete: 'מחק תוכנית' },
+  workouts: { insert: 'הוסיף אימון', update: 'תיקן אימון שרשמת', delete: 'מחק אימון' },
+  custom_exercises: { insert: 'הוסיף תרגיל', update: 'עדכן תרגיל', delete: 'מחק תרגיל' },
+  body_weight_entries: { insert: 'הוסיף שקילה', update: 'עדכן שקילה', delete: 'מחק שקילה' },
+  measurement_categories: { insert: 'הוסיף סוג מדידה', update: 'עדכן סוג מדידה', delete: 'מחק סוג מדידה' },
+  measurement_entries: { insert: 'הוסיף מדידה', update: 'עדכן מדידה', delete: 'מחק מדידה' },
+  exercise_progress: { insert: 'עדכן משקלי עבודה', update: 'עדכן משקלי עבודה', delete: 'איפס משקלי עבודה' },
+  nutrition_entries: { insert: 'הוסיף ליומן האכילה', update: 'עדכן ביומן האכילה', delete: 'מחק מיומן האכילה' },
+  user_settings: { insert: 'עדכן את הפרופיל והיעדים', update: 'עדכן את הפרופיל והיעדים' },
 };
-const ACTION_LABELS: Record<TrainerActivity['action'], string> = { insert: 'הוסיף', update: 'עדכן', delete: 'מחק' };
+const activityText = (a: TrainerActivity) => ACTIVITY_TEXT[a.table_name]?.[a.action] ?? 'עדכן נתונים';
 
 // ===================== הצטרפות עם קוד =====================
 
@@ -230,7 +231,7 @@ export const MyTrainerScreen: React.FC<{
             <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: '0.82rem', padding: '5px 0', borderBottom: '1px solid var(--border-subtle)' }}>
               <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <History size={13} color="var(--text-muted)" />
-                {trainerName} {ACTION_LABELS[a.action]} {TABLE_LABELS[a.table_name] ?? a.table_name}
+                {trainerName} {activityText(a)}
               </span>
               <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{daysAgoLabel(a.created_at)}</span>
             </div>

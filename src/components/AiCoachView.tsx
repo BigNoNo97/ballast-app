@@ -12,7 +12,7 @@ const SUGGESTIONS = [
 ];
 
 const ERROR_TEXT: Record<CoachErrorCode, string> = {
-  quota: 'הגעת למכסת השאלות להיום. המכסה מתחדשת בחצות.',
+  quota: 'הגעת למכסת השאלות החודשית. המכסה מתחדשת ב-1 לחודש.',
   not_configured: 'המאמן עוד לא הופעל. הוא יהיה זמין בקרוב.',
   busy: 'המאמן עמוס כרגע. נסה שוב בעוד רגע.',
   network: 'אין חיבור לאינטרנט. בדוק את החיבור ונסה שוב.',
@@ -223,7 +223,7 @@ export const AiCoachView: React.FC<Props> = ({ settings, onUpdateSettings, onClo
             )}
             {remaining !== null && remaining <= 2 && !busy && (
               <div style={{ alignSelf: 'center', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                {remaining === 0 ? 'זו הייתה השאלה האחרונה להיום' : `נשארו ${remaining} שאלות להיום`}
+                {remaining === 0 ? 'זו הייתה השאלה האחרונה החודש' : `נשארו ${remaining} שאלות החודש`}
               </div>
             )}
           </div>

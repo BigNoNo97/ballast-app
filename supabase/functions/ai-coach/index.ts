@@ -1,4 +1,4 @@
-// Edge Function: צ'אט ה-AI (המאמן). מאמתת את המשתמש, בודקת מכסה יומית לפי המנוי, ומזרימה
+// Edge Function: צ'אט ה-AI (המאמן). מאמתת את המשתמש, בודקת מכסה חודשית לפי המנוי, ומזרימה
 // תשובה מ-Claude כ-SSE. מפתח ה-API נשמר רק כסוד בשרת (ANTHROPIC_API_KEY) ולעולם לא מגיע לאפליקציה.
 //
 // פרוטוקול התשובה (text/event-stream), שורות "data: {json}":
@@ -19,18 +19,20 @@ const MAX_TURNS = 20;
 const MAX_MESSAGE_CHARS = 4000;
 const MAX_CONTEXT_CHARS = 12000;
 
-// מכסת הודעות יומית לפי מנוי. ערכי ברירת מחדל זמניים עד שתיקבע מדיניות המנויים - ניתנים
-// לשינוי בלי העלאת קוד: supabase secrets set AI_DAILY_LIMIT_FREE=10
-const DEFAULT_DAILY_LIMITS: Record<Plan, number> = { free: 5, premium: 60, trainer: 100 };
+// מכסת שאלות חודשית לפי מנוי (הוחלט 29.10.2026): שאלה עולה עד ~12 אגורות, אז המכסה נקבעה כך
+// שגם המשתמש הכבד ביותר במנוי השנתי נשאר רווחי. ניתן לשינוי בלי העלאת קוד:
+// supabase secrets set AI_MONTHLY_LIMIT_FREE=5
+const DEFAULT_MONTHLY_LIMITS: Record<Plan, number> = { free: 5, premium: 60, trainer: 60 };
 type Plan = 'free' | 'premium' | 'trainer';
 
-function dailyLimit(plan: Plan): number {
-  const raw = Deno.env.get(`AI_DAILY_LIMIT_${plan.toUpperCase()}`);
+function monthlyLimit(plan: Plan): number {
+  const raw = Deno.env.get(`AI_MONTHLY_LIMIT_${plan.toUpperCase()}`);
   const n = raw ? Number.parseInt(raw, 10) : NaN;
-  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_DAILY_LIMITS[plan];
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_MONTHLY_LIMITS[plan];
 }
 
-// המכסה מתאפסת בחצות לפי שעון ישראל, לא UTC
+// לפי שעון ישראל, לא UTC. המונה נשמר תחת היום הראשון של החודש (עמודת day ב-ai_usage),
+// כך שהמכסה מתחדשת ב-1 לכל חודש
 const israelDay = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(new Date());
 
 // מנוע הידע נשמר ב-prompt cache: החלק הקבוע ראשון, עם נקודת שמירה בסופו.
@@ -111,8 +113,9 @@ Deno.serve(async (req: Request) => {
     ent && (ent.plan === 'premium' || ent.plan === 'trainer') && (!ent.expires_at || new Date(ent.expires_at) > new Date())
       ? ent.plan
       : 'free';
-  const limit = dailyLimit(plan);
-  const day = israelDay();
+  const limit = monthlyLimit(plan);
+  const today = israelDay();
+  const day = `${today.slice(0, 8)}01`;
 
   const { data: used, error: quotaError } = await admin.rpc('ai_try_consume', { p_user: userId, p_day: day, p_limit: limit });
   if (quotaError) return json(500, { error: 'failed' });
@@ -121,8 +124,8 @@ Deno.serve(async (req: Request) => {
 
   const client = new Anthropic({ apiKey, maxRetries: 1 });
   const userDataBlock = contextText
-    ? `# User data (calculated by the app, today is ${day})\n${contextText}`
-    : `# User data\nNo data was shared. Today is ${day}.`;
+    ? `# User data (calculated by the app, today is ${today})\n${contextText}`
+    : `# User data\nNo data was shared. Today is ${today}.`;
 
   const stream = client.beta.messages.stream(
     {

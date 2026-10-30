@@ -22,6 +22,7 @@ struct RestTimerLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.trailing) {
                     countdown(context.state.endsAt)
                         .font(.title2.monospacedDigit().weight(.bold))
+                        .multilineTextAlignment(.trailing)
                         .frame(maxWidth: 90, alignment: .trailing)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
@@ -38,6 +39,7 @@ struct RestTimerLiveActivity: Widget {
             } compactTrailing: {
                 countdown(context.state.endsAt)
                     .monospacedDigit()
+                    .multilineTextAlignment(.trailing)
                     .frame(maxWidth: 48)
             } minimal: {
                 Image(systemName: "timer").foregroundStyle(brand)
@@ -46,10 +48,10 @@ struct RestTimerLiveActivity: Widget {
         }
     }
 
-    private func countdown(_ endsAt: Date) -> some View {
+    /// מחזיר Text (ולא some View) כדי שאפשר יהיה להמשיך עם font/monospacedDigit של Text
+    private func countdown(_ endsAt: Date) -> Text {
         // אחרי הסוף: 0:00 ולא ספירה שלילית
         Text(timerInterval: Date()...max(Date(), endsAt), countsDown: true)
-            .multilineTextAlignment(.trailing)
     }
 }
 

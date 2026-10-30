@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Plus, Minus, Bell, BellOff, TimerOff } from 'lucide-react';
 import { playTimerWarningBeep, playTimerFinishBeep, triggerHaptic } from '../services/sound';
 import { scheduleRestEndNotification, cancelRestEndNotification } from '../services/restNotification';
+import { endRestActivity, startRestActivity, updateRestActivity } from '../plugins/liveActivity';
 
 interface RestTimerModalProps {
   initialSeconds: number;
@@ -9,6 +10,9 @@ interface RestTimerModalProps {
   onClose: () => void;
   onDisableAutoTimer?: () => void;
   soundEnabled?: boolean;
+  /** לטיימר במסך הנעילה: התרגיל הנוכחי והסט הבא */
+  exerciseName?: string;
+  nextUp?: string;
 }
 
 export const RestTimerModal: React.FC<RestTimerModalProps> = ({
@@ -17,6 +21,8 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
   onClose,
   onDisableAutoTimer,
   soundEnabled = true,
+  exerciseName = '',
+  nextUp = '',
 }) => {
   const [timeLeft, setTimeLeft] = useState(initialSeconds);
   const [totalTime, setTotalTime] = useState(initialSeconds);
@@ -37,6 +43,7 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       cancelRestEndNotification();
+      endRestActivity();
       return;
     }
     endsAtRef.current = Date.now() + initialSeconds * 1000;
@@ -44,7 +51,12 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
     setTimeLeft(initialSeconds);
     setTotalTime(initialSeconds);
     restartNotification();
-    return () => cancelRestEndNotification();
+    // טיימר במסך הנעילה וב-Dynamic Island (iOS 16.2+). ההתראה המקומית נשארת כגיבוי
+    startRestActivity(endsAtRef.current, exerciseName, nextUp);
+    return () => {
+      cancelRestEndNotification();
+      endRestActivity();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialSeconds]);
 
@@ -99,8 +111,13 @@ export const RestTimerModal: React.FC<RestTimerModalProps> = ({
     lastAlertedRef.current = null;
     setTimeLeft(next);
     setTotalTime((prev) => Math.max(prev, next));
-    if (next > 0) restartNotification();
-    else cancelRestEndNotification();
+    if (next > 0) {
+      restartNotification();
+      updateRestActivity(endsAtRef.current);
+    } else {
+      cancelRestEndNotification();
+      endRestActivity();
+    }
   };
 
   const handleDisableAuto = () => {

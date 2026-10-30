@@ -747,6 +747,26 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
   const completedExercisesCount = workout.exercises.filter((e) => isExerciseFullyCompleted(e)).length;
 
+  // הסט הבא שלא סומן (מהתרגיל הנוכחי והלאה) - לטיימר המנוחה במסך הנעילה
+  const restNext = (() => {
+    const n = workout.exercises.length;
+    for (let k = 0; k < n; k++) {
+      const ex = workout.exercises[(safeCurrentIndex + k) % n];
+      const setIdx = ex.sets.findIndex((s) => !s.completed);
+      if (setIdx === -1) continue;
+      const s = ex.sets[setIdx];
+      const name = exerciseMap.get(ex.exerciseId)?.nameHe ?? '';
+      const weight = s.weightKg || s.previousWeight || 0;
+      const reps = s.reps || s.previousReps || 0;
+      return {
+        // הכותרת = התרגיל שעליו נחים; אם הסט הבא בתרגיל אחר, שמו מופיע בשורת "הבא"
+        exerciseName: exerciseMap.get(currentWorkoutEx.exerciseId)?.nameHe ?? name,
+        label: `${k > 0 ? `${name} · ` : ''}סט ${s.setNumber}${weight ? ` · ${weight} ק״ג` : ''}${reps ? ` × ${reps}` : ''}`,
+      };
+    }
+    return null;
+  })();
+
   // ===== מקלדת האימון =====
   // השדה הפעיל בתרגיל הנוכחי. text = מה שהוקלד (כולל "80." באמצע הקלדה, שאי אפשר לשמור כמספר);
   // fresh = עוד לא הוקלד כלום מאז שהשדה נפתח - הלחיצה הראשונה מחליפה את הערך במקום להוסיף לו
@@ -2034,6 +2054,8 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
         initialSeconds={restTimerState.seconds}
         onClose={() => setRestTimerState({ isOpen: false, seconds: defaultRestSec })}
         onDisableAutoTimer={onDisableAutoTimer}
+        exerciseName={restNext?.exerciseName}
+        nextUp={restNext?.label}
       />
 
       {/* Smart Exercise Swap Modal */}

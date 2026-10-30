@@ -26,6 +26,8 @@
 	<string>Ballast משתמשת במצלמה כדי לסרוק ברקוד של מוצרי מזון ולצלם תמונות התקדמות - רק כשאתה בוחר בזה.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Ballast קוראת מ-Health את האימונים שהיא עצמה שמרה, כדי שתוכל למחוק אותם משם כשאתה מוחק אימון באפליקציה.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Ballast שומרת ב-Health את האימונים שהשלמת, את הקלוריות שנשרפו בהם ואת מדידות משקל הגוף שלך.</string>
 	<key>LSRequiresIPhoneOS</key>

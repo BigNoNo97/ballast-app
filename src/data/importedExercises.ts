@@ -1263,4 +1263,11 @@ export const IMPORTED_EXERCISES: Exercise[] = [
   { id: 'ext-wind-sprints', nameHe: 'ספרינטים', nameEn: 'Wind Sprints', muscle: 'core', secondaryMuscles: ['quads', 'hamstrings', 'calves'], equipment: 'bodyweight', alternatives: [], defaultSets: 3, defaultReps: 10, defaultRestSec: 90 },
   { id: 'ext-wrist-circles', nameHe: 'סיבובי שורש כף היד', nameEn: 'Wrist Circles', muscle: 'biceps', secondaryMuscles: [], equipment: 'bodyweight', alternatives: [], defaultSets: 3, defaultReps: 10, defaultRestSec: 90 },
   { id: 'ext-wrist-rollerer', nameHe: 'גלגלת שורש כף היד', nameEn: 'Wrist Rollerer', muscle: 'biceps', secondaryMuscles: ['triceps'], equipment: 'other', alternatives: [], defaultSets: 3, defaultReps: 10, defaultRestSec: 90 },
+  // תרגילים שנוספו למאגר בעקבות ייבוא מ-Planfit (לא היה להם מקביל)
+  { id: 'dumbbell-seal-row', nameHe: 'חתירת סיל במשקולות (שכיבה על ספסל)', nameEn: 'Dumbbell Seal Row', muscle: 'back', secondaryMuscles: ['biceps', 'shoulders'], equipment: 'dumbbell', alternatives: [], defaultSets: 3, defaultReps: 10, defaultRestSec: 90 },
+  { id: 'hammer-strength-romanian-deadlift', nameHe: 'דדליפט רומני במכונת Hammer Strength', nameEn: 'Hammer Strength Romanian Deadlift', muscle: 'hamstrings', secondaryMuscles: ['glutes', 'lower_back'], equipment: 'machine', alternatives: [], defaultSets: 3, defaultReps: 10, defaultRestSec: 120 },
+  { id: 'machine-torso-rotation', nameHe: 'סיבובי גו במכונה', nameEn: 'Machine Torso Rotation', muscle: 'core', secondaryMuscles: [], equipment: 'machine', alternatives: [], defaultSets: 3, defaultReps: 12, defaultRestSec: 60 },
+  { id: 'box-jump', nameHe: 'קפיצה לקופסה', nameEn: 'Box Jump', muscle: 'quads', secondaryMuscles: ['glutes', 'calves'], equipment: 'bodyweight', alternatives: [], defaultSets: 3, defaultReps: 8, defaultRestSec: 90 },
+  { id: 'bodyweight-lunge', nameHe: "לאנג' במשקל גוף", nameEn: 'Bodyweight Lunge', muscle: 'quads', secondaryMuscles: ['glutes', 'hamstrings'], equipment: 'bodyweight', alternatives: [], defaultSets: 3, defaultReps: 12, defaultRestSec: 60 },
+  { id: 'bodyweight-calf-raise', nameHe: 'הרמת עקבים במשקל גוף', nameEn: 'Bodyweight Calf Raise', muscle: 'calves', secondaryMuscles: [], equipment: 'bodyweight', alternatives: [], defaultSets: 3, defaultReps: 15, defaultRestSec: 60 },
 ];

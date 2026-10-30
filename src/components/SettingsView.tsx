@@ -454,7 +454,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           disabled={externalBusy}
         >
           {externalBusy ? <Loader2 size={16} className="spin" /> : <FileArchive size={16} />}
-          ייבוא מאפליקציה אחרת (Planfit)
+          ייבוא נתונים
         </button>
         <input
           type="file"

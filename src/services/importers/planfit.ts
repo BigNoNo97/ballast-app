@@ -23,6 +23,13 @@ type Row = Record<string, string>;
 
 /** שם התרגיל ב-Planfit -> מזהה התרגיל המקביל במאגר של Ballast */
 const EXERCISE_MAP: Record<string, string> = {
+  // תרגילים שנוספו למאגר בעקבות ייבוא Planfit
+  'Dumbbell Seal Row': 'dumbbell-seal-row',
+  'Hammer Strength Plate-Loaded Squat Lunge - Romanian Deadlift': 'hammer-strength-romanian-deadlift',
+  'Torso Rotation': 'machine-torso-rotation',
+  'Box Jump': 'box-jump',
+  Lunge: 'bodyweight-lunge',
+  'Calf Raise': 'bodyweight-calf-raise',
   'Lat Pulldown': 'lat-pulldown-cable',
   'Incline Dumbbell Bench Press': 'incline-bench-dumbbell',
   'Dumbbell Bench Press': 'bench-press-dumbbell',
@@ -137,18 +144,7 @@ const EXERCISE_MAP: Record<string, string> = {
 };
 
 /** תרגילים בלי מקבילה במאגר - נוצרים כתרגילים מותאמים אישית (עם שם בעברית) */
-const CUSTOM_EXERCISES: Record<string, { nameHe: string; muscle: MuscleGroup; equipment: EquipmentType }> = {
-  'Dumbbell Seal Row': { nameHe: 'חתירת סיל במשקולות (שכיבה על ספסל)', muscle: 'back', equipment: 'dumbbell' },
-  'Hammer Strength Plate-Loaded Squat Lunge - Romanian Deadlift': {
-    nameHe: 'דדליפט רומני במכונת Hammer Strength',
-    muscle: 'hamstrings',
-    equipment: 'machine',
-  },
-  'Torso Rotation': { nameHe: 'סיבובי גו במכונה', muscle: 'core', equipment: 'machine' },
-  'Box Jump': { nameHe: 'קפיצה לקופסה', muscle: 'quads', equipment: 'bodyweight' },
-  Lunge: { nameHe: "לאנג' במשקל גוף", muscle: 'quads', equipment: 'bodyweight' },
-  'Calf Raise': { nameHe: 'הרמת עקבים במשקל גוף', muscle: 'calves', equipment: 'bodyweight' },
-};
+const CUSTOM_EXERCISES: Record<string, { nameHe: string; muscle: MuscleGroup; equipment: EquipmentType }> = {};
 
 /** קרדיו - נרשם בהערת האימון עם משך הזמן */
 const CARDIO_NAMES_HE: Record<string, string> = {

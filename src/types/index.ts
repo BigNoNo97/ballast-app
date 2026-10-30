@@ -57,9 +57,18 @@ export interface WorkoutSet {
   autoFilledFromReps?: number;
 }
 
+/** סט חימום (ממחשבון החימום) - נשמר בנפרד מ-sets ולכן לא נספר בנפח, בשיאים או בהתקדמות */
+export interface WarmupSet {
+  id: string;
+  weightKg: number;
+  reps: number;
+  completed: boolean;
+}
+
 export interface WorkoutExercise {
   exerciseId: string;
   sets: WorkoutSet[];
+  warmupSets?: WarmupSet[];
   notes?: string;
   swappedFromId?: string;
   supersetGroupId?: string;

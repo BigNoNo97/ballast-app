@@ -21,6 +21,7 @@ import {
   Pause,
   Play,
   Disc,
+  Flame,
 } from 'lucide-react';
 import {
   WorkoutSession,
@@ -28,6 +29,7 @@ import {
   WorkoutSet,
   Exercise,
   SetType,
+  WarmupSet,
 } from '../types';
 import { EQUIPMENT_LABELS, MUSCLE_GROUP_LABELS } from '../data/exercises';
 import { StorageService } from '../services/storage';
@@ -35,7 +37,8 @@ import { getExerciseState } from '../services/progressionEngine';
 import { getWeightIncrement } from '../data/exerciseClassification';
 import { ExerciseSwapModal } from './ExerciseSwapModal';
 import { PlateCalculatorSheet } from './PlateCalculatorSheet';
-import type { PlateSetup } from '../services/plateMath';
+import { DEFAULT_BAR_KG, DEFAULT_PLATES_KG, type PlateSetup } from '../services/plateMath';
+import { warmupSets } from '../services/warmup';
 import { RestTimerModal } from './RestTimerModal';
 import { ExerciseThumbnail } from './ExerciseThumbnail';
 import { triggerHaptic } from '../services/sound';
@@ -86,7 +89,14 @@ interface ActiveWorkoutProps {
 }
 
 /** תרגילים שמעמיסים עליהם פלטות: מוט חופשי, סמית' ומכונות עם פלטות */
-const usesPlates = (ex: Exercise) => ex.equipment === 'barbell' || ex.equipment === 'smith' || /plate-loaded|hammer-strength/.test(ex.id);
+const isPlateLoadedMachine = (ex: Exercise) => /plate-loaded|hammer-strength/.test(ex.id);
+const usesPlates = (ex: Exercise) => ex.equipment === 'barbell' || ex.equipment === 'smith' || isPlateLoadedMachine(ex);
+
+/** משקל העבודה של תרגיל: הסט הפתוח הראשון (או מה שהיה בפעם הקודמת) */
+const workWeightOf = (ex: WorkoutExercise) => {
+  const s = ex.sets.find((x) => !x.completed) ?? ex.sets[0];
+  return s ? s.weightKg || s.previousWeight || 0 : 0;
+};
 
 export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   workout,
@@ -432,6 +442,33 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
       durationSec: elapsedSec,
       exercises: updatedExercises,
     });
+  };
+
+  // סטי חימום: נשמרים ב-warmupSets, בנפרד מסטי העבודה, כדי שלא ייספרו בנפח/שיאים/התקדמות
+  const updateWarmups = (exerciseIndex: number, fn: (w: WarmupSet[]) => WarmupSet[]) => {
+    const updatedExercises = workout.exercises.map((ex, idx) => {
+      if (idx !== exerciseIndex) return ex;
+      const next = fn(ex.warmupSets || []);
+      return { ...ex, warmupSets: next.length ? next : undefined };
+    });
+    onUpdateWorkout({ ...workout, durationSec: elapsedSec, exercises: updatedExercises });
+  };
+
+  const handleToggleWarmups = (exerciseIndex: number) => {
+    const ex = workout.exercises[exerciseIndex];
+    if (ex.warmupSets?.length) {
+      updateWarmups(exerciseIndex, () => []);
+      return;
+    }
+    const data = allExercises.find((e) => e.id === ex.exerciseId);
+    if (!data) return;
+    const setup = plateSetup ?? { barKg: DEFAULT_BAR_KG, plates: DEFAULT_PLATES_KG };
+    const plates = usesPlates(data) ? (isPlateLoadedMachine(data) ? { ...setup, barKg: 0 } : setup) : null;
+    const steps = warmupSets(workWeightOf(ex), data.equipment, plates);
+    if (!steps.length) return;
+    const stamp = Date.now();
+    updateWarmups(exerciseIndex, () => steps.map((st, i) => ({ id: `wu-${stamp}-${i}`, ...st, completed: false })));
+    triggerHaptic(30);
   };
 
   // Reorder exercises by Drag and Drop
@@ -1101,17 +1138,30 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
               />
             </div>
 
-            {usesPlates(currentExData) && (
-              <button
-                className="filter-chip"
-                onClick={() => {
-                  const sets = currentWorkoutEx.sets;
-                  setPlateSetIdx(currentOpenSetIdx >= 0 ? currentOpenSetIdx : Math.max(0, sets.length - 1));
-                }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 10 }}
-              >
-                <Disc size={14} /> מחשבון פלטות
-              </button>
+            {currentExData.equipment !== 'bodyweight' && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                {usesPlates(currentExData) && (
+                  <button
+                    className="filter-chip"
+                    onClick={() => {
+                      const sets = currentWorkoutEx.sets;
+                      setPlateSetIdx(currentOpenSetIdx >= 0 ? currentOpenSetIdx : Math.max(0, sets.length - 1));
+                    }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <Disc size={14} /> מחשבון פלטות
+                  </button>
+                )}
+                {(!!currentWorkoutEx.warmupSets?.length || workWeightOf(currentWorkoutEx) > 0) && (
+                  <button
+                    className={`filter-chip ${currentWorkoutEx.warmupSets?.length ? 'active' : ''}`}
+                    onClick={() => handleToggleWarmups(safeCurrentIndex)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <Flame size={14} /> {currentWorkoutEx.warmupSets?.length ? 'הסר סטי חימום' : 'סטי חימום'}
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Sets Header */}
@@ -1136,6 +1186,57 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
 
             {/* Sets List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+              {(currentWorkoutEx.warmupSets || []).map((w, wIdx) => (
+                <div
+                  key={w.id}
+                  className={`set-row ${w.completed ? 'completed' : ''}`}
+                  style={{ gridTemplateColumns: '36px 1fr 1fr 44px', opacity: w.completed ? 0.75 : 1 }}
+                >
+                  <div className="set-number-badge" title="סט חימום" style={{ background: 'var(--color-orange-bg)', color: 'var(--color-orange)' }}>
+                    ח
+                  </div>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="500"
+                    inputMode="decimal"
+                    className="gym-input-box"
+                    onFocus={selectAllOnFocus}
+                    value={w.weightKg === 0 ? '' : w.weightKg}
+                    onChange={(e) => {
+                      const kg = Math.min(500, Math.max(0, parseFloat(e.target.value) || 0));
+                      updateWarmups(safeCurrentIndex, (ws) => ws.map((x, i) => (i === wIdx ? { ...x, weightKg: kg } : x)));
+                    }}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="999"
+                    inputMode="numeric"
+                    className="gym-input-box"
+                    onFocus={selectAllOnFocus}
+                    value={w.reps === 0 ? '' : w.reps}
+                    onChange={(e) => {
+                      const reps = Math.min(999, Math.max(0, parseInt(e.target.value, 10) || 0));
+                      updateWarmups(safeCurrentIndex, (ws) => ws.map((x, i) => (i === wIdx ? { ...x, reps } : x)));
+                    }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    {/* סט חימום לא מפעיל את טיימר המנוחה - המנוחה בין סטי חימום קצרה */}
+                    <button
+                      className={`btn-check-set ${w.completed ? 'checked' : ''}`}
+                      onClick={() => {
+                        triggerHaptic(20);
+                        updateWarmups(safeCurrentIndex, (ws) => ws.map((x, i) => (i === wIdx ? { ...x, completed: !x.completed } : x)));
+                      }}
+                      title="סמן חימום כהושלם"
+                    >
+                      <Check size={18} strokeWidth={3} />
+                    </button>
+                  </div>
+                </div>
+              ))}
               {currentWorkoutEx.sets.map((s, setIdx) => (
                 <div
                   key={s.id || setIdx}

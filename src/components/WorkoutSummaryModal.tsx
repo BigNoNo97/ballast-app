@@ -3,6 +3,8 @@ import confetti from 'canvas-confetti';
 import { Trophy, Clock, Dumbbell, Flame, CheckCircle, Share2 } from 'lucide-react';
 import { WorkoutSession } from '../types';
 import { playWorkoutCompleteSound } from '../services/sound';
+import { MuscleLoadRow } from '../services/muscleLoad';
+import { LoadBar, LoadLegend, MuscleLoadMap, formatSets } from './MuscleLoadCard';
 
 const prHeaderCell: React.CSSProperties = {
   fontSize: '0.7rem',
@@ -31,6 +33,8 @@ interface WorkoutSummaryModalProps {
   soundEnabled?: boolean;
   coachNote?: string; // הודעה קצרה ממנוע ההתקדמות (למשל גלגול מחזור, או תרגיל שנתקע) - לא חוסמת
   healthSync?: { ok: boolean; message: string };
+  /** עומס השרירים: הסטים שהאימון הזה הוסיף לכל שריר, והמצב השבועי אחריו */
+  muscleLoad?: { workout: MuscleLoadRow[]; week: MuscleLoadRow[] };
 }
 
 export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
@@ -40,6 +44,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   soundEnabled = true,
   coachNote,
   healthSync,
+  muscleLoad,
 }) => {
   useEffect(() => {
     if (isOpen) {
@@ -224,6 +229,45 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
             <div style={{ fontSize: '1.3rem', fontWeight: 800 }}>{session.exercises.length} תרגילים</div>
           </div>
         </div>
+
+        {/* עומס שרירים: מה האימון הזה הוסיף, ואיפה כל שריר עומד מול היעד השבועי */}
+        {muscleLoad && muscleLoad.workout.some((r) => r.sets > 0) && (
+          <div
+            style={{
+              background: 'var(--bg-surface-2)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              padding: '12px 14px',
+              marginBottom: 20,
+              textAlign: 'right',
+            }}
+          >
+            <div style={{ fontWeight: 800, fontSize: '0.9rem', marginBottom: 2 }}>עומס שרירים</div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: 10 }}>
+              הצבע מראה איפה כל שריר עומד מול היעד השבועי שלך, כולל האימון הזה
+            </div>
+            <MuscleLoadMap rows={muscleLoad.week} size={104} />
+            <div style={{ margin: '8px 0 12px' }}>
+              <LoadLegend />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {muscleLoad.workout
+                .filter((r) => r.sets > 0)
+                .sort((a, b) => b.sets - a.sets)
+                .map((r) => {
+                  const week = muscleLoad.week.find((w) => w.muscle === r.muscle)!;
+                  return (
+                    <div key={r.muscle}>
+                      <LoadBar row={week} />
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', marginTop: -2, marginBottom: 2, paddingRight: 104 }}>
+                        +{formatSets(r.sets)} סטים באימון הזה
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
 
         {/* PRs Section if any */}
         {session.newPRs && session.newPRs.length > 0 && (

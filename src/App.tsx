@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Dumbbell,
   TrendingUp,
@@ -25,7 +25,8 @@ import {
 import { DATA_CHANGED_EVENT, StorageService } from './services/storage';
 import { resumePush, setPushOpenHandler, unregisterPush } from './services/push';
 import { AppleHealthService } from './services/appleHealthService';
-import { buildRoutine } from './services/programGenerator';
+import { buildRoutine, weeklyMuscleTargets } from './services/programGenerator';
+import { loadRows, muscleSetsFrom, weekStartOf, weeklyLoad } from './services/muscleLoad';
 import { currentWeight } from './services/nutrition/engine';
 import { processFinishedWorkout } from './services/progressionEngine';
 import { WorkoutHomeView } from './components/WorkoutHomeView';
@@ -309,6 +310,19 @@ export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<NavigationTab>('workout');
   const [previewingDay, setPreviewingDay] = useState<RoutineDay | null>(null);
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
+  // יעד הסטים השבועי לכל שריר - לעומס השרירים (מסך הניתוח וסיכום האימון)
+  const muscleTargets = useMemo(
+    () => weeklyMuscleTargets(settings, activeRoutine, currentWeight(StorageService.getBodyWeightLog(), Date.now()) ?? undefined),
+    [settings, activeRoutine]
+  );
+  const summaryMuscleLoad = useMemo(() => {
+    if (!summarySession) return undefined;
+    const byId = new Map(exercises.map((e) => [e.id, e]));
+    return {
+      workout: loadRows(muscleSetsFrom([summarySession], byId), muscleTargets),
+      week: weeklyLoad(history, exercises, muscleTargets, weekStartOf(summarySession.startTime)),
+    };
+  }, [summarySession, history, exercises, muscleTargets]);
   const [coachNote, setCoachNote] = useState<string | null>(null);
   const [showAiCoach, setShowAiCoach] = useState(false);
   const [showTrainerHub, setShowTrainerHub] = useState(false);
@@ -957,7 +971,13 @@ export const App: React.FC = () => {
               )}
 
               {currentTab === 'analysis' && (
-                <AnalyticsView history={history} allExercises={exercises} />
+                <AnalyticsView
+                  history={history}
+                  allExercises={exercises}
+                  muscleTargets={muscleTargets}
+                  activeRoutine={activeRoutine}
+                  onOpenExerciseProfile={setViewingExerciseId}
+                />
               )}
 
               {currentTab === 'community' && (
@@ -1223,6 +1243,7 @@ export const App: React.FC = () => {
             soundEnabled={settings.soundEnabled}
             coachNote={coachNote || undefined}
             healthSync={healthSync || undefined}
+            muscleLoad={summaryMuscleLoad}
           />
         )}
 

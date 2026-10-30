@@ -7,6 +7,8 @@ import { analyzeNutrition, currentWeight } from './nutrition/engine';
 import { injuryLabel } from './training/injuries';
 import { MUSCLE_GROUP_LABELS } from '../data/exercises';
 import type { NutritionEntry, UserSettings } from '../types';
+import { weeklyMuscleTargets } from './programGenerator';
+import { muscleBalance, weeklyLoad } from './muscleLoad';
 
 export interface CoachMessage {
   id: string;
@@ -142,7 +144,18 @@ export function buildCoachContext(settings: UserSettings): Record<string, unknow
     .slice(0, 8)
     .map((pr) => `${pr.exerciseNameHe}: ${pr.maxWeight}kg x ${pr.repsAtMaxWeight} (e1RM ${round(pr.estimated1RM)})`);
 
-  return { profile, nutrition, recentWeights, program, recentWorkouts, personalRecords };
+  // עומס שרירים: סטים השבוע מול היעד, ואיזון ב-4 השבועות האחרונים (אחוז מהיעד)
+  const history = StorageService.getWorkoutHistory();
+  const w = currentWeight(weightLog, now);
+  const targets = weeklyMuscleTargets(settings, active, w ?? undefined);
+  const muscleHe = (m: keyof typeof MUSCLE_GROUP_LABELS) => MUSCLE_GROUP_LABELS[m]?.he ?? m;
+  const muscleLoadThisWeek = weeklyLoad(history, exercises, targets)
+    .filter((r) => r.target || r.sets > 0)
+    .map((r) => `${muscleHe(r.muscle)}: ${r.sets} sets${r.target ? ` of ${r.target} target` : ' (no direct target)'}`);
+  const muscleBalanceLast4Weeks = muscleBalance(history, exercises, targets)?.map((b) => `${muscleHe(b.muscle)}: ${b.percent}% of target`);
+
+  // סדר המפתחות חשוב: השרת חותך הקשר ארוך מהסוף, אז הנתונים החשובים קודם
+  return { profile, nutrition, recentWeights, program, muscleLoadThisWeek, muscleBalanceLast4Weeks, recentWorkouts, personalRecords };
 }
 
 const FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/ai-coach`;

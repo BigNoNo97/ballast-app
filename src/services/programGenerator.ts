@@ -219,6 +219,30 @@ function weeklySetsFor(target: { start: number; peak: number }, week: number, le
   return Math.round(target.start + cycleBonus + Math.min(linear, (week - 1) * 3));
 }
 
+/**
+ * יעד הסטים האישי לכל שריר בשבוע הנוכחי (לעומס השרירים). תוכנית שהמנוע בנה - לפי היעדים
+ * שנשמרו בה והשבוע במחזור (כולל שבוע הקלה). שריר שלא בתוכנית, או בלי תוכנית בכלל - לפי
+ * הפרופיל (רמה, מטרה, גיל, מיקוד). שרירים בעדיפות נמוכה שלא במיקוד - בלי יעד (מקבלים נפח עקיף).
+ */
+export function weeklyMuscleTargets(
+  settings: UserSettings,
+  routine: RoutineTemplate | null | undefined,
+  bodyWeightKg?: number
+): Partial<Record<MuscleGroup, number>> {
+  const p = buildTrainingProfile(settings, bodyWeightKg);
+  const meso = routine?.mesocycle;
+  const out: Partial<Record<MuscleGroup, number>> = {};
+  (Object.keys(MUSCLE_SIZE_CATEGORY) as MuscleGroup[]).forEach((m) => {
+    const planned = routine?.volumeTargets?.[m];
+    if (planned && meso) {
+      out[m] = weeklySetsFor(planned, meso.currentWeek, meso.lengthWeeks, meso.cycleNumber);
+    } else if (!LOW_PRIORITY_MUSCLES.has(m) || p.focus.includes(m)) {
+      out[m] = volumeTargetFor(p, m).start;
+    }
+  });
+  return out;
+}
+
 // ===== ימים ושרירים =====
 
 export function chooseSplit(daysPerWeek: number, level: ExperienceLevel): SplitType {

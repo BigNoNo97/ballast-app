@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Copy, Dumbbell, Library, Loader2, Pencil, RefreshCw, Share2, UserMinus } from 'lucide-react';
-import type { Exercise, RoutineTemplate, WorkoutSession } from '../../types';
+import type { Exercise, RoutineTemplate, UserSettings, WorkoutSession } from '../../types';
+import { weeklyMuscleTargets } from '../../services/programGenerator';
+import { loadSuggestions, weeklyLoad } from '../../services/muscleLoad';
+import { MuscleLoadCard } from '../MuscleLoadCard';
 import { currentWeight, weightTrend } from '../../services/nutrition/engine';
 import { injuryLabel } from '../../services/training/injuries';
 import { MUSCLE_GROUP_LABELS } from '../../data/exercises';
@@ -388,6 +391,7 @@ export const ClientDetailScreen: React.FC<{
       ) : tab === 'overview' ? (
         <Overview
           snap={snap}
+          library={library}
           relation={relation}
           onEditProfile={() => setOverlay('profile')}
           onRemove={async () => {
@@ -471,8 +475,15 @@ const Fact: React.FC<{ label: string; value: React.ReactNode }> = ({ label, valu
   </div>
 );
 
-const Overview: React.FC<{ snap: ClientSnapshot; relation: TrainerRelation; onEditProfile: () => void; onRemove: () => void }> = ({
+const Overview: React.FC<{
+  snap: ClientSnapshot;
+  library: Exercise[];
+  relation: TrainerRelation;
+  onEditProfile: () => void;
+  onRemove: () => void;
+}> = ({
   snap,
+  library,
   relation,
   onEditProfile,
   onRemove,
@@ -484,6 +495,13 @@ const Overview: React.FC<{ snap: ClientSnapshot; relation: TrainerRelation; onEd
   const last7 = snap.workouts.filter((w) => w.startTime >= now - 7 * DAY_MS).length;
   const last28 = snap.workouts.filter((w) => w.startTime >= now - 28 * DAY_MS).length;
   const planned = s.trainingDaysPerWeek ?? s.scheduledWeekdays?.length;
+  // עומס השרירים של המתאמן השבוע, מול היעדים של התוכנית הפעילה שלו
+  const load = useMemo(() => {
+    const active = snap.routines.find((r) => r.id === s.activeRoutineId) ?? (s.activeRoutineId === undefined ? snap.routines[0] : null);
+    const targets = weeklyMuscleTargets(s as UserSettings, active, weight ?? undefined);
+    const rows = weeklyLoad(snap.workouts, library, targets);
+    return { rows, suggestions: loadSuggestions(rows, library, active) };
+  }, [snap, library, s, weight]);
   return (
     <>
       <Card>
@@ -492,6 +510,12 @@ const Overview: React.FC<{ snap: ClientSnapshot; relation: TrainerRelation; onEd
         <Fact label="7 ימים אחרונים" value={`${last7}${planned ? ` מתוך ${planned} מתוכננים` : ''}`} />
         <Fact label="4 שבועות אחרונים" value={`${last28} אימונים`} />
       </Card>
+      <MuscleLoadCard
+        rows={load.rows}
+        suggestions={load.suggestions}
+        subtitle="הסטים שהמתאמן השלים השבוע לכל שריר, מול היעד השבועי של התוכנית שלו. שריר משני נספר כחצי סט."
+        emptyText="המתאמן עוד לא השלים סטים השבוע."
+      />
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <div style={{ fontWeight: 800, fontSize: '0.9rem' }}>גוף ומטרות</div>

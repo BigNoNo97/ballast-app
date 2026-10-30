@@ -1,16 +1,37 @@
 import React, { useState, useMemo } from 'react';
-import { Trophy, TrendingUp, Calculator, Dumbbell, Award, Flame, BarChart3, Activity } from 'lucide-react';
-import { WorkoutSession, Exercise, PersonalRecord } from '../types';
+import { Trophy, TrendingUp, Calculator, BarChart3, ChevronRight, ChevronLeft } from 'lucide-react';
+import { WorkoutSession, Exercise, MuscleGroup, RoutineTemplate } from '../types';
 import { StorageService, calculateEstimated1RM } from '../services/storage';
-import { MUSCLE_GROUP_LABELS } from '../data/exercises';
 import { TrendChart } from './TrendChart';
+import { loadSuggestions, weekStartOf, weeklyLoad } from '../services/muscleLoad';
+import { MuscleLoadCard } from './MuscleLoadCard';
+import { MuscleBalanceCard } from './MuscleBalanceCard';
 
 interface AnalyticsViewProps {
   history: WorkoutSession[];
   allExercises: Exercise[];
+  /** יעד הסטים השבועי האישי לכל שריר (weeklyMuscleTargets) */
+  muscleTargets: Partial<Record<MuscleGroup, number>>;
+  activeRoutine?: RoutineTemplate | null;
+  onOpenExerciseProfile?: (exerciseId: string) => void;
 }
 
-export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history, allExercises }) => {
+const LOAD_WEEKS_BACK = 8;
+
+const navButton: React.CSSProperties = {
+  border: 'none',
+  background: 'var(--bg-surface-2)',
+  color: 'var(--text-main)',
+  borderRadius: 8,
+  width: 28,
+  height: 28,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+};
+
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history, allExercises, muscleTargets, activeRoutine, onOpenExerciseProfile }) => {
   // Default selected exercise to bench press or first exercise with history
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>('bench-press-barbell');
   const [calcWeight, setCalcWeight] = useState<number>(80);
@@ -33,26 +54,30 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history, allExerci
       .map(([date, value]) => ({ id: String(date), date, value: Math.round(value) }));
   }, [history]);
 
-  // תדירות אימון לפי קבוצת שריר ב-30 הימים האחרונים
-  const muscleFrequency = useMemo(() => {
-    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const exerciseMuscleMap = new Map(allExercises.map((e) => [e.id, e.muscle]));
-    const counts: Record<string, number> = {};
-    history
-      .filter((h) => h.isCompleted && h.startTime >= cutoff)
-      .forEach((h) => {
-        const musclesThisSession = new Set<string>();
-        h.exercises.forEach((ex) => {
-          const hasLoggedSet = ex.sets.some((s) => s.completed || s.weightKg > 0);
-          if (!hasLoggedSet) return;
-          const muscle = exerciseMuscleMap.get(ex.exerciseId);
-          if (muscle) musclesThisSession.add(muscle);
-        });
-        musclesThisSession.forEach((m) => { counts[m] = (counts[m] || 0) + 1; });
-      });
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  }, [history, allExercises]);
-  const maxMuscleCount = Math.max(1, ...muscleFrequency.map(([, c]) => c));
+  // עומס שרירים: 0 = השבוע הנוכחי, 1 = שבוע שעבר...
+  const [weeksBack, setWeeksBack] = useState(0);
+  const loadWeekStart = useMemo(() => {
+    const d = new Date(weekStartOf(Date.now()));
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 7 * weeksBack).getTime();
+  }, [weeksBack]);
+  const loadRowsForWeek = useMemo(
+    () => weeklyLoad(history, allExercises, muscleTargets, loadWeekStart),
+    [history, allExercises, muscleTargets, loadWeekStart]
+  );
+  // הצעות להשלמה רק לשבוע הנוכחי - על שבוע שעבר כבר אי אפשר לעשות כלום
+  const suggestions = useMemo(
+    () => (weeksBack === 0 ? loadSuggestions(loadRowsForWeek, allExercises, activeRoutine) : []),
+    [weeksBack, loadRowsForWeek, allExercises, activeRoutine]
+  );
+  const weekLabel =
+    weeksBack === 0
+      ? 'השבוע'
+      : weeksBack === 1
+        ? 'שבוע שעבר'
+        : (() => {
+            const d = new Date(loadWeekStart);
+            return `שבוע ${d.getDate()}/${d.getMonth() + 1}`;
+          })();
 
   // Extract timeline data for the selected exercise
   const exerciseProgressData = useMemo(() => {
@@ -124,6 +149,38 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history, allExerci
           מעקב גרפי אחר עליית המשקלים, כוח מקסימלי (1RM) ולוח שיאים
         </p>
       </div>
+
+      <MuscleLoadCard
+        rows={loadRowsForWeek}
+        title={`עומס שרירים - ${weekLabel}`}
+        suggestions={suggestions}
+        onSuggestionPress={onOpenExerciseProfile ? (sg) => sg.exercise && onOpenExerciseProfile(sg.exercise.id) : undefined}
+        emptyText={weeksBack === 0 ? undefined : 'לא השלמת סטים בשבוע הזה.'}
+        headerExtra={
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              type="button"
+              aria-label="שבוע קודם"
+              disabled={weeksBack >= LOAD_WEEKS_BACK}
+              onClick={() => setWeeksBack((w) => Math.min(LOAD_WEEKS_BACK, w + 1))}
+              style={{ ...navButton, opacity: weeksBack >= LOAD_WEEKS_BACK ? 0.35 : 1 }}
+            >
+              <ChevronRight size={16} />
+            </button>
+            <button
+              type="button"
+              aria-label="שבוע הבא"
+              disabled={weeksBack === 0}
+              onClick={() => setWeeksBack((w) => Math.max(0, w - 1))}
+              style={{ ...navButton, opacity: weeksBack === 0 ? 0.35 : 1 }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+          </div>
+        }
+      />
+
+      <MuscleBalanceCard history={history} library={allExercises} targets={muscleTargets} />
 
       {/* Exercise Progress Section */}
       <div className="ios-card" style={{ padding: '16px' }}>
@@ -289,43 +346,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history, allExerci
         ) : (
           <div style={{ textAlign: 'center', padding: '20px 10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             אחרי כמה אימונים תראה כאן את מגמת הנפח הכולל שלך לאורך זמן.
-          </div>
-        )}
-      </div>
-
-      {/* Muscle Group Frequency */}
-      <div className="ios-card" style={{ padding: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-          <Activity size={18} color="var(--color-green)" />
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 800 }}>תדירות אימון לפי שריר</h3>
-        </div>
-        <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: 12 }}>
-          כמה פעמים אימנת כל קבוצת שריר ב-30 הימים האחרונים
-        </p>
-        {muscleFrequency.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {muscleFrequency.map(([muscle, count]) => (
-              <div key={muscle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-main)', width: 88, flexShrink: 0 }}>
-                  {MUSCLE_GROUP_LABELS[muscle as keyof typeof MUSCLE_GROUP_LABELS]?.he || muscle}
-                </span>
-                <div style={{ flex: 1, background: 'var(--bg-surface-2)', borderRadius: 6, height: 16, overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      width: `${(count / maxMuscleCount) * 100}%`,
-                      height: '100%',
-                      background: 'linear-gradient(90deg, var(--color-green), rgba(47, 217, 180, 0.6))',
-                      borderRadius: 6,
-                    }}
-                  />
-                </div>
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, width: 20, textAlign: 'left' }}>{count}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '16px 10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            אין עדיין אימונים ב-30 הימים האחרונים.
           </div>
         )}
       </div>

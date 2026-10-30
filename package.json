@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "import:planfit": "node scripts/import-planfit/import-planfit.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

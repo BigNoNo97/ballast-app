@@ -30,3 +30,7 @@ ios/App/.xcode.env.local
 
 # חומר חתימה פרטי (מפתח/CSR/תעודות) - אף פעם לא נכנס לגיט
 .signing_tmp/
+
+# ייצוא נתונים אישי מ-Planfit (קובצי CSV) - לא נכנס לגיט
+scripts/import-planfit/data/
+scripts/import-planfit/**/*.csv

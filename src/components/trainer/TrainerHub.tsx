@@ -125,6 +125,11 @@ export const TrainerHub: React.FC<{
         <Loader2 size={20} className="spin" style={{ margin: '40px auto' }} />
       ) : (
         <>
+          <img
+            src="/art/trainer-hero.webp"
+            alt=""
+            style={{ width: 'min(220px, 60vw)', aspectRatio: '1 / 1', objectFit: 'contain', display: 'block', margin: '0 auto 4px' }}
+          />
           <SectionTitle>המאמן שלי</SectionTitle>
           {myTrainer ? (
             <RowButton

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, Dumbbell, Trophy, Trash2, Repeat, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Dumbbell, Trophy, Trash2, Repeat, ChevronDown, ChevronUp } from 'lucide-react';
 import { WorkoutSession, Exercise } from '../types';
 
 interface HistoryViewProps {
@@ -46,7 +46,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
       {history.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
-          <Calendar size={40} style={{ opacity: 0.3, marginBottom: 10 }} />
+          <img
+            src="/art/empty-workout-history.webp"
+            alt=""
+            style={{ width: 150, height: 150, objectFit: 'contain', display: 'block', margin: '0 auto 10px' }}
+          />
           <p>עדיין אין אימונים שמורים בהיסטוריה.</p>
           <p style={{ fontSize: '0.78rem', marginTop: 4 }}>
             התחל אימון ראשון דרך טאב "אימון" ותראה אותו כאן מיד!

@@ -30,7 +30,6 @@ const RAW_EXERCISES: Exercise[] = [
   // ==================== GLUTES & LEGS ====================
   {
     id: 'deadlift-conventional',
-    image: '/exercises/deadlift-conventional.jpg',
     nameHe: 'דדליפט קלאסי במוט',
     nameEn: 'Deadlift',
     muscle: 'back',
@@ -48,7 +47,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'hip-thrust-machine',
-    image: '/exercises/hip-thrust-machine.jpg',
     nameHe: 'היפ ת׳ראסט במכונה ייעודית',
     nameEn: 'Hip Thrust Machine',
     muscle: 'glutes',
@@ -66,7 +64,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'hip-thrust-barbell',
-    image: '/exercises/hip-thrust-barbell.jpg',
     nameHe: 'היפ ת׳ראסט במוט חופשי',
     nameEn: 'Barbell Hip Thrust',
     muscle: 'glutes',
@@ -80,7 +77,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'seated-leg-curl-machine',
-    image: '/exercises/seated-leg-curl-machine.jpg',
     nameHe: 'כפיפת ברכיים בישיבה במכונה',
     nameEn: 'Seated Leg Curl',
     muscle: 'hamstrings',
@@ -98,7 +94,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'lying-leg-curl-machine',
-    image: '/exercises/lying-leg-curl-machine.jpg',
     nameHe: 'כפיפת ברכיים בשכיבה במכונה',
     nameEn: 'Lying Leg Curl',
     muscle: 'hamstrings',
@@ -112,7 +107,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'hip-adduction-machine',
-    image: '/exercises/hip-adduction-machine.png',
     nameHe: 'קירוב ירכיים במכונה (מקרבים)',
     nameEn: 'Hip Adduction Machine',
     muscle: 'quads',
@@ -126,7 +120,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'hip-abduction-machine',
-    image: '/exercises/hip-abduction-machine.jpg',
     nameHe: 'הרחקת ירכיים במכונה (מרחיקים / ישבן)',
     nameEn: 'Hip Abduction Machine',
     muscle: 'glutes',
@@ -140,7 +133,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'cable-crunch',
-    image: '/exercises/cable-crunch.png',
     nameHe: 'כפיפות בטן בכבלים בכריעה עם חבל',
     nameEn: 'Cable Crunch',
     muscle: 'core',
@@ -154,7 +146,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'bulgarian-split-squat',
-    image: '/exercises/bulgarian-split-squat.jpg',
     nameHe: 'סקוואט בולגרי בדאמבלים',
     nameEn: 'Dumbbell Bulgarian Split Squat',
     muscle: 'quads',
@@ -173,7 +164,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'barbell-back-squat',
-    image: '/exercises/barbell-back-squat.jpg',
     nameHe: 'סקוואט עם מוט חופשי',
     nameEn: 'Barbell Back Squat',
     muscle: 'quads',
@@ -192,7 +182,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'leg-press-machine',
-    image: '/exercises/leg-press-machine.png',
     nameHe: 'לחיצת רגליים במכונה',
     nameEn: 'Leg Press Machine',
     muscle: 'quads',
@@ -211,7 +200,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'leg-extension-machine',
-    image: '/exercises/leg-extension-machine.jpg',
     nameHe: 'פשיטת ברכיים במכונה',
     nameEn: 'Leg Extension Machine',
     muscle: 'quads',
@@ -225,7 +213,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'standing-calf-raise-machine',
-    image: '/exercises/standing-calf-raise-machine.jpg',
     nameHe: 'הרמת עקבים בעמידה במכונה',
     nameEn: 'Standing Calf Raise',
     muscle: 'calves',
@@ -239,7 +226,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'hanging-leg-raise',
-    image: '/exercises/hanging-leg-raise.png',
     nameHe: 'הרמת רגליים בתלייה ממתח',
     nameEn: 'Hanging Leg Raise',
     muscle: 'core',
@@ -255,7 +241,6 @@ const RAW_EXERCISES: Exercise[] = [
   // ==================== CHEST ====================
   {
     id: 'bench-press-barbell',
-    image: '/exercises/bench-press-barbell.png',
     nameHe: 'לחיצת חזה כנגד מוט',
     nameEn: 'Barbell Bench Press',
     muscle: 'chest',
@@ -274,7 +259,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'bench-press-dumbbell',
-    image: '/exercises/bench-press-dumbbell.jpg',
     nameHe: 'לחיצת חזה כנגד משקולות יד',
     nameEn: 'Dumbbell Bench Press',
     muscle: 'chest',
@@ -292,7 +276,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'incline-bench-dumbbell',
-    image: '/exercises/incline-bench-dumbbell.png',
     nameHe: 'לחיצת חזה עליון במשקולות יד',
     nameEn: 'Incline Dumbbell Press',
     muscle: 'chest',
@@ -310,7 +293,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'chest-press-machine',
-    image: '/exercises/chest-press-machine.jpg',
     nameHe: 'לחיצת חזה במכונה בישיבה',
     nameEn: 'Machine Chest Press',
     muscle: 'chest',
@@ -324,7 +306,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'cable-chest-fly',
-    image: '/exercises/cable-chest-fly.jpg',
     nameHe: 'פרפר בכבלים (קרוסאובר)',
     nameEn: 'Cable Chest Fly',
     muscle: 'chest',
@@ -338,7 +319,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'pec-deck-machine',
-    image: '/exercises/pec-deck-machine.png',
     nameHe: 'פרפר במכונה (Pec Deck)',
     nameEn: 'Pec Deck Fly',
     muscle: 'chest',
@@ -354,7 +334,6 @@ const RAW_EXERCISES: Exercise[] = [
   // ==================== BACK ====================
   {
     id: 'barbell-row',
-    image: '/exercises/barbell-row.jpg',
     nameHe: 'חתירה בהטיית גו במוט',
     nameEn: 'Barbell Row',
     muscle: 'back',
@@ -373,7 +352,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'lat-pulldown-cable',
-    image: '/exercises/lat-pulldown-cable.jpg',
     nameHe: 'משיכת פולי עליון באחיזה רחבה',
     nameEn: 'Lat Pulldown',
     muscle: 'back',
@@ -387,7 +365,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'seated-cable-row',
-    image: '/exercises/seated-cable-row.jpg',
     nameHe: 'חתירה בפולי תחתון בישיבה',
     nameEn: 'Seated Cable Row',
     muscle: 'back',
@@ -401,7 +378,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'dumbbell-row-single-arm',
-    image: '/exercises/dumbbell-row-single-arm.jpg',
     nameHe: 'חתירה במשקולת יד יד-אחר-יד',
     nameEn: 'Single-Arm Dumbbell Row',
     muscle: 'back',
@@ -417,7 +393,6 @@ const RAW_EXERCISES: Exercise[] = [
   // ==================== SHOULDERS ====================
   {
     id: 'overhead-press-dumbbell',
-    image: '/exercises/overhead-press-dumbbell.jpg',
     nameHe: 'לחיצת כתפיים בישיבה עם דאמבלים',
     nameEn: 'Seated Dumbbell Shoulder Press',
     muscle: 'shoulders',
@@ -431,7 +406,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'lateral-raise-dumbbell',
-    image: '/exercises/lateral-raise-dumbbell.jpg',
     nameHe: 'הרחקת זרועות לצדדים עם דאמבלים',
     nameEn: 'Dumbbell Lateral Raise',
     muscle: 'shoulders',
@@ -458,7 +432,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'face-pull-cable',
-    image: '/exercises/face-pull-cable.jpg',
     nameHe: 'פייס-פול בכבלים עם חבל',
     nameEn: 'Cable Face Pull',
     muscle: 'shoulders',
@@ -474,7 +447,6 @@ const RAW_EXERCISES: Exercise[] = [
   // ==================== ARMS ====================
   {
     id: 'bicep-curl-barbell',
-    image: '/exercises/bicep-curl-barbell.png',
     nameHe: 'כפיפת מרפקים בעמידה במוט W',
     nameEn: 'Barbell / EZ Curl',
     muscle: 'biceps',
@@ -488,7 +460,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'hammer-curl-dumbbell',
-    image: '/exercises/hammer-curl-dumbbell.png',
     nameHe: 'כפיפת פטישים בדאמבלים',
     nameEn: 'Hammer Curl',
     muscle: 'biceps',
@@ -502,7 +473,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'tricep-pushdown-cable-rope',
-    image: '/exercises/tricep-pushdown-cable-rope.png',
     nameHe: 'פשיטת מרפקים בפולי עליון עם חבל',
     nameEn: 'Tricep Rope Pushdown',
     muscle: 'triceps',
@@ -516,7 +486,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'overhead-tricep-cable',
-    image: '/exercises/overhead-tricep-cable.gif',
     nameHe: 'פשיטת מרפקים מעל הראש בכבלים',
     nameEn: 'Overhead Cable Tricep Extension',
     muscle: 'triceps',
@@ -545,7 +514,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'romanian-deadlift-barbell',
-    image: '/exercises/romanian-deadlift-barbell.jpg',
     nameHe: 'דדליפט רומני במוט',
     nameEn: 'Barbell Romanian Deadlift',
     muscle: 'hamstrings',
@@ -559,7 +527,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'romanian-deadlift-dumbbell',
-    image: '/exercises/romanian-deadlift-dumbbell.jpg',
     nameHe: 'דדליפט רומני בדאמבלים',
     nameEn: 'Dumbbell Romanian Deadlift',
     muscle: 'hamstrings',
@@ -573,7 +540,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'smith-hip-thrust',
-    image: '/exercises/smith-hip-thrust.jpg',
     nameHe: 'היפ ת׳ראסט במכשיר סמית׳',
     nameEn: 'Smith Machine Hip Thrust',
     muscle: 'glutes',
@@ -587,7 +553,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'cable-glute-kickback',
-    image: '/exercises/cable-glute-kickback.jpg',
     nameHe: 'בעיטת ישבן אחורה בכבל',
     nameEn: 'Cable Glute Kickback',
     muscle: 'glutes',
@@ -601,7 +566,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'goblet-squat-dumbbell',
-    image: '/exercises/goblet-squat-dumbbell.jpg',
     nameHe: 'סקוואט גובלט עם דאמבל',
     nameEn: 'Goblet Squat',
     muscle: 'quads',
@@ -615,7 +579,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'walking-lunges-dumbbell',
-    image: '/exercises/walking-lunges-dumbbell.jpg',
     nameHe: 'לאנג׳ הליכה עם דאמבלים',
     nameEn: 'Walking Dumbbell Lunges',
     muscle: 'quads',
@@ -629,7 +592,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'hack-squat-machine',
-    image: '/exercises/hack-squat-machine.jpg',
     nameHe: 'הק סקוואט במכונה',
     nameEn: 'Hack Squat Machine',
     muscle: 'quads',
@@ -643,7 +605,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'smith-squat',
-    image: '/exercises/smith-squat.jpg',
     nameHe: 'סקוואט במכשיר סמית׳',
     nameEn: 'Smith Machine Squat',
     muscle: 'quads',
@@ -657,7 +618,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'leg-press-calf-raise',
-    image: '/exercises/leg-press-calf-raise.jpg',
     nameHe: 'הרמת עקבים במכונת לחיצת רגליים',
     nameEn: 'Leg Press Calf Raise',
     muscle: 'calves',
@@ -671,7 +631,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'seated-calf-raise-machine',
-    image: '/exercises/seated-calf-raise-machine.jpg',
     nameHe: 'הרמת עקבים בישיבה במכונה',
     nameEn: 'Seated Calf Raise',
     muscle: 'calves',
@@ -685,7 +644,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'ab-wheel-rollout',
-    image: '/exercises/ab-wheel-rollout.png',
     nameHe: 'גלגלת בטן (Ab Wheel)',
     nameEn: 'Ab Wheel Rollout',
     muscle: 'core',
@@ -699,7 +657,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'plank',
-    image: '/exercises/plank.png',
     nameHe: 'פלאנק (החזקת קרש)',
     nameEn: 'Plank',
     muscle: 'core',
@@ -715,7 +672,6 @@ const RAW_EXERCISES: Exercise[] = [
   // ==================== MORE CHEST ====================
   {
     id: 'dips-chest',
-    image: '/exercises/dips-chest.png',
     nameHe: 'מקבילים לחזה',
     nameEn: 'Chest Dips',
     muscle: 'chest',
@@ -729,7 +685,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'incline-bench-barbell',
-    image: '/exercises/incline-bench-barbell.jpg',
     nameHe: 'לחיצת חזה עליון במוט',
     nameEn: 'Incline Barbell Bench Press',
     muscle: 'chest',
@@ -743,7 +698,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'incline-chest-machine',
-    image: '/exercises/incline-chest-machine.png',
     nameHe: 'לחיצת חזה עליון במכונה',
     nameEn: 'Incline Chest Press Machine',
     muscle: 'chest',
@@ -757,7 +711,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'incline-smith-press',
-    image: '/exercises/incline-smith-press.png',
     nameHe: 'לחיצת חזה עליון במכשיר סמית׳',
     nameEn: 'Incline Smith Machine Press',
     muscle: 'chest',
@@ -771,7 +724,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'bench-press-smith',
-    image: '/exercises/bench-press-smith.png',
     nameHe: 'לחיצת חזה במכשיר סמית׳',
     nameEn: 'Smith Machine Bench Press',
     muscle: 'chest',
@@ -785,7 +737,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'dumbbell-fly',
-    image: '/exercises/dumbbell-fly.jpg',
     nameHe: 'פרפר חזה עם דאמבלים',
     nameEn: 'Dumbbell Fly',
     muscle: 'chest',
@@ -801,7 +752,6 @@ const RAW_EXERCISES: Exercise[] = [
   // ==================== MORE BACK ====================
   {
     id: 'pullups',
-    image: '/exercises/pullups.jpg',
     nameHe: 'מתח (אחיזה רחבה)',
     nameEn: 'Pull-Ups',
     muscle: 'back',
@@ -815,7 +765,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'lat-pulldown-close-grip',
-    image: '/exercises/lat-pulldown-close-grip.jpg',
     nameHe: 'משיכת פולי עליון באחיזה צרה',
     nameEn: 'Close-Grip Lat Pulldown',
     muscle: 'back',
@@ -829,7 +778,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'lat-pulldown-machine',
-    image: '/exercises/lat-pulldown-machine.jpg',
     nameHe: 'משיכה לחזה במכונה ייעודית',
     nameEn: 'Lat Pulldown Machine',
     muscle: 'back',
@@ -843,7 +791,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 't-bar-row',
-    image: '/exercises/t-bar-row.png',
     nameHe: 'חתירת טי-בר',
     nameEn: 'T-Bar Row',
     muscle: 'back',
@@ -857,7 +804,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'chest-supported-row-machine',
-    image: '/exercises/chest-supported-row-machine.jpg',
     nameHe: 'חתירה בתמיכת חזה במכונה',
     nameEn: 'Chest-Supported Row Machine',
     muscle: 'back',
@@ -873,7 +819,6 @@ const RAW_EXERCISES: Exercise[] = [
   // ==================== MORE SHOULDERS ====================
   {
     id: 'overhead-press-barbell',
-    image: '/exercises/overhead-press-barbell.png',
     nameHe: 'לחיצת כתפיים בעמידה עם מוט',
     nameEn: 'Standing Barbell Overhead Press',
     muscle: 'shoulders',
@@ -887,7 +832,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'shoulder-press-machine',
-    image: '/exercises/shoulder-press-machine.png',
     nameHe: 'לחיצת כתפיים במכונה',
     nameEn: 'Shoulder Press Machine',
     muscle: 'shoulders',
@@ -901,7 +845,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'lateral-raise-cable',
-    image: '/exercises/lateral-raise-cable.jpg',
     nameHe: 'הרחקת כתפיים לצד בכבל',
     nameEn: 'Cable Lateral Raise',
     muscle: 'shoulders',
@@ -915,7 +858,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'lateral-raise-machine',
-    image: '/exercises/lateral-raise-machine.jpg',
     nameHe: 'הרחקת כתפיים לצד במכונה',
     nameEn: 'Lateral Raise Machine',
     muscle: 'shoulders',
@@ -929,7 +871,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'rear-delt-fly-machine',
-    image: '/exercises/rear-delt-fly-machine.jpg',
     nameHe: 'פרפר אחורי לכתף במכונה',
     nameEn: 'Rear Delt Fly Machine',
     muscle: 'shoulders',
@@ -943,7 +884,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'rear-delt-fly-dumbbell',
-    image: '/exercises/rear-delt-fly-dumbbell.jpg',
     nameHe: 'פרפר אחורי לכתף עם דאמבלים',
     nameEn: 'Dumbbell Rear Delt Fly',
     muscle: 'shoulders',
@@ -959,7 +899,6 @@ const RAW_EXERCISES: Exercise[] = [
   // ==================== MORE ARMS ====================
   {
     id: 'bicep-curl-dumbbell',
-    image: '/exercises/bicep-curl-dumbbell.png',
     nameHe: 'כפיפת מרפקים עם דאמבלים',
     nameEn: 'Dumbbell Bicep Curl',
     muscle: 'biceps',
@@ -973,7 +912,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'bicep-curl-cable',
-    image: '/exercises/bicep-curl-cable.png',
     nameHe: 'כפיפת מרפקים בכבל',
     nameEn: 'Cable Bicep Curl',
     muscle: 'biceps',
@@ -987,7 +925,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'hammer-curl-cable-rope',
-    image: '/exercises/hammer-curl-cable-rope.png',
     nameHe: 'כפיפת פטיש בכבל עם חבל',
     nameEn: 'Cable Rope Hammer Curl',
     muscle: 'biceps',
@@ -1001,7 +938,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'tricep-pushdown-bar',
-    image: '/exercises/tricep-pushdown-bar.jpg',
     nameHe: 'פשיטת מרפקים בפולי עליון עם מוט',
     nameEn: 'Tricep Pushdown (Straight Bar)',
     muscle: 'triceps',
@@ -1015,7 +951,6 @@ const RAW_EXERCISES: Exercise[] = [
   },
   {
     id: 'skull-crushers-barbell',
-    image: '/exercises/skull-crushers-barbell.png',
     nameHe: 'לחיצת צרפתית (סקאל קראשר) במוט',
     nameEn: 'Barbell Skull Crushers',
     muscle: 'triceps',
@@ -1453,7 +1388,7 @@ const ADDITIONAL_EXERCISES: Exercise[] = [
     nameEn: 'Smith Machine Calf Raise',
     muscle: 'calves',
     secondaryMuscles: [],
-    equipment: 'machine',
+    equipment: 'smith',
     alternatives: ['standing-calf-raise-machine', 'seated-calf-raise-barbell', 'leg-press-calf-raise'],
     defaultSets: 4,
     defaultReps: 15,
@@ -1583,7 +1518,7 @@ const ADDITIONAL_EXERCISES: Exercise[] = [
     nameEn: 'Decline Smith Press',
     muscle: 'chest',
     secondaryMuscles: ['shoulders', 'triceps'],
-    equipment: 'machine',
+    equipment: 'smith',
     alternatives: ['bench-press-smith', 'decline-bench-press-barbell', 'decline-bench-press-dumbbell'],
     defaultSets: 3,
     defaultReps: 10,
@@ -2075,8 +2010,8 @@ const ADDITIONAL_EXERCISES: Exercise[] = [
     id: 'reverse-hyperextension-machine',
     nameHe: 'רברס היפראקסטנשן במכונה',
     nameEn: 'Reverse Hyperextension',
-    muscle: 'hamstrings',
-    secondaryMuscles: ['calves', 'glutes'],
+    muscle: 'glutes',
+    secondaryMuscles: ['hamstrings', 'lower_back'],
     equipment: 'machine',
     alternatives: ['good-morning-barbell', 'glute-ham-raise', 'romanian-deadlift-barbell'],
     defaultSets: 3,
@@ -2272,7 +2207,7 @@ const ADDITIONAL_EXERCISES: Exercise[] = [
     nameEn: 'Weighted Sissy Squat',
     muscle: 'quads',
     secondaryMuscles: ['calves', 'glutes', 'hamstrings'],
-    equipment: 'barbell',
+    equipment: 'other',
     alternatives: ['leg-extension-machine', 'leg-extension-single-leg-machine', 'front-squat-barbell'],
     defaultSets: 3,
     defaultReps: 10,
@@ -2311,7 +2246,7 @@ const ADDITIONAL_EXERCISES: Exercise[] = [
     nameEn: 'Smith Machine Leg Press',
     muscle: 'quads',
     secondaryMuscles: ['calves', 'glutes', 'hamstrings'],
-    equipment: 'machine',
+    equipment: 'smith',
     alternatives: ['leg-press-machine', 'smith-squat', 'hack-squat-machine'],
     defaultSets: 4,
     defaultReps: 10,
@@ -2363,7 +2298,7 @@ const ADDITIONAL_EXERCISES: Exercise[] = [
     nameEn: 'Chair Squat',
     muscle: 'quads',
     secondaryMuscles: ['calves', 'glutes', 'hamstrings'],
-    equipment: 'machine',
+    equipment: 'barbell',
     alternatives: ['barbell-back-squat', 'bodyweight-squat', 'box-squat-barbell'],
     defaultSets: 3,
     defaultReps: 10,
@@ -2506,7 +2441,7 @@ const ADDITIONAL_EXERCISES: Exercise[] = [
     nameEn: 'Smith Machine Overhead Shoulder Press',
     muscle: 'shoulders',
     secondaryMuscles: ['triceps'],
-    equipment: 'machine',
+    equipment: 'smith',
     alternatives: ['overhead-press-barbell', 'seated-overhead-press-barbell', 'shoulder-press-machine'],
     defaultSets: 3,
     defaultReps: 10,
@@ -2842,7 +2777,7 @@ const ADDITIONAL_EXERCISES: Exercise[] = [
 
 const ALL_RAW_EXERCISES: Exercise[] = [...RAW_EXERCISES, ...ADDITIONAL_EXERCISES];
 
-// תמונות אמיתיות (Free Exercise DB) מוחלפות אוטומטית לפי מזהה התרגיל
+// איורי התרגילים (public/exercises-v2) משובצים אוטומטית לפי מזהה התרגיל
 export const INITIAL_EXERCISES: Exercise[] = ALL_RAW_EXERCISES.map((ex) => {
   const images = EXERCISE_IMAGES[ex.id];
   return images ? { ...ex, image: images[0] } : ex;

@@ -635,16 +635,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {showDeleteAccount && onDeleteAccount && (
         <DeleteAccountModal onClose={() => setShowDeleteAccount(false)} onConfirm={onDeleteAccount} />
       )}
-
-      {/* Attribution for exercise images (CC-BY-SA) */}
-      <div className="ios-card" style={{ padding: '16px' }}>
-        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: 6 }}>קרדיטים</h3>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-          תמונות ההדגמה של התרגילים באפליקציה לקוחות מהמאגר הפתוח של{' '}
-          <a href="https://wger.de" target="_blank" rel="noreferrer" style={{ color: 'var(--color-blue)' }}>wger.de</a>
-          {' '}ומופצות תחת רישיון Creative Commons BY-SA. תודה לתורמים: 54str, AlucardEvil40, anto.kreegyr, ataraxie67, BFad07, benjamin.yildiz, carlos3c, clafal, cshep442, fabrice, flori, Franpol, lhegedus, nate303303, nishant0712, novadani, polloperro, roneydya, sebk, sistab2, Tierrasverdes, YYCfit ולצוות wger.de.
-        </p>
-      </div>
     </div>
   );
 };

@@ -131,9 +131,11 @@ export const ExerciseProfileView: React.FC<ExerciseProfileViewProps> = ({ exerci
                   inset: 0,
                   width: '100%',
                   height: '100%',
-                  objectFit: 'cover',
+                  // איורים מרובעים ושקופים - contain כדי לא לחתוך רגליים/בסיס מכשיר בתיבת 4:3
+                  objectFit: 'contain',
                   opacity: frame === i ? 1 : 0,
-                  transition: 'opacity 500ms ease',
+                  // מעבר קצר: בדעיכה ארוכה רואים את שתי התנוחות השקופות יחד
+                  transition: 'opacity 180ms ease',
                 }}
               />
             ))

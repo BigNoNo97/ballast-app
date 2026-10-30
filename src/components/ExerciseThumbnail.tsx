@@ -43,6 +43,8 @@ export const ExerciseThumbnail: React.FC<ExerciseThumbnailProps> = ({
           borderRadius: 12,
           overflow: 'hidden',
           border: '1px solid var(--border-subtle)',
+          // האיורים שקופים - רקע קבוע כדי שהתמונה הממוזערת תיראה זהה בכל מסך
+          background: 'var(--bg-surface-1)',
           flexShrink: 0,
           ...(clickProps.style || {}),
         }}

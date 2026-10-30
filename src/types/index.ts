@@ -34,7 +34,7 @@ export interface Exercise {
   defaultRestSec: number;
   tipsHe?: string;
   isCustom?: boolean;
-  image?: string; // תמונה אמיתית מהתרגיל (CC-BY-SA, קרדיט בהגדרות)
+  image?: string; // איור התרגיל (פריים ההתחלה מ-public/exercises-v2)
   isWarmup?: boolean; // תרגיל חימום כללי - לא מוצע ברשימת התרגילים הרגילה/בהחלפה
 }
 

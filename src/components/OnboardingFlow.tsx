@@ -217,23 +217,11 @@ const Footer: React.FC<{ onBack?: () => void; onContinue: () => void }> = ({ onB
 const WelcomeStep: React.FC<{ onStart: () => void; onSkip: () => void }> = ({ onStart, onSkip }) => (
   <>
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, textAlign: 'center' }}>
-      <div style={{ width: 84, height: 84, borderRadius: 22, overflow: 'hidden', marginBottom: 22, boxShadow: '0 6px 16px rgba(75,95,224,0.35)' }}>
-        <svg width="84" height="84" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <radialGradient id="onbBgGrad" cx="15%" cy="0%" r="140%">
-              <stop offset="0%" stopColor="#6E7CF5" />
-              <stop offset="46%" stopColor="#4B5FE0" />
-              <stop offset="100%" stopColor="#2E3AA8" />
-            </radialGradient>
-          </defs>
-          <rect x="0" y="0" width="1024" height="1024" fill="url(#onbBgGrad)" />
-          <g fill="#ffffff">
-            <path d="M 340,250 A 30,30 0 0 1 370,220 L 450,220 A 30,30 0 0 1 480,250 L 480,800 L 340,800 Z" />
-            <circle cx="550" cy="615" r="210" />
-          </g>
-          <circle cx="640" cy="615" r="100" fill="url(#onbBgGrad)" />
-        </svg>
-      </div>
+      <img
+        src="/art/onboarding-hero.webp"
+        alt=""
+        style={{ width: 'min(260px, 68vw)', aspectRatio: '1 / 1', objectFit: 'contain', marginBottom: 14 }}
+      />
       <div style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--text-main)', marginBottom: 10 }}>Ballast</div>
       <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 10 }}>בואו נכיר אותך</div>
       <div style={{ fontSize: '0.92rem', color: 'var(--text-muted)', lineHeight: 1.6, maxWidth: 280 }}>

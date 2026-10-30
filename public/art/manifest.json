@@ -1,0 +1,27 @@
+{
+  "onboarding-hero.webp": {
+    "description": "Onboarding welcome hero (1024x1024, transparent)",
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:35:47Z"
+  },
+  "premium-hero.webp": {
+    "description": "Premium paywall hero (1024x1024, transparent with halo glow)",
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:35:47Z"
+  },
+  "trainer-hero.webp": {
+    "description": "Trainer-mode hero (1024x1024, transparent)",
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:35:47Z"
+  },
+  "empty-coach-chat.webp": {
+    "description": "AI coach chat empty state (1024x1024, transparent)",
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:35:47Z"
+  },
+  "empty-workout-history.webp": {
+    "description": "Workout history empty state (1024x1024, transparent)",
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:35:47Z"
+  }
+}

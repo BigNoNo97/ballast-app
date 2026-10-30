@@ -1,0 +1,1032 @@
+{
+  "ab-wheel-rollout": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:29:15Z"
+  },
+  "arnold-press-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:18:17Z"
+  },
+  "around-the-world-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:58:30Z"
+  },
+  "back-extension-bench": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:26:00Z"
+  },
+  "barbell-back-squat": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:10:02Z"
+  },
+  "barbell-pullover": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:41:54Z"
+  },
+  "barbell-row": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:21:44Z"
+  },
+  "barbell-row-underhand": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:40:58Z"
+  },
+  "barbell-shrug": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:26:06Z"
+  },
+  "bench-dips": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:26:06Z"
+  },
+  "bench-press-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:10:02Z"
+  },
+  "bench-press-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:19:26Z"
+  },
+  "bench-press-neutral-grip-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:55:11Z"
+  },
+  "bench-press-single-arm-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:55:11Z"
+  },
+  "bench-press-smith": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:34:10Z"
+  },
+  "bench-press-wide-grip-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:55:11Z"
+  },
+  "bent-over-cable-lateral-raise": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:20:51Z"
+  },
+  "bent-over-row-dumbbell-both-arms": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:41:54Z"
+  },
+  "bicep-curl-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:23:31Z"
+  },
+  "bicep-curl-cable": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:36:34Z"
+  },
+  "bicep-curl-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:36:34Z"
+  },
+  "bicep-curl-straight-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:44:03Z"
+  },
+  "bicep-curl-wide-grip-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:50:53Z"
+  },
+  "bicycle-crunch": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:02:04Z"
+  },
+  "bodyweight-squat": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:12:57Z"
+  },
+  "box-squat-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:32:19Z"
+  },
+  "bulgarian-split-squat": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:32:19Z"
+  },
+  "cable-chest-fly": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:21:44Z"
+  },
+  "cable-crossover": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:54:38Z"
+  },
+  "cable-crunch": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:17:12Z"
+  },
+  "cable-glute-kickback": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:27:32Z"
+  },
+  "cable-pull-through": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:06:14Z"
+  },
+  "cable-shrug": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:26:06Z"
+  },
+  "cable-woodchop-standing": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:02:38Z"
+  },
+  "calf-press-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:52:08Z"
+  },
+  "chair-squat-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:18:17Z"
+  },
+  "chest-press-cable-standing": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:57:15Z"
+  },
+  "chest-press-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:21:44Z"
+  },
+  "chest-press-machine-plate-loaded": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:59:00Z"
+  },
+  "chest-supported-row-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:33:21Z"
+  },
+  "chin-up": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:38:27Z"
+  },
+  "clean-and-press-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:32:19Z"
+  },
+  "clean-shrug-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:28:06Z"
+  },
+  "close-grip-bench-press-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:26:06Z"
+  },
+  "close-grip-press-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:30:24Z"
+  },
+  "concentration-curl-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:44:35Z"
+  },
+  "crunches": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:59:00Z"
+  },
+  "dead-bug": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:00:54Z"
+  },
+  "deadlift-conventional": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:17:12Z"
+  },
+  "deadlift-trap-bar": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:26:00Z"
+  },
+  "decline-bench-press-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:53:25Z"
+  },
+  "decline-bench-press-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:53:25Z"
+  },
+  "decline-bench-press-smith": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:54:38Z"
+  },
+  "decline-crunch": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:26:00Z"
+  },
+  "decline-dumbbell-fly": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:58:30Z"
+  },
+  "decline-pushup-feet-elevated": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:55:11Z"
+  },
+  "deficit-deadlift": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:11:54Z"
+  },
+  "diamond-pushup": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:29:17Z"
+  },
+  "dip-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:31:39Z"
+  },
+  "dips-chest": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:29:15Z"
+  },
+  "drag-curl-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:49:42Z"
+  },
+  "dumbbell-fly": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:31:13Z"
+  },
+  "dumbbell-pullover": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:57:15Z"
+  },
+  "dumbbell-raise-to-chin": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:24:28Z"
+  },
+  "dumbbell-row-single-arm": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:22:58Z"
+  },
+  "dumbbell-shrug": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:26:06Z"
+  },
+  "elevated-reverse-lunge-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:32:19Z"
+  },
+  "elevated-seated-cable-row": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:44:03Z"
+  },
+  "external-rotation-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:20:51Z"
+  },
+  "face-pull-cable": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:23:31Z"
+  },
+  "floor-press-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:26:00Z"
+  },
+  "flutter-kicks": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:06:14Z"
+  },
+  "front-raise-cable": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:22:02Z"
+  },
+  "front-raise-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:22:02Z"
+  },
+  "front-squat-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:32:19Z"
+  },
+  "glute-bridge-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:04:39Z"
+  },
+  "glute-bridge-bodyweight": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:06:14Z"
+  },
+  "glute-bridge-single-leg": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:05:41Z"
+  },
+  "glute-ham-raise": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:09:26Z"
+  },
+  "glute-kickback-bodyweight": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:06:14Z"
+  },
+  "goblet-squat-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:26:19Z"
+  },
+  "good-morning-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:06:14Z"
+  },
+  "hack-squat-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:27:32Z"
+  },
+  "hammer-curl-cable-rope": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:36:34Z"
+  },
+  "hammer-curl-cross-body": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:49:42Z"
+  },
+  "hammer-curl-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:23:31Z"
+  },
+  "handstand-pushup": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:24:28Z"
+  },
+  "hanging-leg-raise": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:19:26Z"
+  },
+  "hanging-pike": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:02:04Z"
+  },
+  "heel-touchers": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:26:00Z"
+  },
+  "high-cable-curl": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:47:58Z"
+  },
+  "high-row-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:40:58Z"
+  },
+  "hip-abduction-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:18:11Z"
+  },
+  "hip-adduction-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:17:12Z"
+  },
+  "hip-thrust-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:19:26Z"
+  },
+  "hip-thrust-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:19:26Z"
+  },
+  "incline-bench-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:30:43Z"
+  },
+  "incline-bench-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:20:33Z"
+  },
+  "incline-bench-row-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:44:35Z"
+  },
+  "incline-chest-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:29:15Z"
+  },
+  "incline-curl-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:45:57Z"
+  },
+  "incline-pushup": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:55:11Z"
+  },
+  "incline-row-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:39:49Z"
+  },
+  "incline-smith-press": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:29:15Z"
+  },
+  "iso-row-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:40:58Z"
+  },
+  "jm-press-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:31:39Z"
+  },
+  "jump-squat-bodyweight": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:26:00Z"
+  },
+  "kettlebell-press-alternating": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:24:28Z"
+  },
+  "kettlebell-row-double-arm": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:44:35Z"
+  },
+  "kettlebell-row-single-arm": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:42:56Z"
+  },
+  "kettlebell-sumo-high-pull": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:28:06Z"
+  },
+  "kneeling-single-arm-cable-row": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:44:03Z"
+  },
+  "landmine-180": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:02:04Z"
+  },
+  "lat-pulldown-cable": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:10:02Z"
+  },
+  "lat-pulldown-close-grip": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:31:13Z"
+  },
+  "lat-pulldown-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:33:21Z"
+  },
+  "lat-pulldown-underhand": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:42:56Z"
+  },
+  "lat-pulldown-v-bar": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:40:58Z"
+  },
+  "lateral-raise-cable": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:35:31Z"
+  },
+  "lateral-raise-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:22:58Z"
+  },
+  "lateral-raise-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:34:29Z"
+  },
+  "leg-extension-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:17:12Z"
+  },
+  "leg-extension-single-leg-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:17:00Z"
+  },
+  "leg-press-calf-raise": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:28:43Z"
+  },
+  "leg-press-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:19:26Z"
+  },
+  "leg-press-narrow-stance": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:14:48Z"
+  },
+  "leg-press-smith": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:17:00Z"
+  },
+  "lu-raise": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:37:36Z"
+  },
+  "lunge-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:32:19Z"
+  },
+  "lying-leg-curl-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:33:07Z"
+  },
+  "lying-leg-raise-bench": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:02:38Z"
+  },
+  "nordic-hamstring-curl": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:09:26Z"
+  },
+  "overhead-press-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:34:29Z"
+  },
+  "overhead-press-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:21:44Z"
+  },
+  "overhead-press-smith": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:23:08Z"
+  },
+  "overhead-tricep-cable": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:23:31Z"
+  },
+  "pallof-press-cable": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:02:04Z"
+  },
+  "pec-deck-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:21:44Z"
+  },
+  "plank": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:28:43Z"
+  },
+  "power-clean": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:09:59Z"
+  },
+  "preacher-curl-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:44:35Z"
+  },
+  "preacher-curl-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:45:57Z"
+  },
+  "pullups": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:31:13Z"
+  },
+  "push-press-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:18:48Z"
+  },
+  "pushup-wide-grip": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:26:00Z"
+  },
+  "pushups": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:53:25Z"
+  },
+  "rack-pulls": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:11:54Z"
+  },
+  "rear-delt-fly-cable": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:20:51Z"
+  },
+  "rear-delt-fly-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:35:31Z"
+  },
+  "rear-delt-fly-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:34:10Z"
+  },
+  "renegade-row": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:44:03Z"
+  },
+  "reverse-crunch": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:59:00Z"
+  },
+  "reverse-curl-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:49:42Z"
+  },
+  "reverse-hyperextension-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:09:59Z"
+  },
+  "reverse-lunge-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:32:19Z"
+  },
+  "romanian-deadlift-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:26:19Z"
+  },
+  "romanian-deadlift-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:25:15Z"
+  },
+  "rope-crunch-cable": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:05:41Z"
+  },
+  "russian-twist": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:58:30Z"
+  },
+  "scaption-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:23:08Z"
+  },
+  "seated-cable-crunch": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:04:39Z"
+  },
+  "seated-cable-row": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:22:58Z"
+  },
+  "seated-calf-raise-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:50:53Z"
+  },
+  "seated-calf-raise-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:28:43Z"
+  },
+  "seated-calf-raise-single-leg-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:53:25Z"
+  },
+  "seated-dumbbell-curl": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:47:58Z"
+  },
+  "seated-lateral-raise-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:23:08Z"
+  },
+  "seated-leg-curl-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:17:12Z"
+  },
+  "seated-overhead-press-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:22:02Z"
+  },
+  "shoulder-press-cable-standing": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:24:28Z"
+  },
+  "shoulder-press-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:35:31Z"
+  },
+  "side-plank": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:02:38Z"
+  },
+  "single-arm-cable-curl": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:50:53Z"
+  },
+  "single-arm-overhead-triceps-extension-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:31:39Z"
+  },
+  "single-leg-deadlift-kettlebell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:32:19Z"
+  },
+  "sissy-squat-weighted": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:14:48Z"
+  },
+  "sit-up": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:59:00Z"
+  },
+  "skull-crushers-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:38:27Z"
+  },
+  "smith-hip-thrust": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:25:15Z"
+  },
+  "smith-squat": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:27:32Z"
+  },
+  "spider-curl": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:47:58Z"
+  },
+  "squat-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:14:48Z"
+  },
+  "standing-calf-raise-barbell-2": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:52:08Z"
+  },
+  "standing-calf-raise-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:50:53Z"
+  },
+  "standing-calf-raise-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:18:11Z"
+  },
+  "standing-calf-raise-smith": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:52:08Z"
+  },
+  "standing-leg-curl-machine": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:09:59Z"
+  },
+  "standing-overhead-triceps-extension-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:30:24Z"
+  },
+  "standing-overhead-triceps-extension-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:33:07Z"
+  },
+  "step-up-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:14:48Z"
+  },
+  "step-up-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:26:00Z"
+  },
+  "step-up-knee-raise": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:26:00Z"
+  },
+  "stiff-leg-deadlift-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:09:26Z"
+  },
+  "straight-arm-pulldown-cable": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:39:49Z"
+  },
+  "sumo-deadlift": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T12:32:19Z"
+  },
+  "sumo-squat-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:18:17Z"
+  },
+  "sumo-stiff-leg-deadlift": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:09:59Z"
+  },
+  "t-bar-row": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:33:21Z"
+  },
+  "tate-press-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:30:24Z"
+  },
+  "tricep-pushdown-bar": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:38:27Z"
+  },
+  "tricep-pushdown-cable-rope": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:23:31Z"
+  },
+  "tricep-pushdown-reverse-grip-cable": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:31:39Z"
+  },
+  "triceps-dips-bodyweight": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:26:06Z"
+  },
+  "upright-row-barbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T11:18:48Z"
+  },
+  "walking-lunges-dumbbell": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:26:19Z"
+  },
+  "zottman-curl": {
+    "frames": 2,
+    "model": "higgsfield/gpt_image_2_5 (high, style B)",
+    "createdAt": "2026-10-30T10:45:57Z"
+  }
+}

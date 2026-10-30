@@ -194,6 +194,11 @@ export const AiCoachView: React.FC<Props> = ({ settings, onUpdateSettings, onClo
           <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {messages.length === 0 && !busy && (
               <div style={{ margin: 'auto 0', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'stretch' }}>
+                <img
+                  src="/art/empty-coach-chat.webp"
+                  alt=""
+                  style={{ width: 120, height: 120, objectFit: 'contain', alignSelf: 'center' }}
+                />
                 <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: 6 }}>
                   שאל כל דבר על אימונים, תזונה והתקדמות.
                   {settings.aiCoachShareData !== false && ' אני רואה את התוכנית, האימונים והתזונה שלך.'}

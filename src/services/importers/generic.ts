@@ -14,6 +14,8 @@ export interface RawSet {
 
 export interface RawExercise {
   name: string;
+  /** השם כפי שנכתב במקור (למשל בעברית במחברת) - לתרגיל אישי כשאין התאמה במאגר */
+  displayName?: string;
   notes?: string;
   sets: RawSet[];
 }
@@ -310,7 +312,7 @@ export function buildImport(source: string, raw: RawWorkout[], library: Exercise
   let cardioCount = 0;
   let entryCount = 0;
 
-  const resolve = (name: string): string => {
+  const resolve = (name: string, displayName?: string): string => {
     const hit = matchExercise(name, library);
     if (hit) {
       mappedNames.add(name);
@@ -321,7 +323,7 @@ export function buildImport(source: string, raw: RawWorkout[], library: Exercise
       unknownNames.push(name);
       customExercises.set(id, {
         id,
-        nameHe: name,
+        nameHe: displayName || name,
         nameEn: name,
         muscle: guessMuscleFromName(name),
         equipment: guessEquipmentFromName(name),
@@ -353,7 +355,7 @@ export function buildImport(source: string, raw: RawWorkout[], library: Exercise
         cardioNotes.push([rx.name, sec ? formatSeconds(sec) : '', km ? `${Math.round(km * 100) / 100} ק״מ` : ''].filter(Boolean).join(' '));
         return;
       }
-      const exerciseId = resolve(rx.name);
+      const exerciseId = resolve(rx.name, rx.displayName);
       const warm = sets.filter((s) => s.kind === 'warmup');
       const work = sets.filter((s) => s.kind !== 'warmup');
       const base = `${prefix}-${w.key}-${exIdx}`;

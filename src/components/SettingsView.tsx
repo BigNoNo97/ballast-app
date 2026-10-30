@@ -24,6 +24,7 @@ import { UserSettings } from '../types';
 import { StorageService } from '../services/storage';
 import { AppleHealthService } from '../services/appleHealthService';
 import { parseExternalExport } from '../services/importers';
+import { AiImportSheet } from './AiImportSheet';
 import { BodyAreaPicker } from './BodyAreaPicker';
 import { DeleteAccountModal } from './ProfileView';
 import { MUSCLE_GROUP_LABELS } from '../data/exercises';
@@ -62,6 +63,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [externalBusy, setExternalBusy] = useState(false);
   const [externalStatus, setExternalStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [showAiImport, setShowAiImport] = useState(false);
   const [healthBusy, setHealthBusy] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
 
@@ -456,6 +458,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {externalBusy ? <Loader2 size={16} className="spin" /> : <FileArchive size={16} />}
           ייבוא מ-Strong, Hevy או Planfit
         </button>
+        <button className="btn-secondary" style={{ width: '100%', marginBottom: 12 }} onClick={() => setShowAiImport(true)}>
+          <Sparkles size={16} />
+          ייבוא מצילום מחברת או טקסט (AI)
+        </button>
+        {showAiImport && (
+          <AiImportSheet
+            onClose={() => setShowAiImport(false)}
+            onImported={(text) => {
+              setShowAiImport(false);
+              onDataImported?.();
+              setExternalStatus({ ok: true, text });
+            }}
+          />
+        )}
         <input
           type="file"
           ref={externalInputRef}

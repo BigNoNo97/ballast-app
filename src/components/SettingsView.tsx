@@ -297,6 +297,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
 
+        {/* מקלדת האימון של האפליקציה */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Smartphone size={18} color="var(--color-blue)" />
+            <div>
+              <span style={{ fontSize: '0.9rem', fontWeight: 600, display: 'block' }}>מקלדת אימון מהירה</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>מקשים גדולים, ± ו-✓ במקום המקלדת של הטלפון</span>
+            </div>
+          </div>
+          <button
+            className="btn-secondary"
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              background: settings.fastKeypad !== false ? 'rgba(110, 124, 245, 0.15)' : 'var(--bg-surface-2)',
+              color: settings.fastKeypad !== false ? 'var(--color-blue)' : 'var(--text-muted)',
+              border: '1px solid var(--border-subtle)',
+              fontWeight: 700,
+            }}
+            onClick={() => onUpdateSettings({ ...settings, fastKeypad: settings.fastKeypad === false })}
+          >
+            {settings.fastKeypad !== false ? 'פעיל ✓' : 'כבוי'}
+          </button>
+        </div>
+
         {/* Sound Toggle */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

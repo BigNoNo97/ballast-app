@@ -919,6 +919,7 @@ export const App: React.FC = () => {
               onDisableAutoTimer={() => handleUpdateSettings({ ...settings, autoRestTimerEnabled: false })}
               plateSetup={settings.plateSetup}
               onSavePlateSetup={(plateSetup) => handleUpdateSettings({ ...settings, plateSetup })}
+              fastKeypad={settings.fastKeypad !== false}
               onOpenExerciseProfile={setViewingExerciseId}
             />
           ) : previewingDay && activeRoutine ? (

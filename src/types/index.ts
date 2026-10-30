@@ -237,6 +237,7 @@ export interface UserSettings {
   aiCoachShareData?: boolean; // undefined/true = לצרף את נתוני האפליקציה לשאלות, false = רק את השאלה
   // ===== מחשבון פלטות =====
   plateSetup?: { barKg: number; plates: number[] }; // המוט והפלטות שיש במכון
+  fastKeypad?: boolean; // מקלדת האימון של האפליקציה במקום מקלדת המכשיר (undefined = פעילה)
 }
 
 export type JointArea = 'shoulder' | 'elbow' | 'wrist' | 'neck' | 'lower_back' | 'hip' | 'knee' | 'ankle';

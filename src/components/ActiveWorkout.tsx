@@ -39,6 +39,7 @@ import { ExerciseSwapModal } from './ExerciseSwapModal';
 import { PlateCalculatorSheet } from './PlateCalculatorSheet';
 import { DEFAULT_BAR_KG, DEFAULT_PLATES_KG, type PlateSetup } from '../services/plateMath';
 import { warmupSets } from '../services/warmup';
+import { WorkoutKeypad, applyKeypadKey, type KeypadKey } from './WorkoutKeypad';
 import { RestTimerModal } from './RestTimerModal';
 import { ExerciseThumbnail } from './ExerciseThumbnail';
 import { triggerHaptic } from '../services/sound';
@@ -51,6 +52,7 @@ const SWIPE_OPEN_THRESHOLD = 40;
 // התווית "קודם: X" יושבת בתוך התיבה (absolute) כדי שהופעתה לא תשנה את גובה השורה.
 // הריפוד העליון המוגדל קבוע לכל התיבות, כך שהמספר לא קופץ כשהתווית מופיעה/נעלמת.
 const setInputStyle: React.CSSProperties = { paddingTop: 12, paddingBottom: 4 };
+type PadField = 'weightKg' | 'reps';
 
 // לחיצה על תיבה מסמנת את כל המספר, כך שהקלדה מחליפה אותו מיד. ב-iOS הנגיעה עצמה ממקמת
 // סמן אחרי ה-focus ומבטלת את הסימון, לכן מסמנים שוב רגע אחרי שהנגיעה הסתיימה.
@@ -86,6 +88,8 @@ interface ActiveWorkoutProps {
   /** המוט והפלטות שיש במכון של המשתמש - נשמר בהגדרות */
   plateSetup?: PlateSetup;
   onSavePlateSetup?: (setup: PlateSetup) => void;
+  /** מקלדת המספרים של האפליקציה במקום המקלדת של המכשיר (ברירת מחדל: כן) */
+  fastKeypad?: boolean;
 }
 
 /** תרגילים שמעמיסים עליהם פלטות: מוט חופשי, סמית' ומכונות עם פלטות */
@@ -111,8 +115,10 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   onOpenExerciseProfile,
   plateSetup,
   onSavePlateSetup,
+  fastKeypad = true,
 }) => {
   const [plateSetIdx, setPlateSetIdx] = useState<number | null>(null);
+  const [pad, setPad] = useState<{ setIdx: number; field: PadField; text: string; fresh: boolean } | null>(null);
   const [elapsedSec, setElapsedSec] = useState(() => computeElapsedSec(workout));
   const isTimerPaused = workout.pausedAt != null;
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -687,6 +693,10 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   };
 
   // Guard if no exercises
+  // מעבר תרגיל (ידני או אוטומטי אחרי הסט האחרון) סוגר את מקלדת האימון.
+  // לפני ה-return המוקדם של אימון ריק - hooks חייבים לרוץ באותו סדר בכל רינדור
+  useEffect(() => setPad(null), [currentExerciseIndex, workout.exercises.length]);
+
   if (workout.exercises.length === 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -734,7 +744,105 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   const currentWorkoutEx = workout.exercises[safeCurrentIndex];
   const currentExData = exerciseMap.get(currentWorkoutEx?.exerciseId);
 
+
   const completedExercisesCount = workout.exercises.filter((e) => isExerciseFullyCompleted(e)).length;
+
+  // ===== מקלדת האימון =====
+  // השדה הפעיל בתרגיל הנוכחי. text = מה שהוקלד (כולל "80." באמצע הקלדה, שאי אפשר לשמור כמספר);
+  // fresh = עוד לא הוקלד כלום מאז שהשדה נפתח - הלחיצה הראשונה מחליפה את הערך במקום להוסיף לו
+  const openPad = (setIdx: number, field: PadField) => {
+    const s = currentWorkoutEx?.sets[setIdx];
+    if (!s) return;
+    setPad({ setIdx, field, text: s[field] ? String(s[field]) : '', fresh: true });
+  };
+  const padSet = pad && currentWorkoutEx ? currentWorkoutEx.sets[pad.setIdx] : undefined;
+  const padIsWeight = pad?.field === 'weightKg';
+  const padStepSize = padIsWeight && currentExData ? getWeightIncrement(currentExData.muscle) : 1;
+
+  const handlePadKey = (key: KeypadKey) => {
+    if (!pad) return;
+    const next = applyKeypadKey(pad.text, key, pad.fresh, padIsWeight, padIsWeight ? 500 : 999);
+    if (next === null) return;
+    setPad({ ...pad, text: next, fresh: false });
+    handleUpdateSet(safeCurrentIndex, pad.setIdx, pad.field, padIsWeight ? parseFloat(next) || 0 : parseInt(next, 10) || 0);
+  };
+  const handlePadStep = (direction: 1 | -1) => {
+    if (!pad || !padSet) return;
+    // שדה ריק: מתחילים ממה שהיה בפעם הקודמת (הערך שמוצג כ-placeholder)
+    const base = padSet[pad.field] || (padIsWeight ? padSet.previousWeight : padSet.previousReps) || 0;
+    const value = Math.max(0, Math.round((base + direction * padStepSize) * 100) / 100);
+    handleUpdateSet(safeCurrentIndex, pad.setIdx, pad.field, value);
+    setPad({ ...pad, text: String(value), fresh: true });
+    triggerHaptic(10);
+  };
+  const handlePadNext = () => {
+    if (!pad || !currentWorkoutEx) return;
+    if (pad.field === 'weightKg') openPad(pad.setIdx, 'reps');
+    else if (pad.setIdx + 1 < currentWorkoutEx.sets.length) openPad(pad.setIdx + 1, 'weightKg');
+    else setPad(null);
+  };
+  const handlePadComplete = () => {
+    if (!pad || !padSet || !currentWorkoutEx) return;
+    const nextOpen = currentWorkoutEx.sets.findIndex((s, i) => i > pad.setIdx && !s.completed);
+    if (!padSet.completed) handleToggleSetComplete(safeCurrentIndex, pad.setIdx);
+    if (nextOpen >= 0) openPad(nextOpen, 'weightKg');
+    else setPad(null);
+  };
+  // שדה משקל/חזרות. במצב מקלדת האימון זה כפתור שנראה כמו שדה - בלי פוקוס, בלי מקלדת של המכשיר,
+  // ובלי סרגל "סיום" של iOS. בלי המקלדת המהירה - שדה מספר רגיל כמו קודם
+  const renderSetField = (setIdx: number, field: PadField, stored: number, previous: number | undefined) => {
+    const isWeight = field === 'weightKg';
+    if (!fastKeypad) {
+      return (
+        <input
+          type="number"
+          step={isWeight ? '0.5' : undefined}
+          min="0"
+          max={isWeight ? '500' : '999'}
+          inputMode={isWeight ? 'decimal' : 'numeric'}
+          className="gym-input-box"
+          style={setInputStyle}
+          onFocus={selectAllOnFocus}
+          value={stored === 0 ? '' : stored}
+          placeholder={previous ? `${previous}` : '0'}
+          onChange={(e) =>
+            handleUpdateSet(
+              safeCurrentIndex,
+              setIdx,
+              field,
+              isWeight
+                ? Math.min(500, Math.max(0, parseFloat(e.target.value) || 0))
+                : Math.min(999, Math.max(0, parseInt(e.target.value, 10) || 0))
+            )
+          }
+        />
+      );
+    }
+    const active = pad?.setIdx === setIdx && pad.field === field;
+    const shown = active ? pad.text : stored === 0 ? '' : String(stored);
+    return (
+      <button
+        type="button"
+        className="gym-input-box"
+        aria-label={`${isWeight ? 'משקל' : 'חזרות'} בסט ${setIdx + 1}`}
+        style={{
+          ...setInputStyle,
+          minHeight: 44,
+          cursor: 'pointer',
+          ...(active ? { borderColor: 'var(--color-blue)', background: 'var(--bg-surface-3)', boxShadow: '0 0 0 1px var(--color-blue)' } : {}),
+        }}
+        onClick={(e) => {
+          const el = e.currentTarget;
+          el.blur(); // בלי מסגרת :focus שנשארת אחרי שהמקלדת נסגרת
+          openPad(setIdx, field);
+          // השורה באמצע המסך, מעל המקלדת
+          setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 60);
+        }}
+      >
+        {shown || <span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>{previous || 0}</span>}
+      </button>
+    );
+  };
 
   // הסט ה"פתוח" = הסט הראשון שלא סומן בתרגיל הנוכחי - עליו פועל הכפתור הגדול "סמן כבוצע".
   // המעבר לסט הבא הוא טבעי (הסט שאחריו הופך לפתוח), והמעבר לתרגיל הבא כשהתרגיל
@@ -1251,26 +1359,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                     {!!s.autoFilledFromWeight && (
                       <div style={setInputHintStyle}>קודם: {s.autoFilledFromWeight}</div>
                     )}
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      max="500"
-                      inputMode="decimal"
-                      className="gym-input-box"
-                      style={setInputStyle}
-                      onFocus={selectAllOnFocus}
-                      value={s.weightKg === 0 ? '' : s.weightKg}
-                      placeholder={s.previousWeight ? `${s.previousWeight}` : '0'}
-                      onChange={(e) =>
-                        handleUpdateSet(
-                          safeCurrentIndex,
-                          setIdx,
-                          'weightKg',
-                          Math.min(500, Math.max(0, parseFloat(e.target.value) || 0))
-                        )
-                      }
-                    />
+                    {renderSetField(setIdx, 'weightKg', s.weightKg, s.previousWeight)}
                   </div>
 
                   {/* Reps Input */}
@@ -1278,25 +1367,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                     {!!s.autoFilledFromReps && (
                       <div style={setInputHintStyle}>קודם: {s.autoFilledFromReps}</div>
                     )}
-                    <input
-                      type="number"
-                      min="0"
-                      max="999"
-                      inputMode="numeric"
-                      className="gym-input-box"
-                      style={setInputStyle}
-                      onFocus={selectAllOnFocus}
-                      value={s.reps === 0 ? '' : s.reps}
-                      placeholder={s.previousReps ? `${s.previousReps}` : '0'}
-                      onChange={(e) =>
-                        handleUpdateSet(
-                          safeCurrentIndex,
-                          setIdx,
-                          'reps',
-                          Math.min(999, Math.max(0, parseInt(e.target.value, 10) || 0))
-                        )
-                      }
-                    />
+                    {renderSetField(setIdx, 'reps', s.reps, s.previousReps)}
                   </div>
 
                   {/* Checkmark Button */}
@@ -1458,6 +1529,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
             </button>
           </div>
         </div>
+        {pad && <div style={{ height: 300 }} />}
       </div>
 
       {/* Mid-Workout Overview & Reorder Sheet (≡ רשימת תרגילים) */}
@@ -1918,6 +1990,29 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
           </div>
         );
       })()}
+
+      {pad && padSet && (
+        <WorkoutKeypad
+          label={`סט ${padSet.setNumber} · ${padIsWeight ? 'משקל (ק״ג)' : 'חזרות'}`}
+          value={pad.text}
+          isWeight={padIsWeight}
+          onKey={handlePadKey}
+          onStep={handlePadStep}
+          stepLabel={padIsWeight ? `${padStepSize}` : '1'}
+          onNext={handlePadNext}
+          nextLabel={padIsWeight ? 'לחזרות' : 'סט הבא'}
+          onComplete={handlePadComplete}
+          onClose={() => setPad(null)}
+          onPlates={
+            currentExData && usesPlates(currentExData)
+              ? () => {
+                  setPlateSetIdx(pad.setIdx);
+                  setPad(null);
+                }
+              : undefined
+          }
+        />
+      )}
 
       {/* מחשבון פלטות לסט הנוכחי */}
       {plateSetIdx !== null && currentWorkoutEx && currentWorkoutEx.sets[plateSetIdx] && (

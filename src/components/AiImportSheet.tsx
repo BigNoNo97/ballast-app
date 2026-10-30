@@ -154,6 +154,9 @@ export const AiImportSheet: React.FC<AiImportSheetProps> = ({ onClose, onImporte
                         {' '}
                         {x.sets.map((s) => (s.weightKg ? `${s.weightKg}×${s.reps}` : `${s.reps}`)).join(', ')}
                       </span>
+                      {!!x.warmupSets?.length && (
+                        <span style={{ color: 'var(--color-orange)', fontWeight: 600 }}> · {x.warmupSets.length} חימום</span>
+                      )}
                     </div>
                   ))}
                 </div>

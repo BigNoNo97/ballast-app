@@ -37,7 +37,7 @@ export const MuscleBodyMap: React.FC<MuscleBodyMapProps> = ({ primaryMuscle, sec
   }
 
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'center' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
         <Model
           type="anterior"
@@ -58,7 +58,8 @@ export const MuscleBodyMap: React.FC<MuscleBodyMapProps> = ({ primaryMuscle, sec
         />
         <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', fontWeight: 600 }}>אחורי</span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center', flex: 1, minWidth: 0 }}>
+      {/* מקרא בשורה משלו מתחת לשתי הדמויות - לצידן אין מספיק רוחב באייפון והטקסט נחתך */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', justifyContent: 'center', flexBasis: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ width: 12, height: 12, borderRadius: 4, background: 'var(--color-blue)', flexShrink: 0 }} />
           <span style={{ fontSize: '0.78rem', color: 'var(--text-main)', fontWeight: 600 }}>שריר עיקרי</span>

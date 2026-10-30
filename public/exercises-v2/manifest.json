@@ -2,7 +2,7 @@
   "ab-wheel-rollout": {
     "frames": 2,
     "model": "higgsfield/gpt_image_2_5 (high, style B)",
-    "createdAt": "2026-10-30T10:29:15Z"
+    "createdAt": "2026-10-30T15:35:00Z"
   },
   "arnold-press-dumbbell": {
     "frames": 2,
@@ -282,7 +282,7 @@
   "deficit-deadlift": {
     "frames": 2,
     "model": "higgsfield/gpt_image_2_5 (high, style B)",
-    "createdAt": "2026-10-30T11:11:54Z"
+    "createdAt": "2026-10-30T15:35:00Z"
   },
   "diamond-pushup": {
     "frames": 2,
@@ -732,7 +732,7 @@
   "rack-pulls": {
     "frames": 2,
     "model": "higgsfield/gpt_image_2_5 (high, style B)",
-    "createdAt": "2026-10-30T11:11:54Z"
+    "createdAt": "2026-10-30T15:35:00Z"
   },
   "rear-delt-fly-cable": {
     "frames": 2,

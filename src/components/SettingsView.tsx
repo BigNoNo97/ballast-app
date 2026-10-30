@@ -124,7 +124,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     reader.readAsText(file);
   };
 
-  // ייבוא מאפליקציה אחרת (Planfit): מציגים קודם מה נמצא בקובץ, ומייבאים רק אחרי אישור
+  // ייבוא מאפליקציה אחרת (Planfit / Strong / Hevy): מציגים קודם מה נמצא בקובץ, ומייבאים רק אחרי אישור
   const handleExternalSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = Array.from(e.target.files || []);
     e.target.value = '';
@@ -132,12 +132,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setExternalBusy(true);
     setExternalStatus(null);
     try {
-      const known = new Set(StorageService.getExercises().map((x) => x.id));
-      const result = await parseExternalExport(list, known);
+      const result = await parseExternalExport(list, StorageService.getExercises(), settings.weightUnit);
       const r = result.report;
       const created = [...r.customExercisesCreated, ...r.unknownExercisesAutoCreated];
       const lines = [
         `נמצא ייצוא של ${result.source}:`,
+        result.assumedUnit ? `(בקובץ אין יחידות משקל - המשקלים נקראו ב${result.assumedUnit === 'kg' ? 'ק״ג' : 'פאונד'}, כמו בהגדרות שלך)` : '',
         `• ${r.workouts} אימונים`,
         `• ${r.sets.toLocaleString('he-IL')} סטים ב-${r.exerciseEntries - r.cardioEntries} תרגילים`,
         r.cardioEntries > 0 ? `• ${r.cardioEntries} פעילויות קרדיו (יירשמו בהערת האימון עם משך הזמן)` : '',
@@ -454,7 +454,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           disabled={externalBusy}
         >
           {externalBusy ? <Loader2 size={16} className="spin" /> : <FileArchive size={16} />}
-          ייבוא נתונים
+          ייבוא מ-Strong, Hevy או Planfit
         </button>
         <input
           type="file"

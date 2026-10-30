@@ -1,6 +1,13 @@
 // פענוח CSV לפי RFC 4180: שדות במירכאות (כולל פסיקים, מירכאות כפולות ושורות חדשות בתוכם),
 // BOM בתחילת הקובץ ו-CRLF. מחזיר רשומות לפי שורת הכותרת.
-export function parseCsv(text: string): Record<string, string>[] {
+// המפריד מזוהה לפי שורת הכותרת: חלק מהאפליקציות (Strong באזורים מסוימים) מייצאות עם ';'.
+function sniffDelimiter(text: string): string {
+  const end = text.search(/[\r\n]/);
+  const header = end === -1 ? text : text.slice(0, end);
+  return (header.match(/;/g)?.length ?? 0) > (header.match(/,/g)?.length ?? 0) ? ';' : ',';
+}
+
+export function parseCsv(text: string, delimiter = sniffDelimiter(text)): Record<string, string>[] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';
@@ -23,7 +30,7 @@ export function parseCsv(text: string): Record<string, string>[] {
       continue;
     }
     if (ch === '"') inQuotes = true;
-    else if (ch === ',') {
+    else if (ch === delimiter) {
       row.push(field);
       field = '';
     } else if (ch === '\n' || ch === '\r') {

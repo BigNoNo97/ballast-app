@@ -226,8 +226,8 @@ export interface UserSettings {
   // ===== צ'אט ה-AI =====
   aiCoachConsentAt?: number; // מתי המשתמש אישר שליחת שאלות ל-Anthropic (חובה לפי הנחיה 5.1.2 של Apple)
   aiCoachShareData?: boolean; // undefined/true = לצרף את נתוני האפליקציה לשאלות, false = רק את השאלה
-  // ===== מחשבון צלחות =====
-  plateSetup?: { barKg: number; plates: number[] }; // המוט והצלחות שיש במכון
+  // ===== מחשבון פלטות =====
+  plateSetup?: { barKg: number; plates: number[] }; // המוט והפלטות שיש במכון
 }
 
 export type JointArea = 'shoulder' | 'elbow' | 'wrist' | 'neck' | 'lower_back' | 'hip' | 'knee' | 'ankle';

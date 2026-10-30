@@ -80,12 +80,12 @@ interface ActiveWorkoutProps {
   autoRestTimerEnabled?: boolean;
   onDisableAutoTimer?: () => void;
   onOpenExerciseProfile?: (exerciseId: string) => void;
-  /** המוט והצלחות שיש במכון של המשתמש - נשמר בהגדרות */
+  /** המוט והפלטות שיש במכון של המשתמש - נשמר בהגדרות */
   plateSetup?: PlateSetup;
   onSavePlateSetup?: (setup: PlateSetup) => void;
 }
 
-/** תרגילים שמעמיסים עליהם צלחות: מוט חופשי, סמית' ומכונות עם צלחות */
+/** תרגילים שמעמיסים עליהם פלטות: מוט חופשי, סמית' ומכונות עם פלטות */
 const usesPlates = (ex: Exercise) => ex.equipment === 'barbell' || ex.equipment === 'smith' || /plate-loaded|hammer-strength/.test(ex.id);
 
 export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
@@ -1110,7 +1110,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
                 }}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 10 }}
               >
-                <Disc size={14} /> מחשבון צלחות
+                <Disc size={14} /> מחשבון פלטות
               </button>
             )}
 
@@ -1818,7 +1818,7 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
         );
       })()}
 
-      {/* מחשבון צלחות לסט הנוכחי */}
+      {/* מחשבון פלטות לסט הנוכחי */}
       {plateSetIdx !== null && currentWorkoutEx && currentWorkoutEx.sets[plateSetIdx] && (
         <PlateCalculatorSheet
           initialKg={currentWorkoutEx.sets[plateSetIdx].weightKg || currentWorkoutEx.sets[plateSetIdx].previousWeight || 0}

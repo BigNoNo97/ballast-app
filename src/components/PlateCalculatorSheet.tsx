@@ -12,7 +12,7 @@ const BARS: { kg: number; label: string }[] = [
 
 const MAX_PLATE_PX = 118;
 
-/** המוט עם הצלחות משני הצדדים. הכבדות קרובות למרכז, כמו שמעמיסים באמת. */
+/** המוט עם הפלטות משני הצדדים. הכבדות קרובות למרכז, כמו שמעמיסים באמת. */
 const BarbellView: React.FC<{ load: PlateLoad | null; barKg: number; onRemove: (kg: number) => void }> = ({ load, barKg, onRemove }) => {
   const plates = load?.perSide ?? [];
   const plate = (kg: number, i: number, side: 'l' | 'r') => {
@@ -77,7 +77,7 @@ const BarbellView: React.FC<{ load: PlateLoad | null; barKg: number; onRemove: (
   );
 };
 
-/** מחשבון צלחות: כמה צלחות לשים על כל צד של המוט כדי להגיע למשקל של הסט. */
+/** מחשבון פלטות: כמה פלטות לשים על כל צד של המוט כדי להגיע למשקל של הסט. */
 export const PlateCalculatorSheet: React.FC<{
   initialKg: number;
   setup?: PlateSetup;
@@ -105,7 +105,7 @@ export const PlateCalculatorSheet: React.FC<{
   };
   const togglePlate = (kg: number) => {
     const has = setup.plates.includes(kg);
-    if (has && setup.plates.length === 1) return; // חייבת להישאר לפחות צלחת אחת
+    if (has && setup.plates.length === 1) return; // חייבת להישאר לפחות פלטה אחת
     updateSetup({ ...setup, plates: has ? setup.plates.filter((p) => p !== kg) : [...setup.plates, kg] });
   };
 
@@ -114,7 +114,7 @@ export const PlateCalculatorSheet: React.FC<{
       <div className="action-sheet" dir="rtl" onClick={(e) => e.stopPropagation()} style={{ maxHeight: 'calc(var(--app-vh, 1vh) * 90)', overflowY: 'auto' }}>
         <div className="sheet-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 800 }}>מחשבון צלחות</h3>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 800 }}>מחשבון פלטות</h3>
           <button
             onClick={onClose}
             aria-label="סגירה"
@@ -184,7 +184,7 @@ export const PlateCalculatorSheet: React.FC<{
             )
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
-              <p style={{ fontSize: '0.84rem', color: 'var(--color-orange)' }}>אי אפשר להרכיב בדיוק {formatKg(target)} ק"ג עם הצלחות שיש. הכי קרוב:</p>
+              <p style={{ fontSize: '0.84rem', color: 'var(--color-orange)' }}>אי אפשר להרכיב בדיוק {formatKg(target)} ק"ג עם הפלטות שיש. הכי קרוב:</p>
               <div style={{ display: 'flex', gap: 8 }}>
                 {[result.below, result.above].filter((x): x is PlateLoad => !!x).map((l) => (
                   <button key={l.totalKg} className="filter-chip" onClick={() => setTargetKg(l.totalKg)}>
@@ -204,9 +204,9 @@ export const PlateCalculatorSheet: React.FC<{
             </button>
           ))}
         </div>
-        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>הקשה על צלחת במוט מורידה אותה.</p>
+        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>הקשה על פלטה במוט מורידה אותה.</p>
 
-        <p style={label}>הצלחות שיש במכון</p>
+        <p style={label}>הפלטות שיש במכון</p>
         <div className="filter-chip-row">
           {DEFAULT_PLATES_KG.map((kg) => (
             <button key={kg} className={`filter-chip ${setup.plates.includes(kg) ? 'active' : ''}`} onClick={() => togglePlate(kg)} aria-pressed={setup.plates.includes(kg)}>

@@ -1,6 +1,6 @@
-// מחשבון צלחות: איך להעמיס מוט למשקל מסוים עם הצלחות שיש במכון.
-// עובדים ביחידות של 0.25 ק"ג (הצלחת הקטנה ביותר הנפוצה היא 1.25 = 5 יחידות), ומחשבים
-// בתכנות דינמי את ההעמסה עם הכי מעט צלחות לכל צד - לא חמדנות, שנכשלת למשל ב-30 ק"ג לצד
+// מחשבון פלטות: איך להעמיס מוט למשקל מסוים עם הפלטות שיש במכון.
+// עובדים ביחידות של 0.25 ק"ג (הפלטה הקטנה ביותר הנפוצה היא 1.25 = 5 יחידות), ומחשבים
+// בתכנות דינמי את ההעמסה עם הכי מעט פלטות לכל צד - לא חמדנות, שנכשלת למשל ב-30 ק"ג לצד
 // כשיש רק 20 ו-15 (15+15 עובד, 20+... לא).
 
 export const DEFAULT_PLATES_KG = [25, 20, 15, 10, 5, 2.5, 1.25];
@@ -8,12 +8,12 @@ export const DEFAULT_BAR_KG = 20;
 
 export interface PlateSetup {
   barKg: number;
-  /** סוגי הצלחות שיש במכון (כל סוג - בכמות לא מוגבלת, בזוגות) */
+  /** סוגי הפלטות שיש במכון (כל סוג - בכמות לא מוגבלת, בזוגות) */
   plates: number[];
 }
 
 export interface PlateLoad {
-  /** הצלחות לצד אחד, מהכבדה לקלה (בסדר שמעמיסים אותן) */
+  /** הפלטות לצד אחד, מהכבדה לקלה (בסדר שמעמיסים אותן) */
   perSide: number[];
   /** המשקל הכולל שהעמסה הזו נותנת */
   totalKg: number;
@@ -33,7 +33,7 @@ const UNIT = 0.25;
 const toUnits = (kg: number) => Math.round(kg / UNIT);
 const MAX_PER_SIDE_UNITS = toUnits(300);
 
-/** פתרון אחד לכל מספר יחידות לצד: הכי מעט צלחות, ובשוויון - צלחות כבדות קודם */
+/** פתרון אחד לכל מספר יחידות לצד: הכי מעט פלטות, ובשוויון - פלטות כבדות קודם */
 function solve(plates: number[], maxUnits: number): (number[] | null)[] {
   const kinds = [...new Set(plates.map(toUnits).filter((u) => u > 0))].sort((a, b) => b - a);
   const best: (number[] | null)[] = new Array(maxUnits + 1).fill(null);
@@ -85,7 +85,7 @@ export function calculatePlates(targetKg: number, setup: PlateSetup): PlateResul
   return { exact: null, below, above, underBar: false };
 }
 
-/** צבעי צלחות תחרות לפי התקן הבינלאומי (IWF), כדי שיתאימו למה שרואים במכון */
+/** צבעי פלטות תחרות לפי התקן הבינלאומי (IWF), כדי שיתאימו למה שרואים במכון */
 export function plateColor(kg: number): { fill: string; text: string } {
   if (kg >= 25) return { fill: '#d6312b', text: '#fff' };
   if (kg >= 20) return { fill: '#2b62d6', text: '#fff' };
@@ -96,7 +96,7 @@ export function plateColor(kg: number): { fill: string; text: string } {
   return { fill: '#b9bcc4', text: '#1a1a1a' };
 }
 
-/** גובה יחסי של צלחת (צלחות 10 ק"ג ומעלה באותו קוטר, הקטנות נמוכות יותר) */
+/** גובה יחסי של פלטה (פלטות 10 ק"ג ומעלה באותו קוטר, הקטנות נמוכות יותר) */
 export function plateHeight(kg: number): number {
   if (kg >= 15) return 1;
   if (kg >= 10) return 0.92;

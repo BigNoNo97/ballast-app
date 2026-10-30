@@ -20,6 +20,7 @@ import {
   FileText,
   Pause,
   Play,
+  Disc,
 } from 'lucide-react';
 import {
   WorkoutSession,
@@ -33,6 +34,8 @@ import { StorageService } from '../services/storage';
 import { getExerciseState } from '../services/progressionEngine';
 import { getWeightIncrement } from '../data/exerciseClassification';
 import { ExerciseSwapModal } from './ExerciseSwapModal';
+import { PlateCalculatorSheet } from './PlateCalculatorSheet';
+import type { PlateSetup } from '../services/plateMath';
 import { RestTimerModal } from './RestTimerModal';
 import { ExerciseThumbnail } from './ExerciseThumbnail';
 import { triggerHaptic } from '../services/sound';
@@ -77,7 +80,13 @@ interface ActiveWorkoutProps {
   autoRestTimerEnabled?: boolean;
   onDisableAutoTimer?: () => void;
   onOpenExerciseProfile?: (exerciseId: string) => void;
+  /** המוט והצלחות שיש במכון של המשתמש - נשמר בהגדרות */
+  plateSetup?: PlateSetup;
+  onSavePlateSetup?: (setup: PlateSetup) => void;
 }
+
+/** תרגילים שמעמיסים עליהם צלחות: מוט חופשי, סמית' ומכונות עם צלחות */
+const usesPlates = (ex: Exercise) => ex.equipment === 'barbell' || ex.equipment === 'smith' || /plate-loaded|hammer-strength/.test(ex.id);
 
 export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   workout,
@@ -90,7 +99,10 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
   autoRestTimerEnabled = true,
   onDisableAutoTimer,
   onOpenExerciseProfile,
+  plateSetup,
+  onSavePlateSetup,
 }) => {
+  const [plateSetIdx, setPlateSetIdx] = useState<number | null>(null);
   const [elapsedSec, setElapsedSec] = useState(() => computeElapsedSec(workout));
   const isTimerPaused = workout.pausedAt != null;
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -1089,6 +1101,19 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
               />
             </div>
 
+            {usesPlates(currentExData) && (
+              <button
+                className="filter-chip"
+                onClick={() => {
+                  const sets = currentWorkoutEx.sets;
+                  setPlateSetIdx(currentOpenSetIdx >= 0 ? currentOpenSetIdx : Math.max(0, sets.length - 1));
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 10 }}
+              >
+                <Disc size={14} /> מחשבון צלחות
+              </button>
+            )}
+
             {/* Sets Header */}
             <div
               style={{
@@ -1792,6 +1817,20 @@ export const ActiveWorkout: React.FC<ActiveWorkoutProps> = ({
           </div>
         );
       })()}
+
+      {/* מחשבון צלחות לסט הנוכחי */}
+      {plateSetIdx !== null && currentWorkoutEx && currentWorkoutEx.sets[plateSetIdx] && (
+        <PlateCalculatorSheet
+          initialKg={currentWorkoutEx.sets[plateSetIdx].weightKg || currentWorkoutEx.sets[plateSetIdx].previousWeight || 0}
+          setup={plateSetup}
+          onSaveSetup={(setup) => onSavePlateSetup?.(setup)}
+          onApply={(kg) => {
+            handleUpdateSet(safeCurrentIndex, plateSetIdx, 'weightKg', kg);
+            setPlateSetIdx(null);
+          }}
+          onClose={() => setPlateSetIdx(null)}
+        />
+      )}
 
       {/* Rest Timer Modal */}
       <RestTimerModal
